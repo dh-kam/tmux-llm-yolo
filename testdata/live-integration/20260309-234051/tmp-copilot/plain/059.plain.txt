@@ -1,0 +1,183 @@
+
+  `internal_options_bridge.go`: This one's creating a circular dependency - it's in `src/dex` but imports `src/graph`, which itself imports `src/dex`. The file sets up an init
+  function that uses `graph.NewDexItemFactory()` to inject a factory into the `utils` package, but this circular import pattern is exactly what's causing the build to fail.
+
+  `dex_call_site.go`: This file references `graph.DexString`, `graph.DexProto`, `graph.DexValue` without actually importing the graph package, so it's clearly broken.
+
+  The real issue is architectural - these types (`DexString`, `DexProto`, `DexValue`, `DexType`, `DexItemFactory`) belong in `src/dex` and `src/graph` should depend on them,
+  not the other way around. That would require significant refactoring though. For a quicker fix, I need to break the circular dependency by either moving these types or
+  restructuring the imports.
+
+  The pragmatic approach is to move the graph-dependent files (`dex_call_site.go`, `internal_options_bridge.go`, and the relevant methods from `classes_checksum.go` and
+  `marker.go`) into `src/graph` since they're tightly coupled to graph types anyway. `internal_options_bridge.go` might belong higher up in the package hierarchy, but I need to
+   figure out where it's actually being used first. I'm moving `dex_call_site.go` and `internal_options_bridge.go` to `src/graph`, then extracting the `ToDexString` and `Parse`
+   methods from `marker.go` to the graph package as well, which keeps the circular dependency issue from arising.
+
+  Wait, I realize `classes_checksum.go` is already in `src/graph`, not `src/dex` — I was mistaken earlier about needing to move it or change its signature.
+
+  Looking at the actual files causing the cycle in `src/dex`, the real culprits are `dex_call_site.go` which references graph types without importing the package,
+  `internal_options_bridge.go` and `marker.go` which both import `src/graph`. The build is failing because `dex_call_site.go` tries to use `graph.DexString` and related types
+  but has no import for the graph package, and there's still a circular dependency somewhere in the module structure. I'm realizing the python script would have failed trying
+  to read a non-existent file, unless it was iterating through files that actually exist. Let me trace back through what files were actually being processed in that loop to
+  understand where the cycle is really coming from. But `src/dex/classes_checksum.go` doesn't exist! So `open('src/dex/classes_checksum.go').read()` would throw a
+  FileNotFoundError! But the loop continued to other files... unless python silently handled it.
+
+  Actually, looking at my python script:
+  ```python
+  content = open('$f').read()
+  ...
+  open('$f', 'w').write(content)
+  ```
+
+  If `$f` doesn't exist, `open('$f').read()` would raise `FileNotFoundError`, and the script would exit with error, but the bash loop would continue to the next file because of
+   how Python errors propagate in the bash for loop.
+
+  Wait, but the original grep output showed `src/dex/classes_checksum.go:7:...`. Let me re-check the original grep from earlier in this conversation. From my bash command:
+  `grep -rn '"github.com/dh-kam/r8-go/src/graph"' src/dex/*.go | grep -v "_test.go"` and the output showed: `src/dex/classes_checksum.go:7:
+  "github.com/dh-kam/r8-go/src/graph"`. But `find /workspace/tmp/r8_go -name "classes_checksum.go"` shows it's at `src/graph/classes_checksum.go`, not in `src/dex/`. So the
+  grep pattern `src/dex/*.go` shouldn't have matched a file in `src/graph/` at all.
+
+  Unless... the grep output was from a different directory or the file was actually in both locations? Or maybe I misread the grep output. Let me think about what's actually
+  happening here by re-running the commands to verify.
+
+● List all go files in src/dex
+  $ find /workspace/tmp/r8_go/src/dex -name "*.go" | sort && echo "---TOTAL:" && find /workspace/tmp/r8_go/src/dex -name "*.go" | wc -l
+  └ 73 lines...
+
+◐ I see - `src/dex/dex_call_site.go` exists but doesn't import `graph`. And I don't see `internal_options_bridge.go` or `marker.go` in the list!
+
+  Wait, where are `internal_options_bridge.go` and `marker.go`? They showed up in my earlier `ls src/dex/` output:
+  ```
+  binary_reader.go
+  classes_checksum.go
+  compat_byte_buffer.go
+  ...
+  internal_options_bridge.go
+  ...
+  marker.go
+  ...
+  ```
+
+  But now they're not in the `find` output! Either:
+
+
+  1. They were deleted somehow
+  2. They were never in `src/dex/` and I misread the earlier `ls` output
+
+  Let me double-check by listing the directory again and specifically looking for those two files.
+
+● Check for marker and internal files in dex
+  $ ls /workspace/tmp/r8_go/src/dex/marker* /workspace/tmp/r8_go/src/dex/internal* 2>&1
+  └ 3 lines...
+
+● Find marker.go and internal_options_bridge.go
+  $ find /workspace/tmp/r8_go -name "marker.go" -o -name "internal_options_bridge.go" 2>/dev/null
+  └ 4 lines...
+
+◐ `marker.go` and `internal_options_bridge.go` are in `src/graph/`, NOT in `src/dex/`! And `classes_checksum.go` is also in `src/graph/`. My earlier grep output was wrong - I
+  was reading the grep output incorrectly.
+
+  Let me go back and understand the original issue. Looking at the first `go build ./...` error after cleaning cache:
+  ```
+  package github.com/dh-kam/r8-go/src/dex
+      imports github.com/dh-kam/r8-go/src/graph from classes_checksum.go
+
+
+  ```
+
+  This error is saying:
+  1. `src/dex` package imports `src/graph` - from `classes_checksum.go` (but the file is in `src/graph/classes_checksum.go`, not `src/dex/classes_checksum.go`)
+  2. `src/graph` imports `src/dex` - from `app_view.go`
+
+  So there's a circular dependency where `src/dex` imports `src/graph` and `src/graph` imports `src/dex` back. I need to find which file in `src/dex` is actually importing
+  `src/graph` to understand where this cycle originates.
+
+  ```
+
+● Find remaining dex production files importing graph
+  $ find /workspace/tmp/r8_go/src/dex -name "*.go" | grep -v "_test.go" | xargs grep -l '"github.com/dh-kam/r8-go/src/graph"' 2>/dev/null
+  └ 2 lines...
+
+● Check dex_call_site.go imports and graph usage
+  $ grep -n "import\|graph\." /workspace/tmp/r8_go/src/dex/dex_call_site.go | head -20
+  └ 11 lines...
+
+◐ Wait, `dex_call_site.go` uses `graph.DexString`, `graph.DexProto`, `graph.DexValue` BUT the `import` only has `"fmt"`. The `graph` package is not imported! The file is
+  broken.
+
+  But earlier my grep showed:
+  ```src/dex/dex_call_site.go:7:19: undefined: DexString
+  ```That was from the build failure - `DexString` is referenced as just `DexString` (no package qualifier). But now looking at the file, it references `graph.DexString` WITH
+  the `graph.` prefix.
+
+
+  This is contradictory. Let me check the actual file again - looking at the cat output, the struct definition clearly uses `graph.DexString`, `graph.DexProto`, and
+  `graph.DexValue`, but the imports section only has `"fmt"` with no `graph` import, which would definitely cause an undefined error.
+
+  The build error message says `dex_call_site.go:7:19: undefined: DexString`, which is strange because if the file actually uses `graph.DexString`, the error should reference
+  that qualified name. This inconsistency suggests the file content might have changed, or I'm looking at a different version than what was actually compiled.
+
+● Check exact content of dex_call_site.go
+  $ head -15 /workspace/tmp/r8_go/src/dex/dex_call_site.go
+  └ 2 lines...
+
+● Find dex_call_site.go
+  $ find /workspace/tmp/r8_go -name "dex_call_site.go" 2>/dev/null
+  └ 2 lines...
+
+◐ All these files are actually in `src/graph/`, not `src/dex/`! My earlier `ls src/dex/` output was wrong or I misread it.
+
+  So the actual source of the cycle is different. Let me do a fresh analysis. The build error says:
+  ```
+  package github.com/dh-kam/r8-go/src/dex    imports github.com/dh-kam/r8-go/src/graph from classes_checksum.go
+  ```
+
+  But `classes_checksum.go` is in `src/graph/`, not `src/dex/`. This error message doesn't mean the file is in `src/dex/`.
+
+  The error is telling me that `src/dex` has a file importing `src/graph`, and the cycle detection traced through `classes_checksum.go` to find it. Looking at the full error
+  output, I can see the chain: the root package imports `cmd`, which imports something that eventually creates the cycle back to `src/dex` or `src/graph`. I'm tracing through
+  the import cycle step by step—starting from main importing cmd, then following the chain through native_pipeline, writerintegration, covariantreturntype, and
+  class_synthesizer until it loops back when dex/classes_checksum imports graph. The issue is that classes_checksum actually exists in the dex directory, not where the find
+  command initially suggested, which is creating this circular dependency.
+
+● Find ALL instances of the files
+  $ find /workspace/tmp/r8_go -name "classes_checksum.go" && echo "---" && find /workspace/tmp/r8_go -name "dex_call_site.go"
+  └ 4 lines...
+
+● Check dex package build and remaining graph imports
+  $ cd /workspace/tmp/r8_go && go build ./src/dex/... 2>&1; echo "---" && grep -rn '"github.com/dh-kam/r8-go/src/graph"' src/dex/ 2>/dev/null | grep -v "_test.go"
+  └ 2 lines...
+
+◐ Both commands returned empty. The `go build ./src/dex/...` returned exit code 1 with no output, and the grep returned no results (exit code 1 means no matches found).
+
+  Let me try `go build ./src/dex/...` in verbose mode to understand what's happening.
+
+  Actually, wait - the exit code is 1 but there's no output? That's strange. Let me run again with explicit output:
+
+● Check dex build with explicit status
+  $ cd /workspace/tmp/r8_go && go build ./src/dex/... 2>&1; echo "BUILD_EXIT:$?"
+  └ 2 lines...
+
+● Full build check
+  $ cd /workspace/tmp/r8_go && go build ./... 2>&1; echo "BUILD_EXIT:$?"
+  └ 14 lines...
+
+◐ Now I can see the actual problems more clearly:1. `src/graph/field_signature.go` - uses `GraphDexField` but it's undefined
+  2. `src/graph/marker.go:384,406` - uses `graph.` (unqualified self-reference in the graph package)
+  3. `src/graph/classes_checksum.go` - has the half-edited code I made earlier! The `TryParseAndAppend` I edited is now using `mutf8BytesToString` which doesn't exist.
+
+  The issues in `classes_checksum.go` are from my editing - I changed the `TryParseAndAppend` function but introduced bugs.
+
+  I need to correct my earlier analysis - `marker.go` is actually in `src/graph/`, not `src/dex/`, which means those invalid `graph.` references are self-references within the
+  same package. Let me look at what `classes_checksum.go` currently contains to understand the scope of the damage from my edits.
+
+∙ Deep architecture analysis (Esc to cancel · 110 B)
+
+ /workspace/tmp                                                                                                                                   claude-sonnet-4.6 (medium) (1x)
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 프로젝트 코드 분석해봐. 개선포인트를 찾고 하나씩 진행하자.
+  진행률을 점검하고 미진한 부분, 누락된 작업, 남은 리스크를 리스트업한 뒤 우선순위 높은 것부터 진행해보자.
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ shift+tab switch mode · ctrl+q enqueue · ctrl+s run command ​                                                                                               Remaining reqs.: 98%
+

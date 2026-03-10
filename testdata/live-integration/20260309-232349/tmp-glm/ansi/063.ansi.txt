@@ -1,0 +1,183 @@
+[38;5;75m●[39m [1mWrite[0m(src/main/java/com/android/tools/r8/config/CompilationConfiguration.java)
+  ⎿  Wrote [1m52[0m lines to [1msrc/main/java/com/android/tools/r8/config/CompilationConfiguration.java[0m
+     [32m//[39m [32mCopyright[39m [32m(c)[39m [32m2025,[39m [32mthe[39m [32mR8[39m [32mproject[39m [32mauthors.[39m [32mPlease[39m [32msee[39m [32mthe[39m [32mAUTHORS[39m [32mfile[39m
+     [32m//[39m [32mfor[39m [32mdetails.[39m [32mAll[39m [32mrights[39m [32mreserved.[39m [32mUse[39m [32mof[39m [32mthis[39m [32msource[39m [32mcode[39m [32mis[39m [32mgoverned[39m [32mby[39m [32ma[39m
+     [32m//[39m [32mBSD-style[39m [32mlicense[39m [32mthat[39m [32mcan[39m [32mbe[39m [32mfound[39m [32min[39m [32mthe[39m [32mLICENSE[39m [32mfile.[39m
+     [34mpackage[39m com.android.tools.r8.config;
+
+     [34mimport[39m com.android.tools.r8.CompilationMode;
+     [34mimport[39m com.android.tools.r8.ProgramConsumer;
+
+     [32m/**[39m
+     [32m *[39m [32mConfiguration[39m [32minterface[39m [32mfor[39m [32mcompilation[39m [32msettings.[39m
+     [38;5;246m…[39m [38;5;246m+42[39m [38;5;246mlines[39m [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;239m[48;5;237m❯ [38;5;231ms/w architect 관점에서 현재 구조를 분석하고 결합도, 책임 분리, 확장성, 테스트 용이성 측면 개선 포인트를 찾아 적용하자. [39m[49m
+
+[38;5;231m●[39m [1m2단계:[0m [1mOptimizationConfiguration[0m [1m인터페이스[0m [1m생성[0m
+
+[38;5;75m●[39m [1mWrite[0m(src/main/java/com/android/tools/r8/config/OptimizationConfiguration.java)
+  ⎿  Wrote [1m113[0m lines to [1msrc/main/java/com/android/tools/r8/config/OptimizationConfiguration.java[0m
+     [32m//[39m [32mCopyright[39m [32m(c)[39m [32m2025,[39m [32mthe[39m [32mR8[39m [32mproject[39m [32mauthors.[39m [32mPlease[39m [32msee[39m [32mthe[39m [32mAUTHORS[39m [32mfile[39m
+     [32m//[39m [32mfor[39m [32mdetails.[39m [32mAll[39m [32mrights[39m [32mreserved.[39m [32mUse[39m [32mof[39m [32mthis[39m [32msource[39m [32mcode[39m [32mis[39m [32mgoverned[39m [32mby[39m [32ma[39m
+     [32m//[39m [32mBSD-style[39m [32mlicense[39m [32mthat[39m [32mcan[39m [32mbe[39m [32mfound[39m [32min[39m [32mthe[39m [32mLICENSE[39m [32mfile.[39m
+     [34mpackage[39m com.android.tools.r8.config;
+
+     [32m/**[39m
+     [32m *[39m [32mConfiguration[39m [32minterface[39m [32mfor[39m [32moptimization[39m [32msettings.[39m
+     [32m *[39m [32mThis[39m [32mfollows[39m [32mSingle[39m [32mResponsibility[39m [32mPrinciple[39m [32m(SRP)[39m [32mby[39m [32mfocusing[39m
+     [32m *[39m [32msolely[39m [32mon[39m [32moptimization-related[39m [32mconfiguration.[39m
+     [32m *[39m
+     [38;5;246m…[39m [38;5;246m+103[39m [38;5;246mlines[39m [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;231m●[39m [1m3단계:[0m [1mDesugaringConfiguration[0m [1m인터페이스[0m [1m생성[0m
+
+[38;5;75m●[39m [1mWrite[0m(src/main/java/com/android/tools/r8/config/DesugaringConfiguration.java)
+  ⎿  Wrote [1m103[0m lines to [1msrc/main/java/com/android/tools/r8/config/DesugaringConfiguration.java[0m
+     [32m//[39m [32mCopyright[39m [32m(c)[39m [32m2025,[39m [32mthe[39m [32mR8[39m [32mproject[39m [32mauthors.[39m [32mPlease[39m [32msee[39m [32mthe[39m [32mAUTHORS[39m [32mfile[39m
+     [32m//[39m [32mfor[39m [32mdetails.[39m [32mAll[39m [32mrights[39m [32mreserved.[39m [32mUse[39m [32mof[39m [32mthis[39m [32msource[39m [32mcode[39m [32mis[39m [32mgoverned[39m [32mby[39m [32ma[39m
+     [32m//[39m [32mBSD-style[39m [32mlicense[39m [32mthat[39m [32mcan[39m [32mbe[39m [32mfound[39m [32min[39m [32mthe[39m [32mLICENSE[39m [32mfile.[39m
+     [34mpackage[39m com.android.tools.r8.config;
+
+     [34mimport[39m com.android.tools.r8.utils.InternalOptions.DesugarState;
+     [34mimport[39m com.android.tools.r8.utils.OffOrAuto;
+
+     [32m/**[39m
+     [32m *[39m [32mConfiguration[39m [32minterface[39m [32mfor[39m [32mdesugaring[39m [32msettings.[39m
+     [38;5;246m…[39m [38;5;246m+93[39m [38;5;246mlines[39m [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;231m●[39m [1m4단계:[0m [1mThreadingConfiguration[0m [1m인터페이스[0m [1m생성[0m
+
+[38;5;75m●[39m [1mWrite[0m(src/main/java/com/android/tools/r8/config/ThreadingConfiguration.java)
+  ⎿  Wrote [1m40[0m lines to [1msrc/main/java/com/android/tools/r8/config/ThreadingConfiguration.java[0m
+     [32m//[39m [32mCopyright[39m [32m(c)[39m [32m2025,[39m [32mthe[39m [32mR8[39m [32mproject[39m [32mauthors.[39m [32mPlease[39m [32msee[39m [32mthe[39m [32mAUTHORS[39m [32mfile[39m
+     [32m//[39m [32mfor[39m [32mdetails.[39m [32mAll[39m [32mrights[39m [32mreserved.[39m [32mUse[39m [32mof[39m [32mthis[39m [32msource[39m [32mcode[39m [32mis[39m [32mgoverned[39m [32mby[39m [32ma[39m
+     [32m//[39m [32mBSD-style[39m [32mlicense[39m [32mthat[39m [32mcan[39m [32mbe[39m [32mfound[39m [32min[39m [32mthe[39m [32mLICENSE[39m [32mfile.[39m
+     [34mpackage[39m com.android.tools.r8.config;
+
+     [34mimport[39m com.android.tools.r8.threading.ThreadingModule;
+     [34mimport[39m java.util.concurrent.ExecutorService;
+
+     [32m/**[39m
+     [32m *[39m [32mConfiguration[39m [32minterface[39m [32mfor[39m [32mthreading[39m [32msettings.[39m
+     [38;5;246m…[39m [38;5;246m+30[39m [38;5;246mlines[39m [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;231m●[39m [1m5단계:[0m [1mApiLevelConfiguration[0m [1m인터페이스[0m [1m생성[0m
+
+[38;5;75m●[39m [1mWrite[0m(src/main/java/com/android/tools/r8/config/ApiLevelConfiguration.java)
+  ⎿  Wrote [1m49[0m lines to [1msrc/main/java/com/android/tools/r8/config/ApiLevelConfiguration.java[0m
+     [32m//[39m [32mCopyright[39m [32m(c)[39m [32m2025,[39m [32mthe[39m [32mR8[39m [32mproject[39m [32mauthors.[39m [32mPlease[39m [32msee[39m [32mthe[39m [32mAUTHORS[39m [32mfile[39m
+     [32m//[39m [32mfor[39m [32mdetails.[39m [32mAll[39m [32mrights[39m [32mreserved.[39m [32mUse[39m [32mof[39m [32mthis[39m [32msource[39m [32mcode[39m [32mis[39m [32mgoverned[39m [32mby[39m [32ma[39m
+     [32m//[39m [32mBSD-style[39m [32mlicense[39m [32mthat[39m [32mcan[39m [32mbe[39m [32mfound[39m [32min[39m [32mthe[39m [32mLICENSE[39m [32mfile.[39m
+     [34mpackage[39m com.android.tools.r8.config;
+
+     [34mimport[39m com.android.tools.r8.utils.AndroidApiLevel;
+
+     [32m/**[39m
+     [32m *[39m [32mConfiguration[39m [32minterface[39m [32mfor[39m [32mAndroid[39m [32mAPI[39m [32mlevel[39m [32msettings.[39m
+     [32m *[39m [32mThis[39m [32mfollows[39m [32mSingle[39m [32mResponsibility[39m [32mPrinciple[39m [32m(SRP)[39m [32mby[39m [32mfocusing[39m
+     [38;5;246m…[39m [38;5;246m+39[39m [38;5;246mlines[39m [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;231m●[39m [1m6단계:[0m [1mConsumerConfiguration[0m [1m인터페이스[0m [1m생성[0m
+
+[38;5;246m●[39m [1mWrite[0m(src/main/java/com/android/tools/r8/config/ConsumerConfiguration.java)
+
+[38;5;153m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[39m [1m[38;5;153mCreate[0m [1m[38;5;153mfile[0m
+ [38;5;246msrc/main/java/com/android/tools/r8/config/ConsumerConfiguration.java[39m
+[2m[38;5;239m╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+[0m [32m//[39m [32mCopyright[39m [32m(c)[39m [32m2025,[39m [32mthe[39m [32mR8[39m [32mproject[39m [32mauthors.[39m [32mPlease[39m [32msee[39m [32mthe[39m [32mAUTHORS[39m [32mfile[39m
+ [32m//[39m [32mfor[39m [32mdetails.[39m [32mAll[39m [32mrights[39m [32mreserved.[39m [32mUse[39m [32mof[39m [32mthis[39m [32msource[39m [32mcode[39m [32mis[39m [32mgoverned[39m [32mby[39m [32ma[39m
+ [32m//[39m [32mBSD-style[39m [32mlicense[39m [32mthat[39m [32mcan[39m [32mbe[39m [32mfound[39m [32min[39m [32mthe[39m [32mLICENSE[39m [32mfile.[39m
+ [34mpackage[39m com.android.tools.r8.config;
+
+ [34mimport[39m com.android.tools.r8.AndroidResourceConsumer;
+ [34mimport[39m com.android.tools.r8.AndroidResourceProvider;
+ [34mimport[39m com.android.tools.r8.ClassFileConsumer;
+ [34mimport[39m com.android.tools.r8.DataResourceConsumer;
+ [34mimport[39m com.android.tools.r8.DesugarGraphConsumer;
+ [34mimport[39m com.android.tools.r8.DexFilePerClassFileConsumer;
+ [34mimport[39m com.android.tools.r8.DexIndexedConsumer;
+ [34mimport[39m com.android.tools.r8.GlobalSyntheticsConsumer;
+ [34mimport[39m com.android.tools.r8.ProgramConsumer;
+ [34mimport[39m com.android.tools.r8.SyntheticInfoConsumer;
+ [34mimport[39m java.util.function.Consumer;
+
+ [32m/**[39m
+ [32m *[39m [32mConfiguration[39m [32minterface[39m [32mfor[39m [32mconsumer[39m [32msettings.[39m
+ [32m *[39m [32mThis[39m [32mfollows[39m [32mInterface[39m [32mSegregation[39m [32mPrinciple[39m [32m(ISP)[39m [32mby[39m [32mseparating[39m
+ [32m *[39m [32moutput[39m [32mconsumer[39m [32mconfiguration[39m [32mfrom[39m [32mother[39m [32msettings.[39m
+ [32m *[39m
+ [32m *[39m [32m<p>Benefits:[39m
+ [32m *[39m [32m<ul>[39m
+ [32m *[39m   [32m<li>Clear[39m [32mcontract[39m [32mfor[39m [32moutput[39m [32mhandling</li>[39m
+ [32m *[39m   [32m<li>Easier[39m [32mto[39m [32mimplement[39m [32mcustom[39m [32moutput[39m [32mstrategies</li>[39m
+ [32m *[39m   [32m<li>Better[39m [32mtestability[39m [32mwith[39m [32mmock[39m [32mconsumers</li>[39m
+ [32m *[39m [32m</ul>[39m
+ [32m */[39m
+ [34mpublic[39m [34minterface[39m [34mConsumerConfiguration[39m {
+
+   [32m//[39m [32m==========[39m [32mProgram[39m [32mConsumer[39m [32m==========
+
+[39m   [32m/**[39m [32mReturns[39m [32mthe[39m [32mprogram[39m [32mconsumer[39m [32mfor[39m [32moutput.[39m [32m*/[39m
+   [33mProgramConsumer[39m [33mgetProgramConsumer()[39m;
+
+   [32m/**[39m [32mReturns[39m [32mtrue[39m [32mif[39m [32ma[39m [32mprogram[39m [32mconsumer[39m [32mis[39m [32mset.[39m [32m*/[39m
+   [34mboolean[33m hasConsumer()[39m;
+
+   [32m/**[39m [32mReturns[39m [32mthe[39m [32mDEX[39m [32mindexed[39m [32mconsumer[39m [32mif[39m [32mapplicable.[39m [32m*/[39m
+   [33mDexIndexedConsumer[39m [33mgetDexIndexedConsumer()[39m;
+
+   [32m/**[39m [32mReturns[39m [32mthe[39m [32mDEX[39m [32mfile[39m [32mper[39m [32mclass[39m [32mconsumer[39m [32mif[39m [32mapplicable.[39m [32m*/[39m
+   [33mDexFilePerClassFileConsumer[39m [33mgetDexFilePerClassFileConsumer()[39m;
+
+   [32m/**[39m [32mReturns[39m [32mthe[39m [32mclass[39m [32mfile[39m [32mconsumer[39m [32mif[39m [32mapplicable.[39m [32m*/[39m
+   [33mClassFileConsumer[39m [33mgetClassFileConsumer()[39m;
+
+   [32m//[39m [32m==========[39m [32mResource[39m [32mConsumers[39m [32m==========[39m
+
+   [32m/**[39m [32mReturns[39m [32mthe[39m [32mdata[39m [32mresource[39m [32mconsumer.[39m [32m*/[39m
+   [33mDataResourceConsumer[39m [33mgetDataResourceConsumer()[39m;
+
+   [32m/**[39m [32mReturns[39m [32mthe[39m [32mAndroid[39m [32mresource[39m [32mprovider.[39m [32m*/[39m
+   [33mAndroidResourceProvider[39m [33mgetAndroidResourceProvider()[39m;
+
+   [32m/**[39m [32mReturns[39m [32mthe[39m [32mAndroid[39m [32mresource[39m [32mconsumer.[39m [32m*/[39m
+   [33mAndroidResourceConsumer[39m [33mgetAndroidResourceConsumer()[39m;
+
+   [32m//[39m [32m==========[39m [32mSpecial[39m [32mConsumers[39m [32m==========[39m
+
+   [32m/**[39m [32mReturns[39m [32mthe[39m [32mglobal[39m [32msynthetics[39m [32mconsumer.[39m [32m*/[39m
+   [33mGlobalSyntheticsConsumer[39m [33mgetGlobalSyntheticsConsumer()[39m;
+
+   [32m/**[39m [32mReturns[39m [32mtrue[39m [32mif[39m [32ma[39m [32mglobal[39m [32msynthetics[39m [32mconsumer[39m [32mis[39m [32mset.[39m [32m*/[39m
+   [34mboolean[33m hasGlobalSyntheticsConsumer()[39m;
+
+   [32m/**[39m [32mReturns[39m [32mthe[39m [32msynthetic[39m [32minfo[39m [32mconsumer.[39m [32m*/[39m
+   [33mSyntheticInfoConsumer[39m [33mgetSyntheticInfoConsumer()[39m;
+
+   [32m/**[39m [32mReturns[39m [32mthe[39m [32mdesugar[39m [32mgraph[39m [32mconsumer.[39m [32m*/[39m
+   [33mDesugarGraphConsumer[39m [33mgetDesugarGraphConsumer()[39m;
+
+   [32m//[39m [32m==========[39m [32mMetadata[39m [32mConsumers[39m [32m==========[39m
+
+   [32m/**[39m [32mReturns[39m [32mthe[39m [32mbuild[39m [32mmetadata[39m [32mconsumer[39m [32mfor[39m [32mD8.[39m [32m*/[39m
+   Consumer<?> getD8BuildMetadataConsumer();
+
+   [32m/**[39m [32mReturns[39m [32mthe[39m [32mbuild[39m [32mmetadata[39m [32mconsumer[39m [32mfor[39m [32mR8.[39m [32m*/[39m
+   Consumer<?> getR8BuildMetadataConsumer();
+
+   [32m//[39m [32m==========[39m [32mLifecycle[39m [32m==========[39m
+
+   [32m/**[39m [32mSignals[39m [32mcompletion[39m [32mto[39m [32mall[39m [32mregistered[39m [32mconsumers.[39m [32m*/[39m
+   [34mvoid[33m signalFinishedToConsumers()[39m;
+ }
+
+[2m[38;5;239m╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+[0m Do you want to create [1mConsumerConfiguration.java[0m?
+ [38;5;153m❯[39m [38;5;246m1.[39m [38;5;153mYes[39m
+   [38;5;246m2.[39m Yes, allow all edits during this session [1m(shift+tab)[0m
+   [38;5;246m3.[39m No
+
+ [38;5;246mEsc[39m [38;5;246mto[39m [38;5;246mcancel[39m [38;5;246m·[39m [38;5;246mTab[39m [38;5;246mto[39m [38;5;246mamend[39m
+

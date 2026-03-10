@@ -1,0 +1,115 @@
+│ Implements 'GeoIPRepository' using MaxMind DB. It supports dual-stack (IPv4/IPv6) by loading separate '.mmdb'       │
+│ files.\n   - Handler: Implements 'IfconfigHandler', using the Gin router to serve the '/ifconfig' endpoint.\n3.     │
+│ Geolocation Features: A standout feature is the use of Go's 'embed' package to package the MaxMind '.mmdb' files    │
+│ directly into the binary, allowing for a zero-dependency deployment. It also allows overriding the embedded DB with │
+│ an external file via CLI flags.\n4. Interaction Flow: The 'serve' command initializes the repository (loading DBs), │
+│ injects it into the usecase, which is then injected into the handler. When a request arrives, the handler calls the │
+│ usecase, which queries the repository, and the result is returned as JSON.\n\nNote: My investigation was            │
+│ interrupted before I could finish reading the handler implementation details, but the overall architecture and      │
+│ interaction patterns are clearly established from the other layers.",                                               │
+│   "ExplorationTrace": [                                                                                             │
+│     "Read README.md to understand project overview and structure.",                                                 │
+│     "Read main.go and cmd/ files to understand entry point and CLI structure (Cobra).",                             │
+│     "Read internal/domain/geo.go to identify domain entities and repository interfaces.",                           │
+│     "Read internal/repository/geo_repository.go to understand data access layer (MaxMind DB).",                     │
+│     "Read internal/data/embed.go to understand how GeoLite2 DBs are embedded.",                                     │
+│     "Read internal/usecase/geo_usecase.go to understand business logic layer.",                                     │
+│     "Attempted to read internal/handler/ifconfig_handler.go to understand the delivery layer (Gin)."                │
+│   ],                                                                                                                │
+│   "RelevantLocations": [                                                                                            │
+│     {                                                                                                               │
+│       "FilePath": "internal/domain/geo.go",                                                                         │
+│       "Reasoning": "Defines the core domain entity and the interface for the geolocation repository, which is the   │
+│ heart of the Clean Architecture dependency inversion.",                                                             │
+│       "KeySymbols": [                                                                                               │
+│         "GeoLocation",                                                                                              │
+│         "GeoRepository"                                                                                             │
+│       ]                                                                                                             │
+│     },                                                                                                              │
+│     {                                                                                                               │
+│       "FilePath": "internal/repository/geo_repository.go",                                                          │
+│       "Reasoning": "Implements the GeoRepository interface using the MaxMind database. Handles both embedded data   │
+│ and external files, and supports IPv4/IPv6 dual stack.",                                                            │
+│       "KeySymbols": [                                                                                               │
+│         "GeoIPRepository",                                                                                          │
+│         "Lookup"                                                                                                    │
+│       ]                                                                                                             │
+│     },                                                                                                              │
+│     {                                                                                                               │
+│       "FilePath": "internal/usecase/geo_usecase.go",                                                                │
+│       "Reasoning": "Contains the business logic, acting as an intermediary between the handler and the              │
+│ repository.",                                                                                                       │
+│       "KeySymbols": [                                                                                               │
+│         "GeoUsecase",                                                                                               │
+│         "GetLocationByIP"                                                                                           │
+│       ]                                                                                                             │
+│     },                                                                                                              │
+│     {                                                                                                               │
+│       "FilePath": "internal/handler/ifconfig_handler.go",                                                           │
+│       "Reasoning": "Handles HTTP requests using the Gin framework, extracts client IP, and formats the response.",  │
+│       "KeySymbols": [                                                                                               │
+│         "IfconfigHandler",                                                                                          │
+│         "RegisterRoutes"                                                                                            │
+│       ]                                                                                                             │
+│     },                                                                                                              │
+│     {                                                                                                               │
+│       "FilePath": "cmd/serve.go",                                                                                   │
+│       "Reasoning": "The assembly point of the application where dependencies are injected and the server is         │
+│ started.",                                                                                                          │
+│       "KeySymbols": [                                                                                               │
+│         "runServe"                                                                                                  │
+│       ]                                                                                                             │
+│     }                                                                                                               │
+│   ]                                                                                                                 │
+│ }                                                                                                                   │
+│                                                                                                                     │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+✦ I'll examine the handler implementation and project dependencies to complete the architectural overview.
+
+╭─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ✓  ReadFile internal/.../ifconfig_handler.go                                                                        │
+│                                                                                                                     │
+│                                                                                                                     │
+│ ✓  ReadFile go.mod                                                                                                  │
+│                                                                                                                     │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+✦ I'll review the server initialization in cmd/serve.go to understand the dependency injection and lifecycle management.
+
+╭─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ✓  ReadFile cmd/serve.go                                                                                            │
+│                                                                                                                     │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+✦ 이 프로젝트는 Go 언어로 작성된 IP 지리 정보 제공 서비스(ifconfig-service)입니다. 전체적인 구조는 Clean Architecture
+  패턴을 따르고 있으며, 주요 특징은 다음과 같습니다.
+
+
+  1. 기술 스택 및 라이브러리
+   * 언어: Go 1.23.1
+   * 웹 프레임워크: Gin (HTTP 핸들링)
+   * CLI 프레임워크: Cobra (서버 실행 및 플래그 관리)
+   * 데이터베이스: MaxMind GeoLite2 (IP 지리 정보 DB)
+   * 기타: embed 패키지를 사용하여 .mmdb 파일을 바이너리에 내장함으로써 배포 편의성을 높였습니다.
+
+
+  2. 아키텍처 구조 (internal/ 디렉토리 기반)
+   * Domain (`internal/domain`): GeoLocation 엔티티와 GeoRepository 인터페이스를 정의합니다. 비즈니스 로직의 핵심 데이터
+     구조가 위치합니다.
+   * Repository (`internal/repository`): MaxMind DB를 사용하여 실제 데이터를 조회하는 계층입니다. embed된 데이터를 기본으로
+     사용하며, 외부 DB 파일을 지정할 수도 있습니다. IPv4와 IPv6를 모두 지원하는 듀얼 스택 구조입니다.
+   * Usecase (`internal/usecase`): 핸들러와 리포지토리 사이의 비즈니스 로직을 담당합니다. 핸들러로부터 IP를 전달받아
+     리포지토리에 조회 요청을 보냅니다.
+   * Handler (`internal/handler`): Gin을 사용하여 HTTP 요청을 처리합니다. 특히 X-Forwarded-For, X-Real-IP 헤더를 확인하여
+     프록시 환경에서도 실제 클라이언트 IP를 추출하는 로직이 포함되어 있습니다.
+
+
+  3. 주요 기능 및 진입점
+   * 진입점 (`main.go`, `cmd/`): cobra를 통해 serve 명령어로 서버를 시작합니다.
+
+
+ ⠇ Shipping awesomeness…  (esc to cancel, 1m 44s)                                                          ? for shortcuts 
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ >   Type your message or @path/to/file
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ /workspace/location                             no sandbox (see /docs)                             /model Auto (Gemini 3)
+

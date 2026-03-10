@@ -1,0 +1,115 @@
+
+• Ran sed -n '1,220p' r8_go/src/cf/code/cf_subtyping_assignability.go; echo '---'; sed -n '1,260p' r8_go/src/cf/code/
+  │ cf_subtyping_assignability_test.go; echo '---'; sed -n '1,120p' r8_go/src/cf/code/cf_assignability.go; echo '---';
+  │ sed -n '20,80p' r8_go/src/graph/access_flags.go
+  └ package code
+
+    … +344 lines
+
+    func (flags *AccessFlags) SetInterface() {
+
+• Edited r8_go/src/cf/code/cf_subtyping_assignability.go (+4 -2)
+    2
+    3 -import "r8_go/src/dex"
+    4 -import "r8_go/src/graph"
+    3 +import (
+    4 + "r8_go/src/dex"
+    5 + "r8_go/src/graph"
+    6 +)
+    7
+
+• Ran cd /workspace/r8/r8_go && gofmt -w src/cf/code/cf_subtyping_assignability.go
+  └ (no output)
+
+• Ran git -C /workspace/r8 rev-parse HEAD; git -C /workspace/r8 log --oneline -- src/main/java/com/android/tools/r8/cf src/
+  │ test/java/com/android/tools/r8/cf | sed -n '1,40p'
+  └ 1e2bf94d0d Use default values for Kotlin target version and lambda generation
+    4d89e68b95 Update asm to version 9.8
+    … +36 lines
+    8584303e02 Remove legacy code from force inlining of constructors after class merging
+    3da02b22d3 Extend Kotlin testing to support both types of Koltin lambdas
+
+• Explored
+  └ Read cf_porting_tracking.md
+
+• Edited r8_go/cf_porting_tracking.md (+13 -2)
+      2
+      3 -Generated on: **2026-02-21**
+      3 +Generated on: **2026-02-22**
+      4
+        ⋮
+     81  - `code/cf_invoke_dynamic_test.go` (invokedynamic tests)
+     82 +- `code/cf_frame.go` (frame map + comparison/assignability support)
+     83 +- `code/cf_frame_test.go` (ported `FrameComparisonTest` coverage)
+     84 +- `code/cf_assignability.go` (ported `CfAssignability`)
+     85 +- `code/cf_subtyping_assignability.go` (ported `CfSubtypingAssignability`)
+     86 +- `code/cf_subtyping_assignability_test.go` (`CfSubtypingAssignability` behavior tests)
+     87 +- `graph/access_flags.go` (`SetInterface` helper for interface-typed assignability checks)
+     88  - `go test ./src/cf` (pending execution in this sync window)
+        ⋮
+    121  - Added additional `cf/code` abstractions (`cf_type_instruction.go`, `cf_field_instruction.go`, `cf_position.go`)
+         and unit tests.
+    116 -- The Java `cf/code` package still has many unported classes (notably `CfInstruction`, `CfFrame*`, `CfAssignabilit
+         y`, `CfSubtypingAssignability`, and full frame-type hierarchy); this file list is a working target list for subseq
+         uent sync windows.
+    122 +- The Java `cf/code` package still has many unported classes (`CfInstruction`, `cf_frame` family helpers beyond wh
+         at is currently modeled, and broader verifier integration); this file list is a working target list for subsequent
+          sync windows.
+    123 +
+    124 +## Sync notes
+    125 +
+    126 +- Java baseline commit recorded for this sync: `4aa08788a4dd8698c9a5ab142f6367ee769069b1` (unchanged from current
+         `cf` head in this workspace).
+    127 +- `CfSubtypingAssignability` is now wired with class/interface-aware behavior using a callback hook from `CfAssign
+         ability`, and `CfFrame` map-reference traversal is now nil-safe.
+    128
+
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• cf 포팅 중 누락되던 부분을 계속 진행해서 아래까지 반영했습니다.
+
+  ### 완료 항목
+
+  1. r8_go/src/cf/code/cf_frame.go:246
+      - CfFrame.mapReferenceTypes에서 frameType == nil 처리 추가 (널 가드)로 맵에 nil 타입이 있어도 안전하게 동작.
+  2. r8_go/src/cf/code/cf_assignability.go
+      - CfAssignability에 classTypeAssignability 훅 필드를 추가해 하위 클래스 타입 판정 로직을 외부에서 주입할 수 있게 변
+        경.
+      - internalIsClassTypeAssignableToClassType이 기본은 기존 false 유지 + 훅이 있으면 훅 호출.
+  3. r8_go/src/cf/code/cf_subtyping_assignability.go (신규)
+      - Java CfSubtypingAssignability를 포팅.
+      - 기본 생성자 NewCfSubtypingAssignability 추가, 인터페이스 허용 플래그 제어 생성자
+        NewCfSubtypingAssignabilityWithInterfaceAllowance 추가.
+      - 내부에서 AppView.IsSubtype(...) + 인터페이스 허용 경로 반영.
+      - 인터페이스 판별용 내부 헬퍼 추가.
+  4. r8_go/src/graph/access_flags.go
+      - 인터페이스 플래그를 코드에서 설정할 수 있도록 SetInterface() 추가 (테스트/동작 연결용).
+  5. 테스트 추가
+      - r8_go/src/cf/code/cf_frame_test.go (Frame 비교/해시 동치성: Java FrameComparisonTest 포팅).
+      - r8_go/src/cf/code/cf_subtyping_assignability_test.go (서브타입 동작 + 인터페이스 허용 플래그 검증).
+  6. 진행 추적 md 업데이트
+      - r8_go/cf_porting_tracking.md 최신 날짜/완료 항목 반영.
+
+  ### 테스트 결과
+
+  - 실행:
+      - cd r8_go && go test ./src/cf/code -run 'TestCfFrameHashCodeAndEqualsDependOnMapContentNotStorageOrder|
+        TestCfSubtypingAssignability'
+  - 결과: ok
+  - 기존 패키지 전체 실행:
+      - cd r8_go && go test ./src/cf/code
+  - 결과: 기존 이슈로 두 테스트 실패 유지 (TestCfConstNumberInstruction, TestCfInvokeConstructorAndInvokeSuper)
+      - 이번 변경으로 새로 발생한 실패는 아님.
+
+  ### 현재 진행률(요청하신 항목 기준)
+
+  - CfAssignability 계열 포팅이 완료돼서, CfFrame 비교/맵핑과 CfSubtypingAssignability까지 선행되지 않은 핵심 공백이 줄어
+    듦.
+  - 아직 cf 전체의 나머지 미포팅 클래스/통합 파이프라인은 여전히 남아있음(이전보다 좁아진 범위 기준).
+
+  다음으로는 cf/code에서 남은 CfFrame 전체 검증 로직, 그리고 jar/desugar 실행 세션을 이어서 진행할까요?
+
+ 
+› Use /skills to list available skills
+ 
+  ? for shortcuts                                                                                        11% context left

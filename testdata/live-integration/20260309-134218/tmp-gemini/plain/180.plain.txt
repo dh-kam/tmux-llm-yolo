@@ -1,0 +1,144 @@
+│    int                                      │
+│ 19 +     visitDexReference(reference1       │
+│    dex.DexReference, reference2             │
+│    dex.DexReference) int                    │
+│ 20      visit(item1 any, item2 any, mapping │
+│     StructuralMapping) int                  │
+│ 21      visitWithComparator(item1 any,      │
+│     item2 any, compare func(item1 any,      │
+│     item2 any) int) int                     │
+│ 22   }                                      │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  Edit r8_go/.../compare_to_visitor.go: f… │
+│                                             │
+│ 155       return method1.CompareTo(method2) │
+│ 156   }                                     │
+│ 157                                         │
+│ 158 - func (v *CompareToVisitorBase)        │
+│     visitDexReference(reference1            │
+│     DexReference, reference2 DexReference)  │
+│     int {                                   │
+│ 158 + func (v *CompareToVisitorBase)        │
+│     visitDexReference(reference1            │
+│     dex.DexReference, reference2            │
+│     dex.DexReference) int {                 │
+│ 159      if reference1 == nil && reference2 │
+│      == nil {                               │
+│ 160           return 0                      │
+│ 161       }                                 │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  Edit r8_go/.../compare_to_visitor.go: f… │
+│                                             │
+│ 441       return s                          │
+│ 442   }                                     │
+│ 443                                         │
+│ 444 - func (s *compareToSpecification)      │
+│     withDexReference(getter func(any)       │
+│     DexReference) StructuralSpecification { │
+│ 444 + func (s *compareToSpecification)      │
+│     withDexReference(getter func(any)       │
+│     dex.DexReference)                       │
+│     StructuralSpecification {               │
+│ 445       if s.order == 0 {                 │
+│ 446          s.order =                      │
+│      s.visitor.visitDexReference(getter(s.i │
+│      tem1), getter(s.item2))                │
+│ 447       }                                 │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  Edit r8_go/.../hashing_visitor.go:     … │
+│                                             │
+│ 18       visitDexType(value *dex.DexType)   │
+│ 19       visitDexField(value *dex.DexField) │
+│ 20      visitDexMethod(value                │
+│     *dex.DexMethod)                         │
+│ 21 -     visitDexReference(reference        │
+│    DexReference)                            │
+│ 21 +     visitDexReference(reference        │
+│    dex.DexReference)                        │
+│ 22       visit(item any, mapping            │
+│      StructuralMapping)                     │
+│ 23   }                                      │
+│ 24                                          │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  Edit r8_go/.../hashing_visitor.go: func… │
+│                                             │
+│ 90                                          │
+│     v.visitJavaString(value.Proto().Descrip │
+│     torString())                            │
+│ 91   }                                      │
+│ 92                                          │
+│ 93 - func (v *HashingVisitorBase)           │
+│    visitDexReference(reference              │
+│    DexReference) {                          │
+│ 93 + func (v *HashingVisitorBase)           │
+│    visitDexReference(reference              │
+│    dex.DexReference) {                      │
+│ 94       if reference == nil {              │
+│ 95           v.visitInt(0)                  │
+│ 96           return                         │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  Edit r8_go/.../hashing_visitor.go: func… │
+│                                             │
+│ 279       return s                          │
+│ 280   }                                     │
+│ 281                                         │
+│ 282 - func (s *HashingSpecification)        │
+│     withDexReference(getter func(any)       │
+│     DexReference) StructuralSpecification { │
+│ 282 + func (s *HashingSpecification)        │
+│     withDexReference(getter func(any)       │
+│     dex.DexReference)                       │
+│     StructuralSpecification {               │
+│ 283                                         │
+│      s.visitor.visitDexReference(getter(s.i │
+│      tem))                                  │
+│ 284       return s                          │
+│ 285   }                                     │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  ReadFile r8_go/.../hash_code_visitor.go  │
+│                                             │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  Edit r8_go/.../hash_code_visitor.go: fu… │
+│                                             │
+│ 177       return v                          │
+│ 178   }                                     │
+│ 179                                         │
+│ 180 - func (v *HashCodeVisitor)             │
+│     withDexReference(getter func(any)       │
+│     DexReference) StructuralSpecification { │
+│ 180 + func (v *HashCodeVisitor)             │
+│     withDexReference(getter func(any)       │
+│     dex.DexReference)                       │
+│     StructuralSpecification {               │
+│ 181                                         │
+│      v.amend(hashCodeOf(getter(v.item)))    │
+│ 182       return v                          │
+│ 183   }                                     │
+
+ ⠼ Polishing the algorithms… (esc to cancel, 3m 17s
+
+ ? for shortcuts
+───────────────────────────────────────────────────
+
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+ * 남은 리스크를 리스트업한 뒤 우선순위 높은
+   것부터 진행해보자.
+   clean architecture, single responsibility
+   principle, interface-oriented programming
+   관점에서 구조를 분석하고 어긋난 부분을
+   개선하자.
+   s/w architect 관점에서 현재 구조를 분석하고
+   결합도, 책임 분리, 확장성, 테스트 용이성
+   측면 개선 포인트를 찾아 적용하자.
+
+▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+ /workspace/tmp         no             /model Auto
+ (4aa08788a4*)          sandbox        (Gemini 3)
+

@@ -1,0 +1,144 @@
+╭─────────────────────────────────────────────╮
+│ ✓  Shell grep -rl "isDexType" . [in r8_go/… │
+│                                             │
+│ ./dex/dex_field.go                          │
+│ ./dex/dex_method.go                         │
+│ ./dex/dex_type.go                           │
+│ ./utils/structural/hashing_visitor_with_typ │
+│ e_equivalence.go                            │
+│ ./utils/structural/hashing_visitor_with_typ │
+│ e_equivalence_internal_test.go              │
+│ ./utils/structural/specification.go         │
+│ ./utils/structural/hashing_visitor.go       │
+│ ./utils/structural/compare_to_visitor.go    │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  Shell cat ./utils/structural/specificat… │
+│                                             │
+│         withDexReference(getter func(any)   │
+│ DexReference) StructuralSpecification       │
+│ }                                           │
+│                                             │
+│ type DexReference interface {               │
+│         referenceTypeOrder() int            │
+│         isDexType() bool                    │
+│         isDexField() bool                   │
+│         isDexMethod() bool                  │
+│         asDexType() *dex.DexType            │
+│         asDexField() *dex.DexField          │
+│         asDexMethod() *dex.DexMethod        │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  ReadFile r8_go/.../specification.go      │
+│                                             │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  ReadFile r8_go/.../hashing_visitor.go    │
+│                                             │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  WriteFile Writing to r8_go/src/dex/dex_… │
+│                                             │
+│  1 package dex                              │
+│  2                                          │
+│  3 // DexItem is the base interface for all │
+│    items in a DEX file.                     │
+│  4 type DexItem interface {                 │
+│  5     // Add common DexItem methods here   │
+│    as needed.                               │
+│  6 }                                        │
+│  7                                          │
+│  8 // DexReference is the base interface    │
+│    for all cross-references in a DEX file.  │
+│  9 type DexReference interface {            │
+│ 10     DexItem                              │
+│ 11     referenceTypeOrder() int             │
+│ 12     isDexType() bool                     │
+│ 13     isDexField() bool                    │
+│ 14     isDexMethod() bool                   │
+│ 15     asDexType() *DexType                 │
+│ 16     asDexField() *DexField               │
+│ 17     asDexMethod() *DexMethod             │
+│ 18 }                                        │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  Edit r8_go/.../specification.go:     wi… │
+│                                             │
+│ 54      withIntArray(getter func(any)       │
+│     []int) StructuralSpecification          │
+│ 55      withByteArray(getter func(any)      │
+│     []byte) StructuralSpecification         │
+│ 56       withShortArray(getter func(any)    │
+│      []int16) StructuralSpecification       │
+│ 57 -     withDexReference(getter func(any)  │
+│    DexReference) StructuralSpecification    │
+│ 57 +     withDexReference(getter func(any)  │
+│    dex.DexReference)                        │
+│    StructuralSpecification                  │
+│ 58   }                                      │
+│ 59 -                                        │
+│ 60 - type DexReference interface {          │
+│ 61 -     referenceTypeOrder() int           │
+│ 62 -     isDexType() bool                   │
+│ 63 -     isDexField() bool                  │
+│ 64 -     isDexMethod() bool                 │
+│ 65 -     asDexType() *dex.DexType           │
+│ 66 -     asDexField() *dex.DexField         │
+│ 67 -     asDexMethod() *dex.DexMethod       │
+│ 68 - }                                      │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  Shell grep -rl "DexReference" ./r8_go/s… │
+│                                             │
+│ ./r8_go/src/utils/structural/structural_rem │
+│ aining_coverage_test.go                     │
+│ ./r8_go/src/utils/structural/structural_fin │
+│ al_gap_coverage_test.go                     │
+│ ./r8_go/src/utils/structural/hashing_visito │
+│ r_with_type_equivalence.go                  │
+│ ./r8_go/src/utils/structural/structural_cov │
+│ erage_boost_test.go                         │
+│ ./r8_go/src/utils/structural/hashing_visito │
+│ r_with_type_equivalence_internal_test.go    │
+│ ./r8_go/src/utils/structural/hash_code_visi │
+│ tor.go                                      │
+│ ./r8_go/src/utils/structural/specification. │
+│ go                                          │
+│ ./r8_go/src/utils/structural/structural_int │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  Shell go build ./... [in r8_go/src/util… │
+│                                             │
+│ #                                           │
+│ github.com/dh-kam/r8-go/src/utils/structura │
+│ l                                           │
+│ ./compare_to_visitor.go:19:31: undefined:   │
+│ DexReference                                │
+│ ./compare_to_visitor.go:158:61: undefined:  │
+│ DexReference                                │
+│ ./compare_to_visitor.go:444:68: undefined:  │
+│ DexReference                                │
+│ ./hashing_visitor.go:21:30: undefined:      │
+│ DexReference                                │
+│ ./hashing_visitor.go:93:58: undefined:      │
+│ DexReference                                │
+│ ./hashing_visitor.go:282:66: undefined:     │
+│ DexReference                                │
+╰─────────────────────────────────────────────╯
+
+ ⠦ Swapping bits… don't tell the bytes… (esc to can
+
+ ? for shortcuts
+───────────────────────────────────────────────────
+
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+ * 프로젝트 코드 분석해봐. 개선포인트를 찾고
+   하나씩 진행하자.
+   진행률을 점검하고 미진한 부분, 누락된 작업,
+   남은 리스크를 리스트업한 뒤 우선순위 높은
+   것부터 진행해보자.
+
+▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+ /workspace/tmp         no             /model Auto
+ (4aa08788a4*)          sandbox        (Gemini 3)
+

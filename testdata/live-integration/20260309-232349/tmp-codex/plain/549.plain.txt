@@ -1,0 +1,183 @@
+    35 -  val sourceCompatibility = JavaVersion.VERSION_11
+    36 -  val targetCompatibility = JavaVersion.VERSION_11
+    37 -  val release = 11
+    38 -}
+    39 -
+    40 -object Versions {
+    41 -  const val asmVersion = "9.8"
+    42 -  const val errorproneVersion = "2.18.0"
+    43 -  const val fastUtilVersion = "7.2.1"
+    44 -  const val gsonVersion = "2.10.1"
+    45 -  const val guavaVersion = "32.1.2-jre"
+    46 -  const val javassist = "3.29.2-GA"
+    47 -  const val junitVersion = "4.13-beta-2"
+    48 -  const val kotlinVersion = "1.9.20"
+    49 -  const val kotlinMetadataVersion = "2.1.0"
+    50 -  const val mockito = "2.10.0"
+    51 -  const val smaliVersion = "3.0.3"
+    52 -  const val protobufVersion = "3.19.3"
+    53 -}
+    54 -
+    55 -object Deps {
+    56 -  val asm by lazy { "org.ow2.asm:asm:${Versions.asmVersion}" }
+    57 -  val asmUtil by lazy { "org.ow2.asm:asm-util:${Versions.asmVersion}" }
+    58 -  val asmCommons by lazy { "org.ow2.asm:asm-commons:${Versions.asmVersion}" }
+    59 -  val errorprone by lazy { "com.google.errorprone:error_prone_core:${Versions.errorproneVersion}" }
+    60 -  val fastUtil by lazy { "it.unimi.dsi:fastutil:${Versions.fastUtilVersion}" }
+    61 -  val gson by lazy { "com.google.code.gson:gson:${Versions.gsonVersion}" }
+    62 -  val guava by lazy { "com.google.guava:guava:${Versions.guavaVersion}" }
+    63 -  val javassist by lazy { "org.javassist:javassist:${Versions.javassist}" }
+    64 -  val junit by lazy { "junit:junit:${Versions.junitVersion}" }
+    65 -  val kotlinMetadata by lazy {
+    66 -    "org.jetbrains.kotlin:kotlin-metadata-jvm:${Versions.kotlinMetadataVersion}"
+    67 -  }
+    68 -  val kotlinStdLib by lazy { "org.jetbrains.kotlin:kotlin-stdlib:${Versions.kotlinVersion}" }
+    69 -  val kotlinReflect by lazy { "org.jetbrains.kotlin:kotlin-reflect:${Versions.kotlinVersion}" }
+    70 -  val mockito by lazy { "org.mockito:mockito-core:${Versions.mockito}" }
+    71 -  val smali by lazy { "com.android.tools.smali:smali:${Versions.smaliVersion}" }
+    72 -  val smaliUtil by lazy { "com.android.tools.smali:smali-util:${Versions.smaliVersion}" }
+    73 -  val protobuf by lazy { "com.google.protobuf:protobuf-java:${Versions.protobufVersion}" }
+    74 -}
+    75 -
+    34  object ThirdPartyDeps {
+
+  └ d8_r8/commonBuildSrc/src/main/kotlin/DependencyCatalog.kt (+47 -0)
+     1 +// Copyright (c) 2023, the R8 project authors. Please see the AUTHORS file
+     2 +// for details. All rights reserved. Use of this source code is governed by a
+     3 +// BSD-style license that can be found in the LICENSE file.
+     4 +
+     5 +import org.gradle.api.JavaVersion
+     6 +
+     7 +object JvmCompatibility {
+     8 +  val sourceCompatibility = JavaVersion.VERSION_11
+     9 +  val targetCompatibility = JavaVersion.VERSION_11
+    10 +  val release = 11
+    11 +}
+    12 +
+    13 +object Versions {
+    14 +  const val asmVersion = "9.8"
+    15 +  const val errorproneVersion = "2.18.0"
+    16 +  const val fastUtilVersion = "7.2.1"
+    17 +  const val gsonVersion = "2.10.1"
+    18 +  const val guavaVersion = "32.1.2-jre"
+    19 +  const val javassist = "3.29.2-GA"
+    20 +  const val junitVersion = "4.13-beta-2"
+    21 +  const val kotlinVersion = "1.9.20"
+    22 +  const val kotlinMetadataVersion = "2.1.0"
+    23 +  const val mockito = "2.10.0"
+    24 +  const val smaliVersion = "3.0.3"
+    25 +  const val protobufVersion = "3.19.3"
+    26 +}
+    27 +
+    28 +object Deps {
+    29 +  val asm by lazy { "org.ow2.asm:asm:${Versions.asmVersion}" }
+    30 +  val asmUtil by lazy { "org.ow2.asm:asm-util:${Versions.asmVersion}" }
+    31 +  val asmCommons by lazy { "org.ow2.asm:asm-commons:${Versions.asmVersion}" }
+    32 +  val errorprone by lazy { "com.google.errorprone:error_prone_core:${Versions.errorproneVersion}" }
+    33 +  val fastUtil by lazy { "it.unimi.dsi:fastutil:${Versions.fastUtilVersion}" }
+    34 +  val gson by lazy { "com.google.code.gson:gson:${Versions.gsonVersion}" }
+    35 +  val guava by lazy { "com.google.guava:guava:${Versions.guavaVersion}" }
+    36 +  val javassist by lazy { "org.javassist:javassist:${Versions.javassist}" }
+    37 +  val junit by lazy { "junit:junit:${Versions.junitVersion}" }
+    38 +  val kotlinMetadata by lazy {
+    39 +    "org.jetbrains.kotlin:kotlin-metadata-jvm:${Versions.kotlinMetadataVersion}"
+    40 +  }
+    41 +  val kotlinStdLib by lazy { "org.jetbrains.kotlin:kotlin-stdlib:${Versions.kotlinVersion}" }
+    42 +  val kotlinReflect by lazy { "org.jetbrains.kotlin:kotlin-reflect:${Versions.kotlinVersion}" }
+    43 +  val mockito by lazy { "org.mockito:mockito-core:${Versions.mockito}" }
+    44 +  val smali by lazy { "com.android.tools.smali:smali:${Versions.smaliVersion}" }
+    45 +  val smaliUtil by lazy { "com.android.tools.smali:smali-util:${Versions.smaliVersion}" }
+    46 +  val protobuf by lazy { "com.google.protobuf:protobuf-java:${Versions.protobufVersion}" }
+    47 +}
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• DependenciesPlugin.kt 에 남은 import도 바로 정리하겠습니다. 구조 분리 후 불필요한 의존이 남아 있으면 오히려 혼란을 줍니다.
+
+• Edited d8_r8/commonBuildSrc/src/main/kotlin/DependenciesPlugin.kt (+0 -1)
+    8  import kotlin.reflect.full.declaredMemberProperties
+    9 -import org.gradle.api.JavaVersion
+    9  import org.gradle.api.Plugin
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• 계속 진행해서 commonBuildSrc 분해를 더 밀었습니다. 이번 라운드의 핵심은 DependenciesPlugin.kt 에 남아 있던 “순수 helper” 들을 떼어내서 파일 책임을 더 선명하게 만드는 것이었습니
+  다.
+
+  이번에 적용한 변경은 이렇습니다.
+
+  - 커맨드라인 빌더 분리
+    CompilerCommandLines.kt:10 로 getClasspath, baseCompilerCommandLine, createR8LibCommandLine 을 이동했습니다.
+    이유: 이 함수들은 플러그인 진입점과 무관한 순수 command builder라서 별도 파일이 맞습니다.
+    영향 범위: d8_r8/main/build.gradle.kts 와 d8_r8/test/build.gradle.kts 의 호출 방식은 그대로 유지됩니다.
+  - 버전/의존성 카탈로그 분리
+    DependencyCatalog.kt:7 로 JvmCompatibility, Versions, Deps 를 이동했습니다.
+    이유: 플러그인 동작과 dependency catalog 는 책임이 다릅니다.
+    영향 범위: 상수 참조 위치만 바뀌고 API 이름은 그대로입니다.
+  - 이전 분리 작업 유지
+    BuildPathUtils.kt:12, ExampleJarTasks.kt:26, JdkToolchains.kt:17, UuidUtils.kt:8 로 이미 분리한 helper 들도 그대로 살아 있습니다.
+
+  구조적으로 보면, DependenciesPlugin.kt 는 1195줄 수준에서 지금 798줄까지 줄었습니다. 아직 크지만, 최소한 다음 책임들은 분리됐습니다.
+
+  - test task 구성
+  - path/task helper
+  - example jar task wiring
+  - JDK/toolchain 선택
+  - UUID 유틸
+  - compiler command line 생성
+  - version/dependency catalog 일부
+
+  남은 리스크와 우선순위는 이렇습니다.
+
+  1. DependenciesPlugin.kt:34 에 ThirdPartyDeps 와 관련 helper 가 여전히 너무 큽니다. 다음 분해 대상 1순위입니다.
+  2. TestingState.kt:122 는 아직도 파일 I/O, HTML 조립, 상태 전이를 한 클래스가 다 맡고 있습니다.
+  3. 실제 Gradle compile 검증은 아직 못 했습니다. 현재 워크스페이스의 기존 변경/삭제가 많고 bootstrap 상태도 불완전해서 정적 검토 중심으로 진행 중입니다.
+
+  다음은 ThirdPartyDeps 를 별도 catalog 파일로 분리하는 작업을 이어가겠습니다. 이게 끝나면 DependenciesPlugin.kt 는 사실상 플러그인 진입점과 일부 공통 상수만 남게 됩니다.
+
+
+› 진행률을 점검하고 미진한 부분, 누락된 작업, 남은 리스크를 리스트업한 뒤 우선순위 높은 것부터 진행해보자.clean architecture, single responsibility principle, interface-oriented
+  programming 관점에서 구조를 분석하고 어긋난 부분을 개선하자.s/w architect 관점에서 현재 구조를 분석하고 결합도, 책임 분리, 확장성, 테스트 용이성 측면 개선 포인트를 찾아 적용하
+  자.이미 끝난 것과 아직 불완전한 것을 구분하고, 검증이 약한 부분을 보강하면서 계속 진행하자.프로젝트 코드 분석해봐. 개선포인트를 찾고 하나씩 진행하자.진행률을 점검하고 미진한
+  부분, 누락된 작업, 남은 리스크를 리스트업한 뒤 우선순위 높은 것부터 진행해보자.clean architecture, single responsibility principle, interface-oriented programming 관점에서 구
+  조를 분석하고 어긋난 부분을 개선하자.
+
+
+• 진행률과 남은 리스크를 다시 점검한 뒤, 구조적으로 가장 큰 덩어리부터 계속 줄이겠습니다. 이번 우선순위는 DependenciesPlugin.kt 에 남아 있는 거대한 third-party catalog 분리와, 검
+  증이 약한 helper 경계 보강입니다.
+
+• Ran git diff --stat -- d8_r8/commonBuildSrc/src/main/kotlin
+  └  .../src/main/kotlin/DependenciesPlugin.kt          | 450 +--------------------
+     .../src/main/kotlin/DownloadAllDependenciesTask.kt |   4 +-
+     .../src/main/kotlin/TestConfigurationHelper.kt     | 271 ++++++++-----
+     .../commonBuildSrc/src/main/kotlin/TestingState.kt |  39 +-
+     4 files changed, 209 insertions(+), 555 deletions(-)
+
+• Explored
+  └ Search ^object ThirdPartyDeps|^fun getThirdPartyAndroidJars|^fun getThirdPartyAndroidJar|^fun getThirdPartyAndroidVms|^fun getJdks|^fun getThirdPartyKotlinCompilers|^fun
+           allPublicDependencies|^fun allPublicTestDependencies|^fun allInternalDependencies|^fun allInternalTestDependencies in DependenciesPlugin.kt
+    Read DependenciesPlugin.kt
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• 우선순위 1번인 ThirdPartyDeps 분리를 진행합니다. 이건 구조적으로 가장 큰 덩어리이고, clean architecture 관점에서도 dependency catalog 는 플러그인 진입 파일과 분리돼야 맞습니다.
+
+• 우선순위 1순위인 third-party catalog를 분리하겠습니다. 이건 clean architecture 관점에서 “거대한 데이터/카탈로그” 와 “플러그인 오케스트레이션” 을 분리하는 작업이고, 효과 대비 리
+  스크가 낮습니다.
+
+• 가장 큰 덩어리인 third-party catalog 를 분리하겠습니다. 이건 아키텍처 관점에서 plugin entrypoint 와 dependency registry 를 떼어내는 작업이라 효과가 큽니다.
+
+◦ Working (4m 08s • esc to interrupt)
+
+
+› s/w architect 관점에서 현재 구조를 분석하고 결합도, 책임 분리, 확장성, 테스트 용이성 측면 개선 포인트를 찾아 적용하자.이미 끝난 것과 아직 불완전한 것을 구분하고, 검증이 약한
+  부분을 보강하면서 계속 진행하자.프로젝트 코드 분석해봐. 개선포인트를 찾고 하나씩 진행하자.진행률을 점검하고 미진한 부분, 누락된 작업, 남은 리스크를 리스트업한 뒤 우선순위 높은
+  것부터 진행해보자.clean architecture, single responsibility principle, interface-oriented programming 관점에서 구조를 분석하고 어긋난 부분을 개선하자.s/w architect 관점에서 현
+  재 구조를 분석하고 결합도, 책임 분리, 확장성, 테스트 용이성 측면 개선 포인트를 찾아 적용하자.이미 끝난 것과 아직 불완전한 것을 구분하고, 검증이 약한 부분을 보강하면서 계속 진
+  행하자.프로젝트 코드 분석해봐. 개선포인트를 찾고 하나씩 진행하자.진행률을 점검하고 미진한 부분, 누락된 작업, 남은 리스크를 리스트업한 뒤 우선순위 높은 것부터 진행해보자.clean
+  architecture, single responsibility principle, interface-oriented programming 관점에서 구조를 분석하고 어긋난 부분을 개선하자.s/w architect 관점에서 현재 구조를 분석하고 결합
+  도, 책임 분리, 확장성, 테스트 용이성 측면 개선 포인트를 찾아 적용하자.이미 끝난 것과 아직 불완전한 것을 구분하고, 검증이 약한 부분을 보강하면서 계속 진행하자.프로젝트 코드 분
+  석해봐. 개선포인트를 찾고 하나씩 진행하자.
+
+
+  tab to queue message                                                                                                                                          49% context left

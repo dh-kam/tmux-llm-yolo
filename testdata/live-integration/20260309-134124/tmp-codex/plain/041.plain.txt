@@ -1,0 +1,139 @@
+─────────────────────────────────────────
+
+• 첫 개선은 반영했습니다. 루트 clean 태스
+  크가 settings.gradle.kts에 포함된 빌드
+  중 shared, assistant를 누락하고 있었고,
+  이 상태면 해당 모듈의 build/ 산출물이
+  남을 수 있습니다. d8_r8/
+  build.gradle.kts:11 에 두 모듈의 :clean
+  의존성을 추가했습니다.
+
+  정적으로는 d8_r8/settings.gradle.kts:92
+  의 includeBuild(...) 목록과 루트 clean
+  의존성이 이제 일치하는 걸 확인했습니다.
+  이 워크스페이스에는 tools/gradle.py나
+  시스템 gradle이 없어 실제 태스크 실행
+  검증은 못 했습니다.
+
+  다음 개선 후보는 이 순서로 보는 게 낫습
+  니다.
+
+  1. d8_r8/settings.gradle.kts의 부트스트
+     랩 다운로드 로직 분리
+  2. main/test 빌드 스크립트의 중복 task
+     wiring 정리
+  3. 오래된 TODO 중 빌드 안정성에 직접 영
+     향 주는 항목 선별
+
+  다음으로는 settings.gradle.kts 쪽 구조
+  개선을 이어서 보겠습니다.
+
+
+› Analyze this project, list improvement
+  points, and implement them one by one.
+  프로젝트 코드 분석해봐. 개선포인트를
+  찾고 하나씩 진행하자.
+
+
+• 다음 개선 후보를 실제 코드 기준으로 추
+  리겠습니다. 빌드 스크립트와 셸 스크립트
+  에서 재현 가능한 유지보수/안정성 문제를
+  찾고, 바로 수정 가능한 항목부터 이어서
+  처리하겠습니다.
+
+• Explored
+  └ Read
+verify_native_porting_completion.sh,
+         TestingState.kt,
+         TestConfigurationHelper.kt,
+
+check_classfile_with_lib_parity.sh
+
+─────────────────────────────────────────
+
+• 두 번째로는 래퍼 스크립트의 실패 조건이
+  과하다는 점을 손보겠습니다. 현재는 대상
+  스크립트를 bash로 실행하면서도 -x까지
+  요구해서, 파일은 존재하지만 실행 비트가
+  없으면 불필요하게 실패합니다.
+
+• Explored
+  └ Search missing executable|exec bash
+in
+           scripts
+    List
+verify_native_porting_completion.sh
+
+─────────────────────────────────────────
+
+• 같은 패턴이 3개 스크립트에 반복됩니다.
+  세 군데를 한 번에 정리하겠습니다.
+
+• Explored
+  └ Read
+check_native_cli_no_java_wrapper.sh
+
+• Ran test -f r8_go/scripts/
+  │ verify_native_porting_completion.sh
+  │ && echo present || echo missing
+  └ present
+
+• Ran test -d r8_go && echo yes || echo
+  │ no
+  └ yes
+
+─────────────────────────────────────────
+
+• 세 래퍼 모두 동일하게 수정합니다. 존재
+  여부 기준으로 검사하고, 에러 메시지도
+  실제 조건과 맞추겠습니다.
+
+• Edited 3 files (+6 -6)
+  └ scripts/
+check_classfile_with_lib_parity.sh (+2
+-2)
+     7
+     8 -if [[ ! -x "$r8_go_script" ]]; th
+        en
+     9 -  echo "[error] missing executabl
+        e script: $r8_go_script" >&2
+     8 +if [[ ! -f "$r8_go_script" ]]; th
+        en
+     9 +  echo "[error] missing script: $
+        r8_go_script" >&2
+    10    exit 1
+
+  └ scripts/
+check_native_cli_no_java_wrapper.sh (+2
+-2)
+     7
+     8 -if [[ ! -x "$r8_go_script" ]]; th
+        en
+     9 -  echo "[error] missing executabl
+        e script: $r8_go_script" >&2
+     8 +if [[ ! -f "$r8_go_script" ]]; th
+        en
+     9 +  echo "[error] missing script: $
+        r8_go_script" >&2
+    10    exit 1
+
+  └ scripts/
+verify_native_porting_completion.sh (+2
+-2)
+     7
+     8 -if [[ ! -x "$r8_go_gate" ]]; then
+     9 -  echo "[error] missing executabl
+        e gate script: $r8_go_gate" >&2
+     8 +if [[ ! -f "$r8_go_gate" ]]; then
+     9 +  echo "[error] missing gate scri
+        pt: $r8_go_gate" >&2
+    10    exit 1
+
+─────────────────────────────────────────
+
+• Working (37s • esc to interrupt)
+
+
+› Find and fix a bug in @filename
+
+  gpt-5.4 medium · 90% left · /workspace…

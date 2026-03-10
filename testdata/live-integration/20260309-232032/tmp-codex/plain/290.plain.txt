@@ -1,0 +1,183 @@
+     91 +      add("--pg-conf")
+     92 +      add("$it")
+     93 +    }
+     94 +    lib.forEach {
+     95 +      add("--lib")
+     96 +      add("$it")
+     97 +    }
+     98 +    classpath.forEach {
+     99 +      add("--classpath")
+    100 +      add("$it")
+    101 +    }
+    102 +    if (excludingDepsVariant) {
+    103 +      add("--excldeps-variant")
+    104 +    }
+    105 +    if (debugVariant) {
+    106 +      add("--debug-variant")
+    107 +    }
+    108 +    if (pgInputMap != null) {
+    109 +      add("--pg-map")
+    110 +      add("$pgInputMap")
+    111 +    }
+    112 +    if (replaceFromJar != null) {
+    113 +      add("--replace-from-jar")
+    114 +      add("$replaceFromJar")
+    115 +    }
+    116 +    if (versionJar != null) {
+    117 +      add("--r8-version-jar")
+    118 +      add("$versionJar")
+    119 +    }
+    120 +  }
+    121 +}
+
+  └ d8_r8/commonBuildSrc/src/main/kotlin/DependenciesPlugin.kt (+0 -116)
+     12  import org.gradle.api.tasks.testing.Test
+     13 -import org.gradle.nativeplatform.platform.OperatingSystem
+     14 -import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
+     13
+        ⋮
+     29          ?: throw IllegalStateException("Unable to locate repository root from ${file.absolutePath}")
+     32 -    }
+     33 -  }
+     34 -}
+     35 -
+     36 -fun Project.getClasspath(vararg paths: File): String {
+     37 -  val os: OperatingSystem = DefaultNativePlatform.getCurrentOperatingSystem()
+     38 -  assert(!paths.isEmpty())
+     39 -  val separator = if (os.isWindows()) ";" else ":"
+     40 -  var classpath = paths.joinToString(separator = separator) { it -> it.toString() }
+     41 -  return classpath
+     42 -}
+     43 -
+     44 -fun Project.baseCompilerCommandLine(
+     45 -  jar: File,
+     46 -  deps: File,
+     47 -  compiler: String,
+     48 -  args: List<String> = listOf(),
+     49 -): List<String> {
+     50 -  // Execute r8 commands against a stable r8 with dependencies.
+     51 -  // TODO(b/139725780): See if we can remove or lower the heap size (-Xmx8g).
+     52 -  return listOf(
+     53 -    getJavaPath(Jdk.JDK_17),
+     54 -    "-Xmx8g",
+     55 -    "-ea",
+     56 -    "-cp",
+     57 -    getClasspath(jar, deps),
+     58 -    "com.android.tools.r8.SwissArmyKnife",
+     59 -    compiler,
+     60 -  ) + args
+     61 -}
+     62 -
+     63 -fun Project.baseCompilerCommandLine(
+     64 -  jvmArgs: List<String> = listOf(),
+     65 -  jar: File,
+     66 -  compiler: String,
+     67 -  args: List<String> = listOf(),
+     68 -): List<String> {
+     69 -  // Execute r8 commands against a stable r8 with dependencies.
+     70 -  // TODO(b/139725780): See if we can remove or lower the heap size (-Xmx8g).
+     71 -  return listOf(getJavaPath(Jdk.JDK_17), "-Xmx8g", "-ea") +
+     72 -    jvmArgs +
+     73 -    listOf("-cp", "$jar", "com.android.tools.r8.SwissArmyKnife", compiler) +
+     74 -    args
+     75 -}
+     76 -
+     77 -fun Project.baseCompilerCommandLine(
+     78 -  jar: File,
+     79 -  compiler: String,
+     80 -  args: List<String> = listOf(),
+     81 -): List<String> {
+     82 -  // Execute r8 commands against a stable r8 with dependencies.
+     83 -  // TODO(b/139725780): See if we can remove or lower the heap size (-Xmx8g).
+     84 -  return listOf(
+     85 -    getJavaPath(Jdk.JDK_17),
+     86 -    "-Xmx8g",
+     87 -    "-ea",
+     88 -    "-cp",
+     89 -    "$jar",
+     90 -    "com.android.tools.r8.SwissArmyKnife",
+     91 -    compiler,
+     92 -  ) + args
+     93 -}
+     94 -
+     95 -fun Project.createR8LibCommandLine(
+     96 -  r8Compiler: File,
+     97 -  input: File,
+     98 -  output: File,
+     99 -  pgConf: List<File>,
+    100 -  excludingDepsVariant: Boolean,
+    101 -  debugVariant: Boolean,
+    102 -  lib: List<File> = listOf(),
+    103 -  classpath: List<File> = listOf(),
+    104 -  pgInputMap: File? = null,
+    105 -  replaceFromJar: File? = null,
+    106 -  versionJar: File? = null,
+    107 -): List<String> {
+    108 -  return buildList {
+    109 -    add("python3")
+    110 -    add("${getRoot().resolve("tools").resolve("create_r8lib.py")}")
+    111 -    add("--r8compiler")
+    112 -    add("${r8Compiler}")
+    113 -    add("--r8jar")
+    114 -    add("${input}")
+    115 -    add("--output")
+    116 -    add("${output}")
+    117 -    pgConf.forEach {
+    118 -      add("--pg-conf")
+    119 -      add("$it")
+    120 -    }
+    121 -    lib.forEach {
+    122 -      add("--lib")
+    123 -      add("$it")
+    124 -    }
+    125 -    classpath.forEach {
+    126 -      add("--classpath")
+    127 -      add("$it")
+    128 -    }
+    129 -    if (excludingDepsVariant) {
+    130 -      add("--excldeps-variant")
+    131 -    }
+    132 -    if (debugVariant) {
+    133 -      add("--debug-variant")
+    134 -    }
+    135 -    if (pgInputMap != null) {
+    136 -      add("--pg-map")
+    137 -      add("$pgInputMap")
+    138 -    }
+    139 -    if (replaceFromJar != null) {
+    140 -      add("--replace-from-jar")
+    141 -      add("$replaceFromJar")
+    142 -    }
+    143 -    if (versionJar != null) {
+    144 -      add("--r8-version-jar")
+    145 -      add("$versionJar")
+     30      }
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• 커맨드라인 빌더 분리는 끝났습니다. 이제 남은 파일 크기와 책임 경계가 실제로 줄었는지, 새 파일이 순수 helper 역할만 하는지 다시 확인하겠습니다.
+
+• Ran wc -l d8_r8/commonBuildSrc/src/main/kotlin/*.kt
+  └    51 d8_r8/commonBuildSrc/src/main/kotlin/BuildPathUtils.kt
+      121 d8_r8/commonBuildSrc/src/main/kotlin/CompilerCommandLines.kt
+    … +7 lines
+       47 d8_r8/commonBuildSrc/src/main/kotlin/UuidUtils.kt
+     2107 total
+
+• Explored
+  └ Read CompilerCommandLines.kt, DependenciesPlugin.kt
+    Search baseCompilerCommandLine\(|createR8LibCommandLine\(|getClasspath\( in kotlin
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• 한 번 더 낮은 리스크 분리를 하겠습니다. JvmCompatibility, Versions, Deps 는 플러그인 구현과 직접 관련 없는 카탈로그라서 별도 파일로 옮기는 게 자연스럽습니다.
+
+◦ Working (1m 03s • esc to interrupt)
+
+
+› 진행률을 점검하고 미진한 부분, 누락된 작업, 남은 리스크를 리스트업한 뒤 우선순위 높은 것부터 진행해보자.clean architecture, single responsibility principle, interface-oriented
+  programming 관점에서 구조를 분석하고 어긋난 부분을 개선하자.s/w architect 관점에서 현재 구조를 분석하고 결합도, 책임 분리, 확장성, 테스트 용이성 측면 개선 포인트를 찾아 적용하
+  자.이미 끝난 것과 아직 불완전한 것을 구분하고, 검증이 약한 부분을 보강하면서 계속 진행하자.프로젝트 코드 분석해봐. 개선포인트를 찾고 하나씩 진행하자.
+
+
+  tab to queue message                                                                                                                                          50% context left

@@ -1,0 +1,11 @@
+.watch-state/
+captured/
+**/captured/
+.check-all-results/
+.check-all-results-manual/
+*.tmp
+*.out
+.state/
+build/
+dist/
+.tmp_probe.go

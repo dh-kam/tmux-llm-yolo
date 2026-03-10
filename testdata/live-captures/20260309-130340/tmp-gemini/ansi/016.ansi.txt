@@ -1,0 +1,64 @@
+
+[38;5;74m [38;5;110m███     [38;5;104m  [38;5;140m  ██[38;5;139m█████[38;5;175m██[38;5;174m [39m
+[38;5;74m░[38;5;110m░░███   [38;5;104m  [38;5;140m ███[38;5;139m░░░░░[38;5;175m██[38;5;174m█[39m
+[38;5;74m [38;5;110m ░░░███ [38;5;104m  [38;5;140m███ [38;5;139m    ░[38;5;175m░░[38;5;174m [39m
+[38;5;74m [38;5;110m   ░░░██[38;5;104m█░[38;5;140m███ [38;5;139m     [38;5;175m  [38;5;174m [39m
+[38;5;74m [38;5;110m    ███░[38;5;104m ░[38;5;140m███ [38;5;139m   ██[38;5;175m██[38;5;174m█[39m
+[38;5;74m [38;5;110m  ███░  [38;5;104m ░[38;5;140m░███[38;5;139m  ░░█[38;5;175m██[38;5;174m [39m
+[38;5;74m [38;5;110m███░    [38;5;104m  [38;5;140m░░██[38;5;139m█████[38;5;175m██[38;5;174m [39m
+[38;5;74m░[38;5;110m░░      [38;5;104m  [38;5;140m ░░░[38;5;139m░░░░░[38;5;175m░ [38;5;174m [39m
+
+
+[1mLogged in with Google:[0m nullcode@gmail.com
+[38;5;103m /auth[39m
+[1mPlan:[0m Gemini Code Assist in Google One AI
+ Pro
+Tips for getting started:
+1. Ask questions, edit files, or run comm
+ands.
+2. Be specific for the best results.
+3. [1m[38;5;183m/help[0m for more information.
+
+
+
+[38;5;223mℹ Update successful! The new version will
+[39m  [38;5;223mbe used on your next run.[39m
+[30m[48;5;234m▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+[39m [38;5;183m> [38;5;103m프로젝트 코드 분석해봐.[39m
+   [38;5;103m개선포인트찾아서 하나씩 진행하자.[39m
+[30m▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+[38;5;183m[49m✦[39m I will begin by exploring the [38;5;183mr8_go[39m
+  directory to understand the current
+  progress of the porting project and
+  identify areas for improvement or
+  missing components.
+
+[38;5;59m╭───────────────────────────────────╮[39m
+[38;5;59m│[39m [38;5;151m✓[39m  [1mReadFolder[0m [38;5;103mr8_go/src[39m           [38;5;59m│[39m
+[38;5;59m│[39m                                   [38;5;59m│[39m
+[38;5;59m│[39m Listed 53 item(s).                [38;5;59m│[39m
+[38;5;59m╰───────────────────────────────────╯[39m
+[38;5;183m✦[39m I'll examine the [38;5;183mr8_go/src/dex[39m
+  directory to assess the current
+  implementation status of the Dex graph
+  nodes and identify any missing
+  components.
+[38;5;59m╭───────────────────────────────────╮[39m
+[38;5;59m│[39m [38;5;151m✓[39m  [1mReadFolder[0m [38;5;103mr8_go/src/dex[39m       [38;5;59m│[39m
+[38;5;59m│[39m                                   [38;5;59m│[39m
+[38;5;59m│[39m Listed 77 item(s).                [38;5;59m│[39m
+[38;5;59m╰───────────────────────────────────╯[39m
+
+ [38;5;223m⠦[39m [3mMining for more Dilithium crystals…[0m [38;5;103m(e
+
+ ? for shortcuts [39m
+[38;5;59m─────────────────────────────────────────
+
+[30m[48;5;234m▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+[39m [38;5;217m* [38;5;103m  Type your message or @path/to/file[39m
+[30m▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+[39m[49m                   [38;5;217mno[39m
+ /workspace/tmp    [38;5;217msandbo[39m    [38;5;103m/model [39mAuto
+ [38;5;103m(4aa08788a4*)[39m     [38;5;217mx[39m         (Gemini 3)
+
+

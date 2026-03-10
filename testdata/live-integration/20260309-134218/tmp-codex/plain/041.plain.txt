@@ -1,0 +1,139 @@
+         nedCoresPerFork"
+    196 +            )
+    197 +        if (coresPerFork <= 0) {
+    198 +          throw IllegalArgumentE
+         xception(
+    199 +            "R8_GRADLE_CORES_PER
+         _FORK must be greater than 0: $u
+         serDefinedCoresPerFork"
+    200 +          )
+    201 +        }
+    202 +        test.maxParallelForks =
+         maxOf(processors.div(coresPerFor
+         k), 1)
+    203        } else {
+
+─────────────────────────────────────────
+
+• 이 변경은 예외 메시지와 최소값 보장까지
+  포함합니다. 정적 확인으로 마무리하고,
+  남은 후보도 우선순위화하겠습니다.
+
+• Ran git diff -- d8_r8/commonBuildSrc/
+  │ src/main/kotlin/
+  │ TestConfigurationHelper.kt
+  └ diff --git a/d8_r8/commonBuildSrc/
+    src/main/kotlin/
+    … +31 lines
+             test.maxParallelForks =
+    maxOf(processors.div(8), 1)
+
+• Explored
+  └ Read TestConfigurationHelper.kt
+    Search R8_GRADLE_CORES_PER_FORK|
+           maxParallelForks =
+processors\.div
+           in TestConfigurationHelper.kt
+
+─────────────────────────────────────────
+
+• 프로젝트를 빠르게 스캔해 보니, 이 저장
+  소는 d8_r8 중심의 대형 Gradle composite
+  build와 다수의 테스트/래퍼 스크립트로
+  구성돼 있습니다. 우선순위는 기능 추가보
+  다 빌드 위생, 실행 안정성, 운영 설정 방
+  어 코드 쪽이 먼저였습니다.
+
+  이번 턴에서 바로 반영한 개선은 3가지입
+  니다.
+
+  1. 루트 clean 누락 수정
+     d8_r8/build.gradle.kts:11 에서
+     composite build로 포함된 shared,
+     assistant가 clean 의존성에서 빠져 있
+     었습니다. 이 상태면 루트 정리 후에도
+     일부 산출물이 남을 수 있어서 :clean
+     의존성을 추가했습니다.
+  2. 래퍼 스크립트의 과도한 실행 권한 요
+     구 제거
+     scripts/
+     verify_native_porting_completion.sh:
+     8, scripts/
+     check_classfile_with_lib_parity.sh:8
+     , scripts/
+     check_native_cli_no_java_wrapper.sh:
+     8 는 대상 스크립트를 bash로 실행하면
+     서도 -x를 요구하고 있었습니다. 실제
+     로는 파일만 있으면 실행 가능하므로
+     -f 검사로 바꾸고 에러 메시지도 맞췄
+     습니다.
+  3. 테스트 병렬 실행 설정 방어 코드 추가
+     d8_r8/commonBuildSrc/src/main/
+     kotlin/
+     TestConfigurationHelper.kt:188 에서
+     R8_GRADLE_CORES_PER_FORK 값이 CPU 수
+     보다 크거나 잘못된 값이면
+     maxParallelForks=0 또는
+     NumberFormatException으로 깨질 수 있
+     었습니다. 이제 숫자 검증, 양수 검증,
+     최소 1 보장을 넣었습니다.
+
+  검증은 변경된 셸 스크립트에 대해 bash
+  -n으로 문법 확인을 했고, Gradle 쪽은 이
+  워크스페이스에 바로 실행 가능한 부트스
+  트랩 경로가 없어 정적 검토와 diff 확인
+  까지 진행했습니다.
+
+  다음 개선 후보는 이 순서가 적절합니다.
+
+  1. d8_r8/settings.gradle.kts 의
+     bootstrap/download 로직을 함수 분리
+     와 예외 처리 보강으로 정리
+  2. main/test Gradle 스크립트의 반복
+     task wiring 축소
+  3. 테스트 리포팅 유틸의 파일 처리와 예
+     외 출력 경로 점검
+
+  다음 턴에서는 settings.gradle.kts 구조
+  개선으로 바로 이어가겠습니다.
+
+
+› 프로젝트 코드 분석해봐. 개선포인트를
+  찾고 하나씩 진행하자.
+  계속 진행하되 중간에 막히는 지점이 있
+  으면 스스로 가설을 세우고 검증까지 이
+  어서 진행해보자.
+
+
+• 다음은 부트스트랩 쪽을 보겠습니다.
+  settings.gradle.kts 는 composite build
+  전체의 시작점이라, 여기서의 예외 처리와
+  경로 탐색이 약하면 실패 원인 파악이 어
+  렵습니다.
+
+• Explored
+  └ Read settings.gradle.kts
+    Search third_party in tmp
+    Search getRepoRoot\(|
+           downloadFromGoogleStorage\( in
+tmp
+
+─────────────────────────────────────────
+
+• 동일한 다운로드 로직이 다른 곳에도 있는
+  지 확인했습니다. 공통 태스크 구현과 비
+  교해서, 설정 단계 코드에서 특히 취약한
+  부분만 좁혀서 정리하겠습니다.
+
+• Explored
+  └ Read DownloadAllDependenciesTask.kt
+    Search ProcessBuilder\(|waitFor\(|
+           readAllBytes\( in
+           DownloadAllDependenciesTask.kt
+
+◦ Working (18s • esc to interrupt)
+
+
+› Find and fix a bug in @filename
+
+  gpt-5.4 medium · 88% left · /workspace…

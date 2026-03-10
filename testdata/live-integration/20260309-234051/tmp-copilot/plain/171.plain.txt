@@ -1,0 +1,183 @@
+
+
+  1. They were deleted somehow
+  2. They were never in `src/dex/` and I misread the earlier `ls` output
+
+  Let me double-check by listing the directory again and specifically looking for those two files.
+
+● Check for marker and internal files in dex
+  $ ls /workspace/tmp/r8_go/src/dex/marker* /workspace/tmp/r8_go/src/dex/internal* 2>&1
+  └ 3 lines...
+
+● Find marker.go and internal_options_bridge.go
+  $ find /workspace/tmp/r8_go -name "marker.go" -o -name "internal_options_bridge.go" 2>/dev/null
+  └ 4 lines...
+
+◐ `marker.go` and `internal_options_bridge.go` are in `src/graph/`, NOT in `src/dex/`! And `classes_checksum.go` is also in `src/graph/`. My earlier grep output was wrong - I
+  was reading the grep output incorrectly.
+
+  Let me go back and understand the original issue. Looking at the first `go build ./...` error after cleaning cache:
+  ```
+  package github.com/dh-kam/r8-go/src/dex
+      imports github.com/dh-kam/r8-go/src/graph from classes_checksum.go
+
+
+  ```
+
+  This error is saying:
+  1. `src/dex` package imports `src/graph` - from `classes_checksum.go` (but the file is in `src/graph/classes_checksum.go`, not `src/dex/classes_checksum.go`)
+  2. `src/graph` imports `src/dex` - from `app_view.go`
+
+  So there's a circular dependency where `src/dex` imports `src/graph` and `src/graph` imports `src/dex` back. I need to find which file in `src/dex` is actually importing
+  `src/graph` to understand where this cycle originates.
+
+  ```
+
+● Find remaining dex production files importing graph
+  $ find /workspace/tmp/r8_go/src/dex -name "*.go" | grep -v "_test.go" | xargs grep -l '"github.com/dh-kam/r8-go/src/graph"' 2>/dev/null
+  └ 2 lines...
+
+● Check dex_call_site.go imports and graph usage
+  $ grep -n "import\|graph\." /workspace/tmp/r8_go/src/dex/dex_call_site.go | head -20
+  └ 11 lines...
+
+◐ Wait, `dex_call_site.go` uses `graph.DexString`, `graph.DexProto`, `graph.DexValue` BUT the `import` only has `"fmt"`. The `graph` package is not imported! The file is
+  broken.
+
+  But earlier my grep showed:
+  ```src/dex/dex_call_site.go:7:19: undefined: DexString
+  ```That was from the build failure - `DexString` is referenced as just `DexString` (no package qualifier). But now looking at the file, it references `graph.DexString` WITH
+  the `graph.` prefix.
+
+
+  This is contradictory. Let me check the actual file again - looking at the cat output, the struct definition clearly uses `graph.DexString`, `graph.DexProto`, and
+  `graph.DexValue`, but the imports section only has `"fmt"` with no `graph` import, which would definitely cause an undefined error.
+
+  The build error message says `dex_call_site.go:7:19: undefined: DexString`, which is strange because if the file actually uses `graph.DexString`, the error should reference
+  that qualified name. This inconsistency suggests the file content might have changed, or I'm looking at a different version than what was actually compiled.
+
+● Check exact content of dex_call_site.go
+  $ head -15 /workspace/tmp/r8_go/src/dex/dex_call_site.go
+  └ 2 lines...
+
+● Find dex_call_site.go
+  $ find /workspace/tmp/r8_go -name "dex_call_site.go" 2>/dev/null
+  └ 2 lines...
+
+◐ All these files are actually in `src/graph/`, not `src/dex/`! My earlier `ls src/dex/` output was wrong or I misread it.
+
+  So the actual source of the cycle is different. Let me do a fresh analysis. The build error says:
+  ```
+  package github.com/dh-kam/r8-go/src/dex    imports github.com/dh-kam/r8-go/src/graph from classes_checksum.go
+  ```
+
+  But `classes_checksum.go` is in `src/graph/`, not `src/dex/`. This error message doesn't mean the file is in `src/dex/`.
+
+  The error is telling me that `src/dex` has a file importing `src/graph`, and the cycle detection traced through `classes_checksum.go` to find it. Looking at the full error
+  output, I can see the chain: the root package imports `cmd`, which imports something that eventually creates the cycle back to `src/dex` or `src/graph`. I'm tracing through
+  the import cycle step by step—starting from main importing cmd, then following the chain through native_pipeline, writerintegration, covariantreturntype, and
+  class_synthesizer until it loops back when dex/classes_checksum imports graph. The issue is that classes_checksum actually exists in the dex directory, not where the find
+  command initially suggested, which is creating this circular dependency.
+
+● Find ALL instances of the files
+  $ find /workspace/tmp/r8_go -name "classes_checksum.go" && echo "---" && find /workspace/tmp/r8_go -name "dex_call_site.go"
+  └ 4 lines...
+
+● Check dex package build and remaining graph imports
+  $ cd /workspace/tmp/r8_go && go build ./src/dex/... 2>&1; echo "---" && grep -rn '"github.com/dh-kam/r8-go/src/graph"' src/dex/ 2>/dev/null | grep -v "_test.go"
+  └ 2 lines...
+
+◐ Both commands returned empty. The `go build ./src/dex/...` returned exit code 1 with no output, and the grep returned no results (exit code 1 means no matches found).
+
+  Let me try `go build ./src/dex/...` in verbose mode to understand what's happening.
+
+  Actually, wait - the exit code is 1 but there's no output? That's strange. Let me run again with explicit output:
+
+● Check dex build with explicit status
+  $ cd /workspace/tmp/r8_go && go build ./src/dex/... 2>&1; echo "BUILD_EXIT:$?"
+  └ 2 lines...
+
+● Full build check
+  $ cd /workspace/tmp/r8_go && go build ./... 2>&1; echo "BUILD_EXIT:$?"
+  └ 14 lines...
+
+◐ Now I can see the actual problems more clearly:1. `src/graph/field_signature.go` - uses `GraphDexField` but it's undefined
+  2. `src/graph/marker.go:384,406` - uses `graph.` (unqualified self-reference in the graph package)
+  3. `src/graph/classes_checksum.go` - has the half-edited code I made earlier! The `TryParseAndAppend` I edited is now using `mutf8BytesToString` which doesn't exist.
+
+  The issues in `classes_checksum.go` are from my editing - I changed the `TryParseAndAppend` function but introduced bugs.
+
+  I need to correct my earlier analysis - `marker.go` is actually in `src/graph/`, not `src/dex/`, which means those invalid `graph.` references are self-references within the
+  same package. Let me look at what `classes_checksum.go` currently contains to understand the scope of the damage from my edits.
+
+● Check current state of classes_checksum.go
+  $ cat /workspace/tmp/r8_go/src/graph/classes_checksum.go | head -120
+  └ 121 lines...
+
+● Check marker.go graph references
+  $ grep -n "graph\." /workspace/tmp/r8_go/src/graph/marker.go | head -10
+  └ 3 lines...
+
+◐ I see now! The issue is:
+
+  1. `src/graph/classes_checksum.go` - My earlier edit replaced the `TryParseAndAppend` body but accidentally broke `DefinitelyPrecedesChecksumMarker`. I need to restore it
+  properly. The file is in `src/graph/` not `src/dex/` - so it CAN use `DexString` directly without package qualifier.
+
+  2. `src/graph/marker.go:384,406` - uses `graph.DexItemFactory` and `graph.DexString` with package qualifier, but this file IS in the `graph` package.
+
+  Since these files are already in the `graph` package, I shouldn't be using the `graph.` prefix on `DexItemFactory` and `DexString`. I also need to fix `classes_checksum.go`
+  where `DefinitelyPrecedesChecksumMarker` got partially edited and broke - I need to restore it to use `decodePrefixFromMutf8` properly, and fix `TryParseAndAppend` which
+  should take `*DexString` instead of `[]byte`. I see the real issue now - I mistakenly edited files in `src/graph/` when the actual problem was import cycles from `src/dex/`
+  importing `src/graph/`. Since `src/graph/` files are in the same package, they can use `DexString` directly without issues. I need to revert my changes to
+  `classes_checksum.go`, fix the `graph.` prefixes in `marker.go`, and investigate the `GraphDexField` undefined error in `field_signature.go`.
+
+● src/graph/classes_checksum.go가 잘못 편집되었습니다. 원래 *DexString 파라미터로 복원하고, marker.go의 graph. 자기참조 오류도 수정합니다.
+
+● Check GraphDexField and retrace parser issues
+  $ grep -n "GraphDexField" /workspace/tmp/r8_go/src/graph/field_signature.go | head -5 && echo "---" && head -5 /workspace/tmp/r8_go/src/retrace/default_parser.go
+  └ 7 lines...
+
+● Find GraphDexField usage
+  $ grep -n "GraphDexField" /workspace/tmp/r8_go/src/graph/field_signature.go
+  └ 1 line...
+
+● Build just graph package to see current errors
+  $ cd /workspace/tmp/r8_go && go build ./src/graph/... 2>&1
+  └ 13 lines...
+
+● classes_checksum.go의 내 편집을 원래 상태로 완전히 복원합니다.
+
+✗ Edit r8_go/src/graph/classes_checksum.go
+  No match found
+
+● View the broken section of classes_checksum.go
+  $ sed -n '60,120p' /workspace/tmp/r8_go/src/graph/classes_checksum.go
+  └ 62 lines...
+
+◐ Actually, `classes_checksum.go` was already edited to use `[]byte` instead of `*DexString` - but the edit was done reasonably! The `decodeMutf8ToUTF16Units` function exists
+  in `dex_string.go` which is in the same package. Let me check if it's actually accessible.
+
+  `decodeMutf8ToUTF16Units` is defined in `dex_string.go` which is in `src/graph/` package. And `classes_checksum.go` is also in `src/graph/` package. So it should be
+  accessible!
+
+  The issue was that my earlier edit of `DefinitelyPrecedesChecksumMarker` left out the function body.
+
+  But now there's a mismatch - the build error is complaining about `mutf8BytesToString` on line 76, yet the current file shows `decodeMutf8ToUTF16Units` being called around
+  line 80. Something's off between what the error is reporting and what's actually in the file.
+
+● Check line 70-85 of classes_checksum.go
+  $ sed -n '70,85p' /workspace/tmp/r8_go/src/graph/classes_checksum.go
+  └ 17 lines...
+
+∙ Deep architecture analysis (Esc to cancel · 82 B)
+
+ /workspace/tmp                                                                                                                                   claude-sonnet-4.6 (medium) (1x)
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 프로젝트 코드 분석해봐. 개선포인트를 찾고 하나씩 진행하자.
+  진행률을 점검하고 미진한 부분, 누락된 작업, 남은 리스크를 리스트업한 뒤 우선순위 높은 것부터 진행해보자.
+  clean architecture, single responsibility principle, interface-oriented programming 관점에서 구조를 분석하고 어긋난 부분을 개선하자.
+  s/w architect 관점에서 현재 구조를 분석하고 결합도, 책임 분리, 확장성, 테스트 용이성 측면 개선 포인트를 찾아 적용하자.
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ shift+tab switch mode · ctrl+q enqueue · ctrl+s run command ​                                                                                               Remaining reqs.: 98%
+

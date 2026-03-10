@@ -1,0 +1,112 @@
+  - 프록시 환경 고려: X-Forwarded-For, X-Real-IP 헤더 처리
+  - 조회 실패 시 IP만 반환 (에러 아님)
+
+  5. Data (internal/data/embed.go)
+
+  //go:embed geolite2-city-ipv4.mmdb
+  var GeoLite2IPv4Data []byte
+  //go:embed geolite2-city-ipv6.mmdb
+  var GeoLite2IPv6Data []byte
+
+  ---
+  API 엔드포인트
+
+  ┌───────────────┬─────────────────────────────────┐
+  │  엔드포인트   │              설명               │
+  ├───────────────┼─────────────────────────────────┤
+  │ GET /ifconfig │ 클라이언트 IP 및 위치 정보 반환 │
+  ├───────────────┼─────────────────────────────────┤
+  │ GET /health   │ 헬스체크 ({"status":"ok"})      │
+  └───────────────┴─────────────────────────────────┘
+
+  ---
+  장점
+
+  - 단일 바이너리 배포: DB 파일이 embed되어 외부 의존성 없음
+  - Clean Architecture: 계층 분리로 테스트 및 유지보수 용이
+  - IPv4/IPv6 지원: 듀얼 스택
+  - 프록시 친화적: 로드밸런서/프록시 뒤에서도 실제 IP 추출
+
+  개선 고려사항
+
+  - country_name 필드가 응답에 없음 (README에는 명시되어 있지만 구현에 누락)
+  - Rate limiting 미적용
+  - 로깅이 기본 수준 (log.Printf만 사용)
+
+✻ Cogitated for 56s
+                                                                                                                           
+Resume this session with:                                                                                                  
+claude --resume 06e2e6d4-6692-4627-9cd7-0b09eedb5827                                                                       
+ dh.kam@oci-a3  /workspace/location  gemini
+(node:2650137) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:2650204) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+ ███            █████████  ██████████ ██████   ██████ █████ ██████   █████ █████
+░░░███         ███░░░░░███░░███░░░░░█░░██████ ██████ ░░███ ░░██████ ░░███ ░░███
+  ░░░███      ███     ░░░  ░███  █ ░  ░███░█████░███  ░███  ░███░███ ░███  ░███
+    ░░░███   ░███          ░██████    ░███░░███ ░███  ░███  ░███░░███░███  ░███
+     ███░    ░███    █████ ░███░░█    ░███ ░░░  ░███  ░███  ░███ ░░██████  ░███
+   ███░      ░░███  ░░███  ░███ ░   █ ░███      ░███  ░███  ░███  ░░█████  ░███
+ ███░         ░░█████████  ██████████ █████     █████ █████ █████  ░░█████ █████
+░░░            ░░░░░░░░░  ░░░░░░░░░░ ░░░░░     ░░░░░ ░░░░░ ░░░░░    ░░░░░ ░░░░░
+
+
+Logged in with Google: nullcode@gmail.com /auth
+Plan: Gemini Code Assist in Google One AI Pro
+Tips for getting started:
+1. Ask questions, edit files, or run commands.
+2. Be specific for the best results.
+3. /help for more information.
+ ╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+ │                                                                                                                       │
+ │ Do you trust this folder?                                                                                             │
+ │ Trusting a folder allows Gemini to execute commands it suggests. This is a security feature to prevent accidental     │
+ │ execution in untrusted directories.                                                                                   │
+ │                                                                                                                       │
+ │   1. Trust folder (location)                                                                                          │
+ │ ● 2. Trust parent folder (workspace)                                                                                  │
+ │   3. Don't trust                                                                                                      │
+ │                                                                                                                       │
+ ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+ Gemini CLI is restarting to apply the trust changes...
+(node:2651169) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+ ███            █████████  ██████████ ██████   ██████ █████ ██████   █████ █████
+░░░███         ███░░░░░███░░███░░░░░█░░██████ ██████ ░░███ ░░██████ ░░███ ░░███
+  ░░░███      ███     ░░░  ░███  █ ░  ░███░█████░███  ░███  ░███░███ ░███  ░███
+    ░░░███   ░███          ░██████    ░███░░███ ░███  ░███  ░███░░███░███  ░███
+     ███░    ░███    █████ ░███░░█    ░███ ░░░  ░███  ░███  ░███ ░░██████  ░███
+   ███░      ░░███  ░░███  ░███ ░   █ ░███      ░███  ░███  ░███  ░░█████  ░███
+ ███░         ░░█████████  ██████████ █████     █████ █████ █████  ░░█████ █████
+░░░            ░░░░░░░░░  ░░░░░░░░░░ ░░░░░     ░░░░░ ░░░░░ ░░░░░    ░░░░░ ░░░░░
+
+
+Logged in with Google: nullcode@gmail.com /auth
+Plan: Gemini Code Assist in Google One AI Pro
+Tips for getting started:
+1. Ask questions, edit files, or run commands.
+2. Be specific for the best results.
+3. /help for more information.
+ > 프로젝트 코드 분석해봐
+✦ I will use the codebase investigator to perform a comprehensive analysis of the project's architecture and dependencies.
+
+╭─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ⊶  Codebase Investigator Agent Delegating to agent 'codebase_investigator'                                          │
+│                                                                                                                     │
+│ 🤖💭 Assessing the Architecture                                                                                     │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+ ⠼ Just a moment, I'm aligning the pixels… (esc to cancel, 18s)                                            ? for shortcuts 
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ >   Type your message or @path/to/file
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ /workspace/location                             no sandbox (see /docs)                             /model Auto (Gemini 3)
+
+
+
+

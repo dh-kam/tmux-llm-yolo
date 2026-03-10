@@ -1,0 +1,115 @@
+    [38;5;6mRead[39m cf_jump_instruction.go[2m, [0mcf_new_array.go
+    [38;5;6mSearch[39m sortedIntKeys|Map\[int\]|Int2[2m in [0mutils
+    [38;5;6mSearch[39m CfAssignability|isFrameAssignable|isAssignable\([2m in [0mcf
+    [38;5;6mSearch[39m isFrameAssignable|FrameType\.|isFrameTypeAssignable|CfSubtypingAssignability|FrameComparisonTest[2m in [0mr8_go
+    [38;5;6mRead[39m cf_label.go[2m, [0mdex_string.go
+    [38;5;6mSearch[39m cloneableType|serializableType|nullValueType|objectType|intType|byteType|booleanType|floatType|longType|
+doubleType
+           [2min [0mdex_string.go
+    [38;5;6mSearch[39m \.objectType|\.cloneableType|\.serializableType|\.nullValueType|\.booleanType[2m in [0mr8_go
+    [38;5;6mRead[39m dex_item_factory_test.go
+    [38;5;6mSearch[39m func \(.*GetItemFactory[2m in [0minternal_options.go
+    [38;5;6mRead[39m internal_options.go
+    [38;5;6mSearch[39m INTEGER|FLOAT|LONG|DOUBLE|TOP|NULL|UNINITIALIZED_THIS|ITEM_|TOP[2m in [0mr8_go
+    [38;5;6mSearch[39m porting|frame|CfFrame|cf[2m in [0mcf_porting_tracking.md
+    [38;5;6mRead[39m cf_porting_tracking.md
+    [38;5;6mSearch[39m type NumericType|const \(\s*NumericType[2m in [0mtype
+    [38;5;6mRead[39m primitive_type.go
+    [38;5;6mSearch[39m isFrame\(|asFrame\(|getCompareToId|getAsmOpcode\(|internalRegisterUse|write\(|evaluate\([2m in [0mcode
+    [38;5;6mSearch[39m asFrame\(\)|getCompareToId\(\)|isFrame\(\)[2m in [0mr8_go
+
+[2m─ Worked for 1m 34s ───────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• [0mContext compacted
+
+[2m• [0m현재 상태를 기준으로 바로 이어서 [38;5;6mcf[39m 프레임 계열 구현과 테스트를 이어서 붙이겠습니다. 먼저 핵심 파일 유무를 확인하고, 누락
+  된 [38;5;6mcf[39m 타입/프레임/assignability 구현 파일을 한 번에 추가한 뒤 테스트를 추가해 진행하겠습니다.
+
+[2m•[0m [1mExplored
+[0;2m  └ [0m[38;5;6mList[39m code
+    [38;5;6mSearch[39m cf/(frame|code)/
+    [38;5;6mSearch[39m type FrameType|CfFrame|CfAssignability|CfSubtypingAssignability|IsPrecise|GetTypeOpcode|CfFrameUtils|
+           MapReferenceTypes|storeLocal|computeLocalsCount[2m in [0mr8_go
+    [38;5;6mRead[39m frame_type.go[2m, [0mapp_view.go[2m, [0mtype.go
+    [38;5;6mList[39m dex
+
+[2m───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• [0m코드 구조 확인이 끝났고, 이제 바로 Go 포팅 코어를 작성할게요. 다음은 [38;5;6mDexType[39m/옵션 헬퍼 동작이 현재 코드와 맞는지 확인하고
+  바로 구현할 파일로 들어가겠습니다.
+
+[2m•[0m [1mExplored
+[0;2m  └ [0m[38;5;6mSearch[39m type DexType struct|CreateString\(|CreateType\(|GetDescriptor\(|GetName\(|IsPrimitiveType\(|TypeDescriptor|
+           Cloneable|Serializable[2m in [0mdex
+    [38;5;6mRead[39m dex_string.go[2m, [0mgraph_dex_class.go
+    [38;5;6mSearch[39m type DexProgramClass|type DexClass|type DexClass[2m in [0mgraph
+    [38;5;6mRead[39m dex_class.go[2m, [0mapp_view.go
+    [38;5;6mSearch[39m IsInterface\(|IsInterface[2m in [0mgraph
+    [38;5;6mRead[39m access_flags.go
+    [38;5;6mSearch[39m type .* struct .* hash|func \(.*\) .*Equals|GetHash|Verify[2m in [0mcode
+    [38;5;6mSearch[39m type .* struct[2m in [0mcf
+    [38;5;6mRead[39m cf_position.go[2m, [0mFrameType.java[2m, [0mCfFrameUtils.java[2m, [0mCfSubtypingAssignability.java[2m, [0mCfAssignability.java[2m,
+[0mCfFrame.java[2m,
+[0m         OneWord.java[2m, [0mBaseFrameType.java[2m, [0mTwoWord.java[2m, [0mPrimitiveType.java
+    [38;5;6mList[39m frame
+
+[2m───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• [0m다음으로 Java 기준 상세 구현을 일괄로 가져와서 Go 구조체/메서드에 1:1 대응할 수 있게 하겠습니다. [38;5;6mframe[39m 패키지 전체 핵심
+  타입과 [38;5;6mCfFrame[39m 나머지 메서드까지 모두 확인하고 바로 추가하겠습니다.
+
+[2m•[0m [1mExplored
+[0;2m  └ [0m[38;5;6mRead[39m SingletonFrameType.java[2m, [0mUninitializedNew.java[2m, [0mInitializedFrameType.java[2m, [0mPreciseFrameType.java[2m,
+[0m         UninitializedThis.java[2m, [0mInitializedNonNullReferenceFrameType.java[2m, [0mUninitializedFrameType.java[2m,
+[0m         InitializedReferenceFrameType.java[2m, [0mInitializedNonNullReferenceFrameTypeWithInterfaces.java[2m,
+[0m         InitializedNonNullReferenceFrameTypeWithoutInterfaces.java[2m, [0mNullFrameType.java[2m, [0mPrimitiveFrameType.java[2m,
+[0m         SinglePrimitiveFrameType.java[2m, [0mFloatFrameType.java[2m, [0mDoubleFrameType.java[2m, [0mIntFrameType.java[2m, [0mLongFrameType.java[2m,
+[0m         WidePrimitiveFrameType.java[2m, [0mLongHighFrameType.java[2m, [0mDoubleHighFrameType.java[2m, [0mByteFrameType.java[2m,
+[0m         ShortFrameType.java[2m, [0mBooleanFrameType.java[2m, [0mCharFrameType.java[2m, [0mCfFrame.java[2m, [0mCfFrameUtils.java[2m,
+[0m         FrameComparisonTest.java
+    [38;5;6mSearch[39m SortedMap|sorted[2m in [0mr8_go
+    [38;5;6mRead[39m helpers.go
+    [38;5;6mSearch[39m type Deque|[]PreciseFrameType|container/list|push|pop[2m in [0mcode
+    [38;5;6mSearch[39m type .*Deque|container/list|push\(|append\([2m in [0mcode
+    [38;5;6mSearch[39m func \(f \*DexItemFactory\) [a-zA-Z]+Type\(|ObjectType|Cloneable|Serializable|voidType|nullValueType[2m in
+[0m           dex_string.go
+    [38;5;6mSearch[39m nullValueType|cloneableType|serializableType|objectType|stringType[2m in [0mr8_go
+    [38;5;6mRead[39m dex_item_factory_test.go
+    [38;5;6mSearch[39m \.objectType|\.intType|\.longType|\.cloneableType|\.serializableType|\.byteType|\.booleanType|\.floatType|
+           \.doubleType|\.shortType|\.charType|\.voidType|\.nullValueType[2m in [0mr8_go
+
+[2m───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• [0m필요한 타입/로직은 Java 기준으로 정확히 매칭되는데, Go 쪽 [38;5;6mDexItemFactory[39m 내부 필드가 비공개라 타입 상수 접근을 래핑해야
+  합니다. 앞으로는 descriptor 기반 생성 헬퍼를 사용해 타입 비교/생성을 통일하겠습니다. 이어서 [38;5;6mCfFrame[39m/유틸/assignability/테
+  스트를 바로 작성할게요.
+
+[2m•[0m [1mExplored[0m 
+[2m  └ [0m[38;5;6mSearch[39m Opcodes\.|UNINITIALIZED_THIS|INTEGER|FLOAT|LONG|DOUBLE|NULL|TOP[2m in [0mcf
+    [38;5;6mSearch[39m UNINITIALIZED|UNINITIALIZED_THIS|F_NEW|F_SAME|F_APPEND|F_APPEND|F_NEW[2m in [0mr8_go
+    [38;5;6mList[39m r8_go
+    [38;5;6mSearch[39m getTypeOpcode|GetTypeOpcode|getTypeOp|opcode[2m in [0mcf
+    [38;5;6mSearch[39m type TypeElement|type ReferenceType|type PrimitiveType|func \(.*\) toTypeElement|toReferenceType[2m in [0mir
+    [38;5;6mRead[39m reference_type.go[2m, [0mtype_element.go[2m, [0mprimitive_type.go
+    [38;5;6mSearch[39m toTypeElement\(|AsReferenceType\(|AsPrimitive|asReferenceType|ToTypeElement|fromType|lessThanOrEqual[2m in [0mgraph
+    [38;5;6mSearch[39m func \(.*\) Join|func .*Join\([2m in [0mtype
+    [38;5;6mSearch[39m lessThanOrEqual|IsSubtype|Subtype[2m in [0manalysis
+    [38;5;6mRead[39m app_view_test.go[2m, [0mcf_porting_tracking.md[2m, [0mcf_instruction.go
+    [38;5;6mList[39m code
+    [38;5;6mSearch[39m CfFrame\b[2m in [0mr8_go
+    [38;5;6mRead[39m cf_try_catch.go
+    [38;5;6mSearch[39m JoinSingle\(|JoinWide\([2m in [0mframe
+    [38;5;6mSearch[39m type ValueType|type Value[2m in [0mr8_go
+    [38;5;6mRead[39m cf_const_test.go
+    [38;5;6mSearch[39m frame\.[2m in [0mcf
+    [38;5;6mRead[39m error.go
+    [38;5;6mList[39m errors
+    [38;5;6mRead[39m unimplemented.go
+    [38;5;6mRead[39m unreachable.go
+
+[2m◦[0m [1mWo[0mr[2mking[0m [2m(19m 15s • esc to interrupt)[0m                                                                
+
+[48;5;237m 
+[1m›[0m[48;5;237m [2mUse /skills to list available skills
+[0m[48;5;237m 
+[49m  [2m? for shortcuts[0m                                                                                        [2m30% context left

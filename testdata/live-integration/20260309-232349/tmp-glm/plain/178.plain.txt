@@ -1,0 +1,183 @@
+      * This follows Single Responsibility Principle (SRP) by focusing
+      * solely on optimization-related configuration.
+      *
+     … +103 lines (ctrl+o to expand)
+
+● 3단계: DesugaringConfiguration 인터페이스 생성
+
+● Write(src/main/java/com/android/tools/r8/config/DesugaringConfiguration.java)
+  ⎿  Wrote 103 lines to src/main/java/com/android/tools/r8/config/DesugaringConfiguration.java
+     // Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file
+     // for details. All rights reserved. Use of this source code is governed by a
+     // BSD-style license that can be found in the LICENSE file.
+     package com.android.tools.r8.config;
+
+     import com.android.tools.r8.utils.InternalOptions.DesugarState;
+     import com.android.tools.r8.utils.OffOrAuto;
+
+     /**
+      * Configuration interface for desugaring settings.
+     … +93 lines (ctrl+o to expand)
+
+● 4단계: ThreadingConfiguration 인터페이스 생성
+
+● Write(src/main/java/com/android/tools/r8/config/ThreadingConfiguration.java)
+  ⎿  Wrote 40 lines to src/main/java/com/android/tools/r8/config/ThreadingConfiguration.java
+     // Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file
+     // for details. All rights reserved. Use of this source code is governed by a
+     // BSD-style license that can be found in the LICENSE file.
+     package com.android.tools.r8.config;
+
+     import com.android.tools.r8.threading.ThreadingModule;
+     import java.util.concurrent.ExecutorService;
+
+     /**
+      * Configuration interface for threading settings.
+     … +30 lines (ctrl+o to expand)
+
+● 5단계: ApiLevelConfiguration 인터페이스 생성
+
+● Write(src/main/java/com/android/tools/r8/config/ApiLevelConfiguration.java)
+  ⎿  Wrote 49 lines to src/main/java/com/android/tools/r8/config/ApiLevelConfiguration.java
+     // Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file
+     // for details. All rights reserved. Use of this source code is governed by a
+     // BSD-style license that can be found in the LICENSE file.
+     package com.android.tools.r8.config;
+
+     import com.android.tools.r8.utils.AndroidApiLevel;
+
+     /**
+      * Configuration interface for Android API level settings.
+      * This follows Single Responsibility Principle (SRP) by focusing
+     … +39 lines (ctrl+o to expand)
+
+● 6단계: ConsumerConfiguration 인터페이스 생성
+
+● Write(src/main/java/com/android/tools/r8/config/ConsumerConfiguration.java)
+  ⎿  Wrote 86 lines to src/main/java/com/android/tools/r8/config/ConsumerConfiguration.java
+     // Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file
+     // for details. All rights reserved. Use of this source code is governed by a
+     // BSD-style license that can be found in the LICENSE file.
+     package com.android.tools.r8.config;
+
+     import com.android.tools.r8.AndroidResourceConsumer;
+     import com.android.tools.r8.AndroidResourceProvider;
+     import com.android.tools.r8.ClassFileConsumer;
+     import com.android.tools.r8.DataResourceConsumer;
+     import com.android.tools.r8.DesugarGraphConsumer;
+     … +76 lines (ctrl+o to expand)
+
+❯ 진행률을 점검하고 미진한 부분, 누락된 작업, 남은 리스크를 리스트업한 뒤 우선순위 높은 것부터 진행해보자.
+
+● 7단계: 통합 CompilerConfiguration 인터페이스 생성
+
+● Write(src/main/java/com/android/tools/r8/config/CompilerConfiguration.java)
+
+  1 tasks (0 done, 1 in progress, 0 open)
+  ◼ InternalOptions 분리 설계
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Create file
+ src/main/java/com/android/tools/r8/config/CompilerConfiguration.java
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ // Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file
+ // for details. All rights reserved. Use of this source code is governed by a
+ // BSD-style license that can be found in the LICENSE file.
+ package com.android.tools.r8.config;
+
+ /**
+  * Unified configuration interface combining all compiler configuration aspects.
+  * This follows Interface Segregation Principle (ISP) and Composite Pattern
+  * to provide a unified view while allowing individual configuration access.
+  *
+  * <p>Architecture Benefits:
+  * <ul>
+  *   <li><b>Low Coupling</b>: Consumers depend only on required sub-configurations</li>
+  *   <li><b>High Cohesion</b>: Related settings are grouped logically</li>
+  *   <li><b>Extensibility</b>: New configurations can be added without breaking changes</li>
+  *   <li><b>Testability</b>: Easy to mock individual configurations</li>
+  * </ul>
+  *
+  * <p>Usage Example:
+  * <pre>{@code
+  * // Access only compilation settings (reduces coupling)
+  * CompilationConfiguration compilation = config.getCompilationConfig();
+  * if (compilation.isDebug()) { ... }
+  *
+  * // Access only optimization settings
+  * OptimizationConfiguration optimization = config.getOptimizationConfig();
+  * if (optimization.isTreeShakingEnabled()) { ... }
+  * }</pre>
+  *
+  * <p>Migration Strategy:
+  * <ol>
+  *   <li>InternalOptions implements CompilerConfiguration</li>
+  *   <li>Consumers gradually migrate to using sub-interfaces</li>
+  *   <li>Eventually InternalOptions becomes a facade</li>
+  * </ol>
+  */
+ public interface CompilerConfiguration
+     extends CompilationConfiguration,
+         OptimizationConfiguration,
+         DesugaringConfiguration,
+         ThreadingConfiguration,
+         ApiLevelConfiguration,
+         ConsumerConfiguration {
+
+   /**
+    * Returns the compilation configuration.
+    * Use this when you only need compilation-related settings.
+    */
+   default CompilationConfiguration getCompilationConfig() {
+     return this;
+   }
+
+   /**
+    * Returns the optimization configuration.
+    * Use this when you only need optimization-related settings.
+    */
+   default OptimizationConfiguration getOptimizationConfig() {
+     return this;
+   }
+
+   /**
+    * Returns the desugaring configuration.
+    * Use this when you only need desugaring-related settings.
+    */
+   default DesugaringConfiguration getDesugaringConfig() {
+     return this;
+   }
+
+   /**
+    * Returns the threading configuration.
+    * Use this when you only need threading-related settings.
+    */
+   default ThreadingConfiguration getThreadingConfig() {
+     return this;
+   }
+
+   /**
+    * Returns the API level configuration.
+    * Use this when you only need API level-related settings.
+    */
+   default ApiLevelConfiguration getApiLevelConfig() {
+     return this;
+   }
+
+   /**
+    * Returns the consumer configuration.
+    * Use this when you only need consumer-related settings.
+    */
+   default ConsumerConfiguration getConsumerConfig() {
+     return this;
+   }
+ }
+
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ Do you want to create CompilerConfiguration.java?
+ ❯ 1. Yes
+   2. Yes, allow all edits during this session (shift+tab)
+   3. No
+
+ Esc to cancel · Tab to amend
+

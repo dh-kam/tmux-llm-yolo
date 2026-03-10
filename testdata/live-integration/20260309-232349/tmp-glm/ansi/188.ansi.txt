@@ -1,0 +1,183 @@
+     [32m *[39m [32mThis[39m [32mfollows[39m [32mSingle[39m [32mResponsibility[39m [32mPrinciple[39m [32m(SRP)[39m [32mby[39m [32mfocusing[39m
+     [32m *[39m [32msolely[39m [32mon[39m [32moptimization-related[39m [32mconfiguration.[39m
+     [32m *[39m
+     [38;5;246m…[39m [38;5;246m+103[39m [38;5;246mlines[39m [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;231m●[39m [1m3단계:[0m [1mDesugaringConfiguration[0m [1m인터페이스[0m [1m생성[0m
+
+[38;5;75m●[39m [1mWrite[0m(src/main/java/com/android/tools/r8/config/DesugaringConfiguration.java)
+  ⎿  Wrote [1m103[0m lines to [1msrc/main/java/com/android/tools/r8/config/DesugaringConfiguration.java[0m
+     [32m//[39m [32mCopyright[39m [32m(c)[39m [32m2025,[39m [32mthe[39m [32mR8[39m [32mproject[39m [32mauthors.[39m [32mPlease[39m [32msee[39m [32mthe[39m [32mAUTHORS[39m [32mfile[39m
+     [32m//[39m [32mfor[39m [32mdetails.[39m [32mAll[39m [32mrights[39m [32mreserved.[39m [32mUse[39m [32mof[39m [32mthis[39m [32msource[39m [32mcode[39m [32mis[39m [32mgoverned[39m [32mby[39m [32ma[39m
+     [32m//[39m [32mBSD-style[39m [32mlicense[39m [32mthat[39m [32mcan[39m [32mbe[39m [32mfound[39m [32min[39m [32mthe[39m [32mLICENSE[39m [32mfile.[39m
+     [34mpackage[39m com.android.tools.r8.config;
+
+     [34mimport[39m com.android.tools.r8.utils.InternalOptions.DesugarState;
+     [34mimport[39m com.android.tools.r8.utils.OffOrAuto;
+
+     [32m/**[39m
+     [32m *[39m [32mConfiguration[39m [32minterface[39m [32mfor[39m [32mdesugaring[39m [32msettings.[39m
+     [38;5;246m…[39m [38;5;246m+93[39m [38;5;246mlines[39m [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;231m●[39m [1m4단계:[0m [1mThreadingConfiguration[0m [1m인터페이스[0m [1m생성[0m
+
+[38;5;75m●[39m [1mWrite[0m(src/main/java/com/android/tools/r8/config/ThreadingConfiguration.java)
+  ⎿  Wrote [1m40[0m lines to [1msrc/main/java/com/android/tools/r8/config/ThreadingConfiguration.java[0m
+     [32m//[39m [32mCopyright[39m [32m(c)[39m [32m2025,[39m [32mthe[39m [32mR8[39m [32mproject[39m [32mauthors.[39m [32mPlease[39m [32msee[39m [32mthe[39m [32mAUTHORS[39m [32mfile[39m
+     [32m//[39m [32mfor[39m [32mdetails.[39m [32mAll[39m [32mrights[39m [32mreserved.[39m [32mUse[39m [32mof[39m [32mthis[39m [32msource[39m [32mcode[39m [32mis[39m [32mgoverned[39m [32mby[39m [32ma[39m
+     [32m//[39m [32mBSD-style[39m [32mlicense[39m [32mthat[39m [32mcan[39m [32mbe[39m [32mfound[39m [32min[39m [32mthe[39m [32mLICENSE[39m [32mfile.[39m
+     [34mpackage[39m com.android.tools.r8.config;
+
+     [34mimport[39m com.android.tools.r8.threading.ThreadingModule;
+     [34mimport[39m java.util.concurrent.ExecutorService;
+
+     [32m/**[39m
+     [32m *[39m [32mConfiguration[39m [32minterface[39m [32mfor[39m [32mthreading[39m [32msettings.[39m
+     [38;5;246m…[39m [38;5;246m+30[39m [38;5;246mlines[39m [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;231m●[39m [1m5단계:[0m [1mApiLevelConfiguration[0m [1m인터페이스[0m [1m생성[0m
+
+[38;5;75m●[39m [1mWrite[0m(src/main/java/com/android/tools/r8/config/ApiLevelConfiguration.java)
+  ⎿  Wrote [1m49[0m lines to [1msrc/main/java/com/android/tools/r8/config/ApiLevelConfiguration.java[0m
+     [32m//[39m [32mCopyright[39m [32m(c)[39m [32m2025,[39m [32mthe[39m [32mR8[39m [32mproject[39m [32mauthors.[39m [32mPlease[39m [32msee[39m [32mthe[39m [32mAUTHORS[39m [32mfile[39m
+     [32m//[39m [32mfor[39m [32mdetails.[39m [32mAll[39m [32mrights[39m [32mreserved.[39m [32mUse[39m [32mof[39m [32mthis[39m [32msource[39m [32mcode[39m [32mis[39m [32mgoverned[39m [32mby[39m [32ma[39m
+     [32m//[39m [32mBSD-style[39m [32mlicense[39m [32mthat[39m [32mcan[39m [32mbe[39m [32mfound[39m [32min[39m [32mthe[39m [32mLICENSE[39m [32mfile.[39m
+     [34mpackage[39m com.android.tools.r8.config;
+
+     [34mimport[39m com.android.tools.r8.utils.AndroidApiLevel;
+
+     [32m/**[39m
+     [32m *[39m [32mConfiguration[39m [32minterface[39m [32mfor[39m [32mAndroid[39m [32mAPI[39m [32mlevel[39m [32msettings.[39m
+     [32m *[39m [32mThis[39m [32mfollows[39m [32mSingle[39m [32mResponsibility[39m [32mPrinciple[39m [32m(SRP)[39m [32mby[39m [32mfocusing[39m
+     [38;5;246m…[39m [38;5;246m+39[39m [38;5;246mlines[39m [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;231m●[39m [1m6단계:[0m [1mConsumerConfiguration[0m [1m인터페이스[0m [1m생성[0m
+
+[38;5;75m●[39m [1mWrite[0m(src/main/java/com/android/tools/r8/config/ConsumerConfiguration.java)
+  ⎿  Wrote [1m86[0m lines to [1msrc/main/java/com/android/tools/r8/config/ConsumerConfiguration.java[0m
+     [32m// Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file[39m
+     [32m// for details. All rights reserved. Use of this source code is governed by a[39m
+     [32m// BSD-style license that can be found in the LICENSE file.[39m
+     [34mpackage[39m com.android.tools.r8.config;
+
+     [34mimport[39m com.android.tools.r8.AndroidResourceConsumer;
+     [34mimport[39m com.android.tools.r8.AndroidResourceProvider;
+     [34mimport[39m com.android.tools.r8.ClassFileConsumer;
+     [34mimport[39m com.android.tools.r8.DataResourceConsumer;
+     [34mimport[39m com.android.tools.r8.DesugarGraphConsumer;
+     [38;5;246m…[39m [38;5;246m+76[39m [38;5;246mlines[39m [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;239m[48;5;237m❯ [38;5;231m진행률을 점검하고 미진한 부분, 누락된 작업, 남은 리스크를 리스트업한 뒤 우선순위 높은 것부터 진행해보자. [39m[49m
+
+[38;5;231m●[39m [1m7단계: 통합 CompilerConfiguration 인터페이스 생성[0m
+
+[38;5;246m●[39m [1mWrite[0m(src/main/java/com/android/tools/r8/config/CompilerConfiguration.java)
+
+  [1m[38;5;246m1[0m[38;5;246m tasks ([1m0[0m[38;5;246m done, [1m1[0m[38;5;246m in progress, [1m0[0m[38;5;246m open)[39m
+  [38;5;215m◼ [1m[39mInternalOptions 분리 설계[0m
+
+[38;5;153m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[39m [1m[38;5;153mCreate file[0m
+ [38;5;246msrc/main/java/com/android/tools/r8/config/CompilerConfiguration.java[39m
+[2m[38;5;239m╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+[0m [32m// Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file[39m
+ [32m// for details. All rights reserved. Use of this source code is governed by a[39m
+ [32m// BSD-style license that can be found in the LICENSE file.[39m
+ [34mpackage[39m com.android.tools.r8.config;
+
+ [32m/**[39m
+ [32m *[39m [32mUnified[39m [32mconfiguration[39m [32minterface[39m [32mcombining[39m [32mall[39m [32mcompiler[39m [32mconfiguration[39m [32maspects.[39m
+ [32m *[39m [32mThis[39m [32mfollows[39m [32mInterface[39m [32mSegregation[39m [32mPrinciple[39m [32m(ISP)[39m [32mand[39m [32mComposite[39m [32mPattern[39m
+ [32m *[39m [32mto[39m [32mprovide[39m [32ma[39m [32munified[39m [32mview[39m [32mwhile[39m [32mallowing[39m [32mindividual[39m [32mconfiguration[39m [32maccess.[39m
+ [32m *[39m
+ [32m *[39m [32m<p>Architecture[39m [32mBenefits:[39m
+ [32m *[39m [32m<ul>[39m
+ [32m *[39m   [32m<li><b>Low[39m [32mCoupling</b>:[39m [32mConsumers[39m [32mdepend[39m [32monly[39m [32mon[39m [32mrequired[39m [32msub-configurations</li>[39m
+ [32m *[39m   [32m<li><b>High[39m [32mCohesion</b>:[39m [32mRelated[39m [32msettings[39m [32mare[39m [32mgrouped[39m [32mlogically</li>[39m
+ [32m *[39m   [32m<li><b>Extensibility</b>:[39m [32mNew[39m [32mconfigurations[39m [32mcan[39m [32mbe[39m [32madded[39m [32mwithout[39m [32mbreaking[39m [32mchanges</li>[39m
+ [32m *[39m   [32m<li><b>Testability</b>:[39m [32mEasy[39m [32mto[39m [32mmock[39m [32mindividual[39m [32mconfigurations</li>[39m
+ [32m *[39m [32m</ul>[39m
+ [32m *[39m
+ [32m *[39m [32m<p>Usage[39m [32mExample:[39m
+ [32m *[39m [32m<pre>{@code[39m
+ [32m *[39m [32m//[39m [32mAccess[39m [32monly[39m [32mcompilation[39m [32msettings[39m [32m(reduces[39m [32mcoupling)[39m
+ [32m *[39m [32mCompilationConfiguration[39m [32mcompilation[39m [32m=[39m [32mconfig.getCompilationConfig();[39m
+ [32m *[39m [32mif[39m [32m(compilation.isDebug())[39m [32m{[39m [32m...[39m [32m}[39m
+ [32m *[39m
+ [32m *[39m [32m//[39m [32mAccess[39m [32monly[39m [32moptimization[39m [32msettings[39m
+ [32m *[39m [32mOptimizationConfiguration[39m [32moptimization[39m [32m=[39m [32mconfig.getOptimizationConfig();[39m
+ [32m *[39m [32mif[39m [32m(optimization.isTreeShakingEnabled())[39m [32m{[39m [32m...[39m [32m}[39m
+ [32m *[39m [32m}</pre>[39m
+ [32m *[39m
+ [32m *[39m [32m<p>Migration[39m [32mStrategy:[39m
+ [32m *[39m [32m<ol>[39m
+ [32m *[39m   [32m<li>InternalOptions[39m [32mimplements[39m [32mCompilerConfiguration</li>[39m
+ [32m *[39m   [32m<li>Consumers[39m [32mgradually[39m [32mmigrate[39m [32mto[39m [32musing[39m [32msub-interfaces</li>[39m
+ [32m *[39m   [32m<li>Eventually[39m [32mInternalOptions[39m [32mbecomes[39m [32ma[39m [32mfacade</li>[39m
+ [32m *[39m [32m</ol>[39m
+ [32m */[39m
+ [34mpublic[39m [34minterface[39m [34mCompilerConfiguration[39m
+ [34m [39m   [34mextends[39m [34mCompilationConfiguration,[39m
+ [34m [39m       [34mOptimizationConfiguration,[39m
+ [34m [39m       [34mDesugaringConfiguration,[39m
+ [34m [39m       [34mThreadingConfiguration,[39m
+ [34m [39m       [34mApiLevelConfiguration,[39m
+ [34m [39m       [34mConsumerConfiguration[39m {
+
+   [32m/**[39m
+ [32m [39m  [32m*[39m [32mReturns[39m [32mthe[39m [32mcompilation[39m [32mconfiguration.
+[39m [32m [39m  [32m*[39m [32mUse[39m [32mthis[39m [32mwhen[39m [32myou[39m [32monly[39m [32mneed[39m [32mcompilation-related[39m [32msettings.[39m
+ [32m [39m  [32m*/[39m
+   [34mdefault[33m CompilationConfiguration[39m [33mgetCompilationConfig()[39m {
+     [34mreturn[39m [34mthis[39m;
+   }
+
+   [32m/**[39m
+ [32m [39m  [32m*[39m [32mReturns[39m [32mthe[39m [32moptimization[39m [32mconfiguration.[39m
+ [32m [39m  [32m*[39m [32mUse[39m [32mthis[39m [32mwhen[39m [32myou[39m [32monly[39m [32mneed[39m [32moptimization-related[39m [32msettings.[39m
+ [32m [39m  [32m*/[39m
+   [34mdefault[33m OptimizationConfiguration[39m [33mgetOptimizationConfig()[39m {
+     [34mreturn[39m [34mthis[39m;
+   }
+
+   [32m/**[39m
+ [32m [39m  [32m*[39m [32mReturns[39m [32mthe[39m [32mdesugaring[39m [32mconfiguration.[39m
+ [32m [39m  [32m*[39m [32mUse[39m [32mthis[39m [32mwhen[39m [32myou[39m [32monly[39m [32mneed[39m [32mdesugaring-related[39m [32msettings.[39m
+ [32m [39m  [32m*/[39m
+   [34mdefault[33m DesugaringConfiguration[39m [33mgetDesugaringConfig()[39m {
+     [34mreturn[39m [34mthis[39m;
+   }
+
+   [32m/**[39m
+ [32m [39m  [32m*[39m [32mReturns[39m [32mthe[39m [32mthreading[39m [32mconfiguration.[39m
+ [32m [39m  [32m*[39m [32mUse[39m [32mthis[39m [32mwhen[39m [32myou[39m [32monly[39m [32mneed[39m [32mthreading-related[39m [32msettings.[39m
+ [32m [39m  [32m*/[39m
+   [34mdefault[33m ThreadingConfiguration[39m [33mgetThreadingConfig()[39m {
+     [34mreturn[39m [34mthis[39m;
+   }
+
+   [32m/**[39m
+ [32m [39m  [32m*[39m [32mReturns[39m [32mthe[39m [32mAPI[39m [32mlevel[39m [32mconfiguration.[39m
+ [32m [39m  [32m*[39m [32mUse[39m [32mthis[39m [32mwhen[39m [32myou[39m [32monly[39m [32mneed[39m [32mAPI[39m [32mlevel-related[39m [32msettings.[39m
+ [32m [39m  [32m*/[39m
+   [34mdefault[33m ApiLevelConfiguration[39m [33mgetApiLevelConfig()[39m {
+     [34mreturn[39m [34mthis[39m;
+   }
+
+   [32m/**[39m
+ [32m [39m  [32m*[39m [32mReturns[39m [32mthe[39m [32mconsumer[39m [32mconfiguration.[39m
+ [32m [39m  [32m*[39m [32mUse[39m [32mthis[39m [32mwhen[39m [32myou[39m [32monly[39m [32mneed[39m [32mconsumer-related[39m [32msettings.[39m
+ [32m [39m  [32m*/[39m
+   [34mdefault[33m ConsumerConfiguration[39m [33mgetConsumerConfig()[39m {
+     [34mreturn[39m [34mthis[39m;
+   }
+ }
+
+[2m[38;5;239m╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+[0m Do you want to create [1mCompilerConfiguration.java[0m?
+ [38;5;153m❯[39m [38;5;246m1.[39m [38;5;153mYes[39m
+   [38;5;246m2.[39m Yes, allow all edits during this session [1m(shift+tab)[0m
+   [38;5;246m3.[39m No
+
+ [38;5;246mEsc[39m [38;5;246mto[39m [38;5;246mcancel[39m [38;5;246m·[39m [38;5;246mTab[39m [38;5;246mto[39m [38;5;246mamend[39m
+

@@ -1,0 +1,44 @@
+{
+  "timestamp": "20260309-131605",
+  "sample_count": 30,
+  "sample_interval_seconds": 1,
+  "capture_lines": 120,
+  "prompt_text": "프로젝트 코드 분석해봐. 개선포인트찾아서 하나씩 진행하자.",
+  "sessions": [
+    {
+      "session": "tmp-codex",
+      "files": [
+        {"index": 1, "ansi": "tmp-codex/ansi/001.ansi.txt", "plain": "tmp-codex/plain/001.plain.txt"},
+        {"index": 2, "ansi": "tmp-codex/ansi/002.ansi.txt", "plain": "tmp-codex/plain/002.plain.txt"},
+        {"index": 3, "ansi": "tmp-codex/ansi/003.ansi.txt", "plain": "tmp-codex/plain/003.plain.txt"},
+        {"index": 4, "ansi": "tmp-codex/ansi/004.ansi.txt", "plain": "tmp-codex/plain/004.plain.txt"},
+        {"index": 5, "ansi": "tmp-codex/ansi/005.ansi.txt", "plain": "tmp-codex/plain/005.plain.txt"},
+        {"index": 6, "ansi": "tmp-codex/ansi/006.ansi.txt", "plain": "tmp-codex/plain/006.plain.txt"},
+        {"index": 7, "ansi": "tmp-codex/ansi/007.ansi.txt", "plain": "tmp-codex/plain/007.plain.txt"},
+        {"index": 8, "ansi": "tmp-codex/ansi/008.ansi.txt", "plain": "tmp-codex/plain/008.plain.txt"},
+        {"index": 9, "ansi": "tmp-codex/ansi/009.ansi.txt", "plain": "tmp-codex/plain/009.plain.txt"},
+        {"index": 10, "ansi": "tmp-codex/ansi/010.ansi.txt", "plain": "tmp-codex/plain/010.plain.txt"},
+        {"index": 11, "ansi": "tmp-codex/ansi/011.ansi.txt", "plain": "tmp-codex/plain/011.plain.txt"},
+        {"index": 12, "ansi": "tmp-codex/ansi/012.ansi.txt", "plain": "tmp-codex/plain/012.plain.txt"},
+        {"index": 13, "ansi": "tmp-codex/ansi/013.ansi.txt", "plain": "tmp-codex/plain/013.plain.txt"},
+        {"index": 14, "ansi": "tmp-codex/ansi/014.ansi.txt", "plain": "tmp-codex/plain/014.plain.txt"},
+        {"index": 15, "ansi": "tmp-codex/ansi/015.ansi.txt", "plain": "tmp-codex/plain/015.plain.txt"},
+        {"index": 16, "ansi": "tmp-codex/ansi/016.ansi.txt", "plain": "tmp-codex/plain/016.plain.txt"},
+        {"index": 17, "ansi": "tmp-codex/ansi/017.ansi.txt", "plain": "tmp-codex/plain/017.plain.txt"},
+        {"index": 18, "ansi": "tmp-codex/ansi/018.ansi.txt", "plain": "tmp-codex/plain/018.plain.txt"},
+        {"index": 19, "ansi": "tmp-codex/ansi/019.ansi.txt", "plain": "tmp-codex/plain/019.plain.txt"},
+        {"index": 20, "ansi": "tmp-codex/ansi/020.ansi.txt", "plain": "tmp-codex/plain/020.plain.txt"},
+        {"index": 21, "ansi": "tmp-codex/ansi/021.ansi.txt", "plain": "tmp-codex/plain/021.plain.txt"},
+        {"index": 22, "ansi": "tmp-codex/ansi/022.ansi.txt", "plain": "tmp-codex/plain/022.plain.txt"},
+        {"index": 23, "ansi": "tmp-codex/ansi/023.ansi.txt", "plain": "tmp-codex/plain/023.plain.txt"},
+        {"index": 24, "ansi": "tmp-codex/ansi/024.ansi.txt", "plain": "tmp-codex/plain/024.plain.txt"},
+        {"index": 25, "ansi": "tmp-codex/ansi/025.ansi.txt", "plain": "tmp-codex/plain/025.plain.txt"},
+        {"index": 26, "ansi": "tmp-codex/ansi/026.ansi.txt", "plain": "tmp-codex/plain/026.plain.txt"},
+        {"index": 27, "ansi": "tmp-codex/ansi/027.ansi.txt", "plain": "tmp-codex/plain/027.plain.txt"},
+        {"index": 28, "ansi": "tmp-codex/ansi/028.ansi.txt", "plain": "tmp-codex/plain/028.plain.txt"},
+        {"index": 29, "ansi": "tmp-codex/ansi/029.ansi.txt", "plain": "tmp-codex/plain/029.plain.txt"},
+        {"index": 30, "ansi": "tmp-codex/ansi/030.ansi.txt", "plain": "tmp-codex/plain/030.plain.txt"}
+      ]
+    }
+  ]
+}

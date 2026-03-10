@@ -1,0 +1,139 @@
+  3. 오래된 TODO 중 빌드 안정성에 직접 영
+     향 주는 항목 선별
+
+  다음으로는 settings.gradle.kts 쪽 구조
+  개선을 이어서 보겠습니다.
+
+
+› Analyze this project, list improvement
+  points, and implement them one by one.
+  프로젝트 코드 분석해봐. 개선포인트를
+  찾고 하나씩 진행하자.
+
+
+• 다음 개선 후보를 실제 코드 기준으로 추
+  리겠습니다. 빌드 스크립트와 셸 스크립트
+  에서 재현 가능한 유지보수/안정성 문제를
+  찾고, 바로 수정 가능한 항목부터 이어서
+  처리하겠습니다.
+
+• Explored
+  └ Read
+verify_native_porting_completion.sh,
+         TestingState.kt,
+         TestConfigurationHelper.kt,
+
+check_classfile_with_lib_parity.sh
+
+─────────────────────────────────────────
+
+• 두 번째로는 래퍼 스크립트의 실패 조건이
+  과하다는 점을 손보겠습니다. 현재는 대상
+  스크립트를 bash로 실행하면서도 -x까지
+  요구해서, 파일은 존재하지만 실행 비트가
+  없으면 불필요하게 실패합니다.
+
+• Explored
+  └ Search missing executable|exec bash
+in
+           scripts
+    List
+verify_native_porting_completion.sh
+
+─────────────────────────────────────────
+
+• 같은 패턴이 3개 스크립트에 반복됩니다.
+  세 군데를 한 번에 정리하겠습니다.
+
+• Explored
+  └ Read
+check_native_cli_no_java_wrapper.sh
+
+• Ran test -f r8_go/scripts/
+  │ verify_native_porting_completion.sh
+  │ && echo present || echo missing
+  └ present
+
+• Ran test -d r8_go && echo yes || echo
+  │ no
+  └ yes
+
+─────────────────────────────────────────
+
+• 세 래퍼 모두 동일하게 수정합니다. 존재
+  여부 기준으로 검사하고, 에러 메시지도
+  실제 조건과 맞추겠습니다.
+
+• Edited 3 files (+6 -6)
+  └ scripts/
+check_classfile_with_lib_parity.sh (+2
+-2)
+     7
+     8 -if [[ ! -x "$r8_go_script" ]]; th
+        en
+     9 -  echo "[error] missing executabl
+        e script: $r8_go_script" >&2
+     8 +if [[ ! -f "$r8_go_script" ]]; th
+        en
+     9 +  echo "[error] missing script: $
+        r8_go_script" >&2
+    10    exit 1
+
+  └ scripts/
+check_native_cli_no_java_wrapper.sh (+2
+-2)
+     7
+     8 -if [[ ! -x "$r8_go_script" ]]; th
+        en
+     9 -  echo "[error] missing executabl
+        e script: $r8_go_script" >&2
+     8 +if [[ ! -f "$r8_go_script" ]]; th
+        en
+     9 +  echo "[error] missing script: $
+        r8_go_script" >&2
+    10    exit 1
+
+  └ scripts/
+verify_native_porting_completion.sh (+2
+-2)
+     7
+     8 -if [[ ! -x "$r8_go_gate" ]]; then
+     9 -  echo "[error] missing executabl
+        e gate script: $r8_go_gate" >&2
+     8 +if [[ ! -f "$r8_go_gate" ]]; then
+     9 +  echo "[error] missing gate scri
+        pt: $r8_go_gate" >&2
+    10    exit 1
+
+─────────────────────────────────────────
+
+• 수정 후에는 차이와 문법만 빠르게 확인하
+  겠습니다. 이 변경은 동작 경로를 넓히는
+  쪽이라 회귀 위험은 낮습니다.
+
+• Ran git diff -- scripts/
+  │ verify_native_porting_completion.sh
+  │ scripts/
+  │ … +3 lines
+  └ (no output)
+
+• Ran bash -n scripts/
+  │ verify_native_porting_completion.sh
+  │ scripts/
+  │ … +3 lines
+  └ (no output)
+
+• Explored
+  └ Read
+verify_native_porting_completion.sh,
+         check_classfile_with_lib_parity.
+sh,
+         check_native_cli_no_java_wrapper
+.sh
+
+◦ Working (40s • esc to interrupt)
+
+
+› Find and fix a bug in @filename
+
+  gpt-5.4 medium · 90% left · /workspace…

@@ -1,0 +1,139 @@
+    181 +                deleteIfExists(d
+         estFile)
+    182                }
+        ⋮
+    202                val link = getTest
+         ReportEntryURL(reportDir, desc)
+    201 -              index.appendText("
+         <li><a href=\"${link}\">${title}
+         </a></li>")
+    203 +              appendText(index,
+         "<li><a href=\"${link}\">${title
+         }</a></li>")
+    204                if (!result.except
+         ions.isEmpty()) {
+        ⋮
+    288      private fun ensureDir(dir: F
+         ile): File {
+    287 -      dir.mkdirs()
+    289 +      if (dir.isDirectory) {
+    290 +        return dir
+    291 +      }
+    292 +      if (dir.exists()) {
+    293 +        throw IllegalStateExcept
+         ion("Path exists but is not a di
+         rectory: ${dir.absolutePath}")
+    294 +      }
+    295 +      if (!dir.mkdirs() && !dir.
+         isDirectory) {
+    296 +        throw IllegalStateExcept
+         ion("Failed to create directory:
+          ${dir.absolutePath}")
+    297 +      }
+    298        return dir
+        ⋮
+    300
+    301 +    private fun initializeIndexI
+         fMissing(index: File) {
+    302 +      if (!index.exists()) {
+    303 +        appendText(index, "<ul>"
+         )
+    304 +      }
+    305 +    }
+    306 +
+    307 +    private fun appendText(file:
+          File, text: String) {
+    308 +      file.parentFile?.let(::ens
+         ureDir)
+    309 +      file.appendText(text)
+    310 +    }
+    311 +
+    312 +    private fun deleteIfExists(f
+         ile: File) {
+    313 +      if (file.exists() && !file
+         .delete()) {
+    314 +        throw IllegalStateExcept
+         ion("Failed to delete file: ${fi
+         le.absolutePath}")
+    315 +      }
+    316 +    }
+    317 +
+    318      // Some of our test paramete
+         rs have new lines :-( We really
+         don't want test names to span li
+         nes.
+        ⋮
+    370        if (statusFile == StatusTy
+         pe.FAILURE) {
+    344 -        getTestResultEntryOutput
+         File(reportDir, desc, StatusType
+         .SUCCESS.name).delete()
+    371 +        deleteIfExists(getTestRe
+         sultEntryOutputFile(reportDir, d
+         esc, StatusType.SUCCESS.name))
+    372          val pastFailure = Status
+         Type.PAST_FAILURE.name
+        ⋮
+    374        } else {
+    348 -        getTestResultEntryOutput
+         File(reportDir, desc, StatusType
+         .FAILURE.name).delete()
+    375 +        deleteIfExists(getTestRe
+         sultEntryOutputFile(reportDir, d
+         esc, StatusType.FAILURE.name))
+    376        }
+
+─────────────────────────────────────────
+
+• 변경 후에는 리포팅 코드만 라인 단위로
+  다시 확인하겠습니다. 빈 테스트 실행과
+  stale 파일 정리 경로가 의도대로 읽히는
+  지 보겠습니다.
+
+
+• Ran git diff -- d8_r8/commonBuildS
+  │ src/main/kotlin/TestingState.kt
+  │ d8_r8/settings.gradle.kts
+
+• Workingain/ko4lin/TestingState.kt b
+
+
+     }
+  작업, 남은 리스크를 리스트업한 뒤 우선
+  순위 높은 것부터 진행해보자.clean
+  architecture, single responsibility
+  principle, interface-oriented
+  programming 관점에서 구조를 분석하고
+  어긋난 부분을 개선하자.
+
+
+  tab to queue message 81% context left
+
+
+• Explored
+  └ Read TestingState.kt
+    Search initializeIndexIfMissing|
+           appendText\(|deleteIfExists\(|
+           ensureDir\( in TestingState.kt
+
+─────────────────────────────────────────
+
+• 하나 더 바로 고치겠습니다. 의존성 다운
+  로드 태스크가 기존 출력 디렉터리를
+  delete()로만 지워서, 비어 있지 않으면
+  조용히 실패합니다. stale 파일이 남는 실
+  제 버그라서 우선순위가 높습니다.
+
+◦ Working (1m 39s • esc to interrupt)
+
+
+› 진행률을 점검하고 미진한 부분, 누락된
+  작업, 남은 리스크를 리스트업한 뒤 우선
+  순위 높은 것부터 진행해보자.clean
+  architecture, single responsibility
+  principle, interface-oriented
+  programming 관점에서 구조를 분석하고
+  어긋난 부분을 개선하자.
+
+
+  tab to queue message 78% context left

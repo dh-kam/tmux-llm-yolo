@@ -1,0 +1,139 @@
+─────────────────────────────────────────
+
+• 이번 라운드에서는 바로 수정 가능한 안정
+  성 이슈를 계속 정리했습니다.
+
+  반영한 개선은 다음입니다.
+
+  - 루트 clean 누락 수정
+    d8_r8/build.gradle.kts:11 에 shared,
+    assistant 포함 빌드의 :clean 의존성을
+    추가했습니다.
+  - 셸 래퍼의 과도한 실행권한 요구 제거
+    scripts/
+    verify_native_porting_completion.sh:8
+    , scripts/
+    check_classfile_with_lib_parity.sh:8,
+    scripts/
+    check_native_cli_no_java_wrapper.sh:8
+    에서 대상 파일 존재만 확인하도록 바꿨
+    습니다. bash로 실행하는데 -x까지 요구
+    하던 불필요한 실패를 제거한 겁니다.
+  - 테스트 병렬 실행 환경변수 방어 코드
+    추가
+    TestConfigurationHelper.kt:188 에서
+    R8_GRADLE_CORES_PER_FORK 가 잘못된 값
+    이거나 CPU 수보다 커도
+    maxParallelForks 가 0이 되지 않도록
+    검증과 최소값 보장을 넣었습니다.
+  - settings.gradle.kts 부트스트랩 강건성
+    개선
+    d8_r8/settings.gradle.kts:18 에서
+    repo root 탐색 실패를 명시적으로 처리
+    하고,
+    누락된 .sha1 파일을 바로 에러로 올리
+    고,
+    다운로드 프로세스의 작업 디렉터리를
+    저장소 루트로 고정하고,
+    stderr/stdout 합쳐서 읽도록 바꿨습니
+    다.
+    또 d8_r8/settings.gradle.kts:82 의
+    Maven repo 경로를 상대 문자열 대신 계
+    산된 thirdParty 경로 기반으로 바꿨습
+    니다.
+  - 테스트 상태 리포팅 파일 처리 보강
+    TestingState.kt:57 에서 index.html 부
+    모 디렉터리를 미리 보장하고 초기 <ul>
+    을 생성하게 했습니다.
+    TestingState.kt:288 에서는 mkdirs()
+    실패, 삭제 실패를 조용히 무시하지 않
+    도록 바꿨습니다. 빈 테스트 실행이나
+    stale 파일 정리 실패 때 원인 파악이
+    쉬워집니다.
+  - 다운로드 출력 디렉터리 정리 버그 수정
+    DownloadAllDependenciesTask.kt:94 에
+    서 기존 출력 디렉터리를 delete() 하던
+    코드를 deleteRecursively() + 실패 시
+    예외로 바꿨습니다. 비어 있지 않은 디
+    렉터리는 원래 거의 항상 지워지지 않았
+    습니다.
+
+  검증은 가능한 범위에서 정적으로 했습니
+  다. 셸 스크립트는 bash -n 으로 문법 확
+  인했고, Gradle 관련 변경은 이 워크스페
+  이스의 부트스트랩 파일들이 크게 비어 있
+  는 상태라 실제 빌드 실행까지는 못 갔습
+  니다. 현재 워크트리는 제가 만진 파일 외
+  에도 이미 많은 변경/삭제가 섞여 있어서,
+  기존 사용자 변경은 건드리지 않았습니다.
+
+  다음 우선순위는 이 둘입니다.
+
+  1. d8_r8/test/build.gradle.kts 와 main/
+     build.gradle.kts 의 반복 task wiring
+     축소
+  2. TestingState 의 HTML append 경합 가
+     능성 점검 및 필요 시 쓰기 직렬화
+
+  다음 턴에서는 test/main Gradle 스크립트
+  중복 정리로 이어가겠습니다.
+
+
+› 진행률을 점검하고 미진한 부분, 누락된
+  작업, 남은 리스크를 리스트업한 뒤 우선
+  순위 높은 것부터 진행해보자.clean
+  architecture, single responsibility
+  principle, interface-oriented
+  programming 관점에서 구조를 분석하고
+  어긋난 부분을 개선하자.s/w architect
+  관점에서 현재 구조를 분석하고 결합도,
+  책임 분리, 확장성, 테스트 용이성 측면
+  개선 포인트를 찾아 적용하자.
+  다음 작업을 이어서 진행하고, 변경 이유
+  와 영향 범위를 짧게 정리하면서 계속 진
+  행해보자.
+
+
+• 진행 상황과 남은 리스크를 먼저 정리한
+  뒤, 구조적으로 어긋난 지점을 골라 실제
+  리팩터링까지 이어가겠습니다. 우선은
+  commonBuildSrc 쪽 빌드 로직에서 책임이
+  뭉친 부분을 다시 읽고, 분리 효과가 큰
+  곳부터 손보겠습니다.
+
+• Ran wc -l d8_r8/commonBuildSrc/src/
+  │ main/kotlin/*.kt
+  └  1195 d8_r8/commonBuildSrc/src/main/
+    kotlin/DependenciesPlugin.kt
+    … +7 lines
+    kotlin/ThirdPartyDependency.kt
+     2015 total
+
+• Explored
+  └ Search *.kt in kotlin
+    Read DependenciesPlugin.kt
+    Search fun setupTestTask|class
+           TestingState|class
+           TestConfigurationHelper|class
+           DownloadAllDependenciesTask in
+           kotlin
+
+─────────────────────────────────────────
+
+• 다음 우선순위는 TestConfigurationHelper
+  입니다. 지금은 한 메서드가 필터, 시스템
+  프로퍼티 전달, 로그/리스너, 병렬 실행
+  정책까지 모두 들고 있어서 SRP와 테스트
+  용이성이 약합니다. 이 부분을 설정 소스
+  인터페이스와 단계별 함수로 분리하겠습니
+  다.
+
+• Explored
+  └ Read TestConfigurationHelper.kt
+
+• Working (30s • esc to interrupt)
+
+
+› Find and fix a bug in @filename
+
+  gpt-5.4 medium · 74% left · /workspace…

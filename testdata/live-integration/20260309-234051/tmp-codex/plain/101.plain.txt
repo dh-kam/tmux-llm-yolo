@@ -1,0 +1,183 @@
+    241 +              testReportFiles.deleteOutputIfExists(desc, destType.name)
+    242              }
+        ⋮
+    248              }
+    190 -            updateStatusFiles(reportDir, desc, result.resultType)
+    249 +            updateStatusFiles(testReportFiles, desc, result.resultType)
+    250              // Emit the test time.
+    192 -            withTestResultEntryWriter(
+    193 -              reportDir,
+    251 +            testReportFiles.writeOutput(
+    252                desc,
+        ⋮
+    258              if (result.resultType == ResultType.FAILURE) {
+    201 -              val title = testLinkContent(desc)
+    202 -              val link = getTestReportEntryURL(reportDir, desc)
+    203 -              appendText(index, "<li><a href=\"${link}\">${title}</a></li>")
+    259 +              val link = testReportFiles.entryUrl(desc)
+    260 +              appendText(index, TestReportFormatting.failedTestLink(link, desc))
+    261                if (!result.exceptions.isEmpty()) {
+        ⋮
+    263                    result.exceptions,
+    207 -                  getTestResultEntryOutputFile(reportDir, desc, "exceptions-raw.txt"),
+    264 +                  testReportFiles.outputFile(desc, "exceptions-raw.txt"),
+    265                  )
+        ⋮
+    270                    result.exceptions,
+    214 -                  getTestResultEntryOutputFile(reportDir, desc, "exceptions-filtered.txt"),
+    271 +                  testReportFiles.outputFile(desc, "exceptions-filtered.txt"),
+    272                  )
+        ⋮
+    305
+    249 -    private fun testLinkContent(desc: TestDescriptor): String {
+    250 -      val pkgR8 = "com.android.tools.r8."
+    251 -      val className = desc.className!!
+    252 -      val shortClassName =
+    253 -        if (className.startsWith(pkgR8)) {
+    254 -          className.substring(pkgR8.length)
+    255 -        } else {
+    256 -          className
+    257 -        }
+    258 -      return escapeHtml("${shortClassName}.${desc.name}")
+    259 -    }
+    260 -
+    306      private fun filterStackTraces(result: TestResult) {
+        ⋮
+    343        return dir
+    299 -    }
+    300 -
+    301 -    private fun initializeIndexIfMissing(index: File) {
+    302 -      if (!index.exists()) {
+    303 -        appendText(index, "<ul>")
+    304 -      }
+    344      }
+        ⋮
+    364
+    326 -    private fun getTestReportClassDirPath(reportDir: File, testClass: String): Path {
+    327 -      return reportDir.toPath().resolve(testClass)
+    328 -    }
+    329 -
+    330 -    private fun getTestReportEntryDirFromString(
+    331 -      reportDir: File,
+    332 -      testClass: String,
+    333 -      testName: String,
+    334 -    ): File {
+    335 -      return ensureDir(
+    336 -        getTestReportClassDirPath(reportDir, testClass)
+    337 -          .resolve(sanitizedTestName(testName))
+    338 -          .toFile()
+    339 -      )
+    340 -    }
+    341 -
+    342 -    private fun getTestReportEntryDirFromTest(reportDir: File, testDesc: TestDescriptor): File {
+    343 -      return getTestReportEntryDirFromString(reportDir, testDesc.className!!, testDesc.name)
+    344 -    }
+    345 -
+    346 -    private fun getTestReportEntryURL(reportDir: File, testDesc: TestDescriptor): Path {
+    347 -      val classDir = urlEncode(testDesc.className!!)
+    348 -      val testDir = urlEncode(sanitizedTestName(testDesc.name))
+    349 -      return reportDir.toPath().resolve(classDir).resolve(testDir)
+    350 -    }
+    351 -
+    352 -    private fun getTestResultEntryOutputFile(
+    353 -      reportDir: File,
+    354 -      testDesc: TestDescriptor,
+    355 -      fileName: String,
+    356 -    ): File {
+    357 -      val dir = getTestReportEntryDirFromTest(reportDir, testDesc).toPath()
+    358 -      return dir.resolve(fileName).toFile()
+    359 -    }
+    360 -
+    361 -    private fun updateStatusFiles(reportDir: File, desc: TestDescriptor, result: ResultType) {
+    365 +    private fun updateStatusFiles(
+    366 +      testReportFiles: TestReportFiles,
+    367 +      desc: TestDescriptor,
+    368 +      result: ResultType,
+    369 +    ) {
+    370        val statusFile = getStatusTypeForResult(result)
+    363 -      withTestResultEntryWriter(
+    364 -        reportDir,
+    371 +      testReportFiles.writeOutput(
+    372          desc,
+        ⋮
+    377        if (statusFile == StatusType.FAILURE) {
+    371 -        deleteIfExists(getTestResultEntryOutputFile(reportDir, desc, StatusType.SUCCESS.name))
+    378 +        testReportFiles.deleteOutputIfExists(desc, StatusType.SUCCESS.name)
+    379          val pastFailure = StatusType.PAST_FAILURE.name
+    373 -        withTestResultEntryWriter(reportDir, desc, pastFailure, false, { it.append(pastFailure) })
+    380 +        testReportFiles.writeOutput(desc, pastFailure, false, { it.append(pastFailure) })
+    381        } else {
+    375 -        deleteIfExists(getTestResultEntryOutputFile(reportDir, desc, StatusType.FAILURE.name))
+    382 +        testReportFiles.deleteOutputIfExists(desc, StatusType.FAILURE.name)
+    383        }
+    377 -    }
+    378 -
+    379 -    private fun withTestResultEntryWriter(
+    380 -      reportDir: File,
+    381 -      testDesc: TestDescriptor,
+    382 -      fileName: String,
+    383 -      append: Boolean,
+    384 -      fn: (FileWriter) -> Unit,
+    385 -    ) {
+    386 -      val file = getTestResultEntryOutputFile(reportDir, testDesc, fileName)
+    387 -      FileWriter(file, append).use(fn)
+    384      }
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• 리팩터링 후에 사용되지 않는 import와 잔여 참조를 확인하겠습니다. 목표는 외부 동작은 유지하면서 내부 의존만 줄였는지 보는 겁니다.
+
+• Explored
+  └ Search getTestReportEntry|withTestResultEntryWriter|initializeIndexIfMissing|testLinkContent in TestingState.kt
+    Read TestingState.kt
+
+• Ran git diff -- d8_r8/commonBuildSrc/src/main/kotlin/TestingState.kt
+  └ diff --git a/d8_r8/commonBuildSrc/src/main/kotlin/TestingState.kt b/d8_r8/commonBuildSrc/src/main/kotlin/TestingState.kt
+    index 7369840ea0..b04b7b73a0 100644
+    … +345 lines
+           type: StatusType,
+           file: File,
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• 이번 단계에서는 아키텍처 관점에서 가장 크게 남아 있던 TestingState 책임 과다를 줄였습니다.
+
+  적용한 개선:
+
+  - TestingState.kt:45에 TestReportFiles 를 도입해서 경로 계산, 출력 파일 선택, 파일 쓰기/삭제 책임을 분리했습니다.
+  - TestingState.kt:89에 TestReportFormatting 을 도입해서 HTML 요약과 실패 링크 포맷 책임을 분리했습니다.
+  - 기존 TestingState 본체는 이제 테스트 이벤트 오케스트레이션과 상태 전이에 더 집중합니다.
+
+  짧게 보면 현재 상태는 이렇습니다.
+
+  이미 끝난 것:
+
+  - DependenciesPlugin.kt 분해 완료. 지금은 플러그인 진입점만 남았습니다.
+  - path/task helper, toolchain, example jar task, command line builder, UUID 유틸, dependency catalog, third-party catalog 분리 완료.
+  - TestConfigurationHelper 단계별 구성 함수 분리 완료.
+  - TestingState 에서 파일/포맷 책임 1차 분리 완료.
+
+  아직 불완전한 것:
+
+  - TestingState.kt:24 는 여전히 stacktrace 가공과 status transition 정책을 같은 클래스가 가집니다.
+  - d8_r8/settings.gradle.kts:27 와 DownloadAllDependenciesTask.kt:25 의 bootstrap/download 개념 중복은 남아 있습니다.
+  - ThirdPartyCatalog.kt:696의 reflection 기반 수집은 유연하지만 compile-time safety는 약합니다.
+
+  검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+
+
+› 프로젝트 코드 분석해봐. 개선포인트를 찾고 하나씩 진행하자.진행률을 점검하고 미진한 부분, 누락된 작업, 남은 리스크를 리스트업한 뒤 우선순위 높은 것부터 진행해보자.
+
+  gpt-5.4 medium · 29% left · /workspace/tmp
+

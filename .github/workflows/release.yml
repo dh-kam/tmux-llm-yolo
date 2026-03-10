@@ -1,0 +1,84 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Optional release version, e.g. v0.9.0-202603.1
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Prepare tools
+        run: chmod +x tools/bump_up.sh
+
+      - name: Bump version if requested
+        if: ${{ inputs.version != '' }}
+        run: |
+          tools/bump_up.sh --to "${{ inputs.version }}"
+          if ! git diff --quiet -- internal/buildinfo/version.go; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add internal/buildinfo/version.go
+            git commit -m "chore: release ${{ inputs.version }}"
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
+
+      - name: Resolve version
+        id: version
+        run: echo "value=$(make print-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure tag does not exist
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          if git rev-parse "${VERSION}" >/dev/null 2>&1; then
+            echo "tag ${VERSION} already exists" >&2
+            exit 1
+          fi
+          if git ls-remote --tags origin "refs/tags/${VERSION}" | grep -q .; then
+            echo "remote tag ${VERSION} already exists" >&2
+            exit 1
+          fi
+
+      - name: Run tests
+        run: make test
+
+      - name: Build release artifacts
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: make clean release-artifacts VERSION="${VERSION}"
+
+      - name: Create and push tag
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${VERSION}" -m "Release ${VERSION}"
+          git push origin "${VERSION}"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.value }}
+          generate_release_notes: true
+          files: |
+            dist/*

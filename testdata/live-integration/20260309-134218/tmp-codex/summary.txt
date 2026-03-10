@@ -1,0 +1,6 @@
+session=tmp-codex
+prompt_analysis=2
+continue_selected=2
+llm_fallback_active=0
+completed=0
+deadline_stopped=0

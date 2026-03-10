@@ -1,0 +1,115 @@
+                                                                                                                           
+● Read 5 files (ctrl+o to expand)                                                                                         
+                                                                                                                           
+● 프로젝트 분석 결과                                                                                                       
+                                                                                                                           
+  개요                                                                                                                     
+                                                                                                                           
+  ifconfig-service는 IP 주소와 지리적 위치 정보를 제공하는 Go 기반 HTTP 서비스입니다.                                      
+                                                                                                                           
+  ---                                                                                                                      
+  아키텍처: Clean Architecture
+
+  ┌─────────────────────────────────────────────────────┐
+  │                    Handler Layer                    │
+  │         (internal/handler/ifconfig_handler.go)      │
+  │              HTTP 요청/응답 처리                     │
+  ├─────────────────────────────────────────────────────┤
+  │                    Usecase Layer                    │
+  │            (internal/usecase/geo_usecase.go)        │
+  │                 비즈니스 로직                        │
+  ├─────────────────────────────────────────────────────┤
+  │                   Repository Layer                  │
+  │        (internal/repository/geo_repository.go)      │
+  │              외부 데이터 소스 접근                   │
+  ├─────────────────────────────────────────────────────┤
+  │                    Domain Layer                     │
+  │             (internal/domain/geo.go)                │
+  │              엔티티 & 인터페이스 정의                 │
+  └─────────────────────────────────────────────────────┘
+
+  ---
+  주요 기술 스택
+
+  ┌────────────┬───────────────────────┐
+  │    기술    │         용도          │
+  ├────────────┼───────────────────────┤
+  │ Gin        │ HTTP 웹 프레임워크    │
+  ├────────────┼───────────────────────┤
+  │ Cobra      │ CLI 프레임워크        │
+  ├────────────┼───────────────────────┤
+  │ MaxMind DB │ GeoIP 데이터베이스    │
+  ├────────────┼───────────────────────┤
+  │ go:embed   │ DB 파일 바이너리 내장 │
+  └────────────┴───────────────────────┘
+
+  ---
+  핵심 컴포넌트 분석
+
+  1. 진입점 (main.go + cmd/)
+
+  - Cobra CLI로 serve 서브커맨드 제공
+  - 포트(-p)와 DB 경로(-d) 옵션 지원
+
+  2. Domain (internal/domain/geo.go)
+
+  type GeoLocation struct {
+      IP, CountryCode, City, Timezone string
+      Latitude, Longitude float64
+  }
+
+  type GeoRepository interface {
+      Lookup(ip string) (*GeoLocation, error)
+  }
+
+  3. Repository (internal/repository/geo_repository.go)
+
+  - IPv4/IPv6 듀얼 스택 지원: 각각 별도의 DB 사용
+  - Embed 방식: maxminddb.FromBytes()로 바이너리에서 직접 로드
+  - 파일 방식: 외부 DB 파일 사용 옵션
+
+  4. Handler (internal/handler/ifconfig_handler.go)
+
+  - /ifconfig 엔드포인트
+  - 프록시 환경 고려: X-Forwarded-For, X-Real-IP 헤더 처리
+  - 조회 실패 시 IP만 반환 (에러 아님)
+
+  5. Data (internal/data/embed.go)
+
+  //go:embed geolite2-city-ipv4.mmdb
+  var GeoLite2IPv4Data []byte
+  //go:embed geolite2-city-ipv6.mmdb
+  var GeoLite2IPv6Data []byte
+
+  ---
+  API 엔드포인트
+
+  ┌───────────────┬─────────────────────────────────┐
+  │  엔드포인트   │              설명               │
+  ├───────────────┼─────────────────────────────────┤
+  │ GET /ifconfig │ 클라이언트 IP 및 위치 정보 반환 │
+  ├───────────────┼─────────────────────────────────┤
+  │ GET /health   │ 헬스체크 ({"status":"ok"})      │
+  └───────────────┴─────────────────────────────────┘
+
+  ---
+  장점
+
+  - 단일 바이너리 배포: DB 파일이 embed되어 외부 의존성 없음
+  - Clean Architecture: 계층 분리로 테스트 및 유지보수 용이
+  - IPv4/IPv6 지원: 듀얼 스택
+  - 프록시 친화적: 로드밸런서/프록시 뒤에서도 실제 IP 추출
+
+  개선 고려사항
+
+  - country_name 필드가 응답에 없음 (README에는 명시되어 있지만 구현에 누락)
+  - Rate limiting 미적용
+  - 로깅이 기본 수준 (log.Printf만 사용)
+
+✻ Cogitated for 56s
+
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯  
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ? for shortcuts
+

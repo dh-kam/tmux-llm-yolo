@@ -1,0 +1,183 @@
+[38;5;59m│[39m [38;5;151m✓[39m  [1mShell[0m [38;5;103mgrep -o "dex\.DexType" ./src/graph/*.go | wc -l [in r8_go] (Count occurrences of dex.DexType in graph package.)[39m                                                   [38;5;59m│[39m
+[38;5;59m│[39m                                                                                                                                                                            [38;5;59m│[39m
+[38;5;59m│[39m 222                                                                                                                                                                        [38;5;59m│[39m
+[38;5;59m╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[39m
+[38;5;59m╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮[39m
+[38;5;59m│[39m [38;5;151m✓[39m  [1mShell[0m [38;5;103mgrep -l "\*dex\.DexItemFactory" ./src/graph/*.go [in r8_go] (Find usages of DexItemFactory in graph package.)[39m                                                     [38;5;59m│[39m
+[38;5;59m│[39m                                                                                                                                                                            [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/app_view.go                                                                                                                                                    [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/application_reader.go                                                                                                                                          [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/classfile_synthetic_backport_descriptors_test.go                                                                                                               [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_application.go                                                                                                                                             [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_field.go                                                                                                                                                   [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_method.go                                                                                                                                                  [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_output_builder.go                                                                                                                                          [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_proto.go                                                                                                                                                   [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/field_signature.go                                                                                                                                             [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/internal_options.go                                                                                                                                            [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/method_signature.go                                                                                                                                            [38;5;59m│[39m
+[38;5;59m╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[39m
+[38;5;59m╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮[39m
+[38;5;59m│[39m [38;5;151m✓[39m  [1mShell[0m [38;5;103mgrep -C 2 "AppView" src/horizontalclassmerging/horizontal_class_merger_tree_fixer.go [in r8_go] (Check how AppView is used in horizontal class merging.)[39m          [38;5;59m│[39m
+[38;5;59m│[39m                                                                                                                                                                            [38;5;59m│[39m
+[38;5;59m│[39m                 graph.PruneMergedProgramClassesFromAppView(appView)                                                                                                        [38;5;59m│[39m
+[38;5;59m│[39m         }                                                                                                                                                                  [38;5;59m│[39m
+[38;5;59m│[39m         return lens, err                                                                                                                                                   [38;5;59m│[39m
+[38;5;59m│[39m }                                                                                                                                                                          [38;5;59m│[39m
+[38;5;59m│[39m                                                                                                                                                                            [38;5;59m│[39m
+[38;5;59m│[39m func toAppView(value any) *graph.AppView {                                                                                                                                 [38;5;59m│[39m
+[38;5;59m│[39m         if appView, ok := value.(*graph.AppView); ok {                                                                                                                     [38;5;59m│[39m
+[38;5;59m│[39m                 return appView                                                                                                                                             [38;5;59m│[39m
+[38;5;59m│[39m         }                                                                                                                                                                  [38;5;59m│[39m
+[38;5;59m│[39m --                                                                                                                                                                         [38;5;59m│[39m
+[38;5;59m│[39m                 return                                                                                                                                                     [38;5;59m│[39m
+[38;5;59m│[39m         }                                                                                                                                                                  [38;5;59m│[39m
+[38;5;59m│[39m         appView := toAppView(fixer.appView)                                                                                                                                [38;5;59m│[39m
+[38;5;59m│[39m         if appView == nil {                                                                                                                                                [38;5;59m│[39m
+[38;5;59m│[39m                 return                                                                                                                                                     [38;5;59m│[39m
+[38;5;59m╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[39m
+[38;5;59m╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮[39m
+[38;5;59m│[39m [38;5;151m✓[39m  [1mShell[0m [38;5;103mgrep -rn "any" ./src/graph | grep -v "test" | grep -v "Test" [in r8_go] (Search for 'any' usage in graph package to see where types are being unnecessarily eras[39m… [38;5;59m│[39m
+[38;5;59m│[39m                                                                                                                                                                            [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/internal_options.go:16:     MainThread                 any                                                                                                     [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/internal_options.go:646:func (o *InternalOptions) GetMainThread() any {                                                                                        [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/internal_options.go:653:func (o *InternalOptions) SetMainThread(mainThread any) {                                                                              [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/internal_options.go:706:    Matches(item any) bool                                                                                                             [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/classfile_output_rewriter.go:73:                    // Kotlin parity overrides are already Java-authoritative bytes; skip any                                  [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/app_view.go:26:     startupProfile   any                                                                                                                       [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/app_view.go:29:     verticallyMergedClasses         any                                                                                                        [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/app_view.go:36:func (av *AppView) GetStartupProfile() any {                                                                                                    [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/app_view.go:43:func (av *AppView) SetStartupProfile(startupProfile any) {                                                                                      [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/app_view.go:50:func NewAppViewWithOptions(appInfo AppInfo, options any) *AppView {                                                                             [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/app_view.go:253:func (av *AppView) RewriteWithLens(_ any, _ any, _ any) {                                                                                      [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/app_view.go:270:func (av *AppView) SetVerticallyMergedClasses(verticallyMergedClasses any, _ ...any) {                                                         [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/app_view.go:277:func (av *AppView) GetVerticallyMergedClasses() any {                                                                                          [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/app_view.go:421:func (s *SyntheticItems) ensureTypeFromAny(value any) *dex.DexType {                                                                           [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/app_view.go:438:func (s *SyntheticItems) EnsureGlobalClass(value any) *DexProgramClass {                                                                       [38;5;59m│[39m
+[38;5;59m╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[39m
+[38;5;59m╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮[39m
+[38;5;59m│[39m [38;5;151m✓[39m  [1mShell[0m [38;5;103mgrep -r "github.com/dh-kam/r8-go/src/graph" ./src/dex [in r8_go] (Check if dex package imports graph package.)[39m                                                    [38;5;59m│[39m
+[38;5;59m│[39m                                                                                                                                                                            [38;5;59m│[39m
+[38;5;59m│[39m Command exited with code: 1                                                                                                                                                [38;5;59m│[39m
+[38;5;59m╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[39m
+[38;5;59m╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮[39m
+[38;5;59m│[39m [38;5;151m✓[39m  [1mShell[0m [38;5;103mls -1 ./src/graph/dex_*.go [in r8_go] (Check what dex_* files exist in graph package.)[39m                                                                            [38;5;59m│[39m
+[38;5;59m│[39m                                                                                                                                                                            [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_application_read_flags_test.go                                                                                                                             [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_application_test.go                                                                                                                                        [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_class.go                                                                                                                                                   [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_encoded_member.go                                                                                                                                          [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_field.go                                                                                                                                                   [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_field_test.go                                                                                                                                              [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_method.go                                                                                                                                                  [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_method_test.go                                                                                                                                             [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_output_builder.go                                                                                                                                          [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_output_builder_annotation_test.go                                                                                                                          [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_output_builder_synthetic_test.go                                                                                                                           [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_proto.go                                                                                                                                                   [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_proto_test.go                                                                                                                                              [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_type_list.go                                                                                                                                               [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/dex_type_list_test.go                                                                                                                                          [38;5;59m│[39m
+[38;5;59m╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[39m
+[38;5;59m╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮[39m
+[38;5;59m│[39m [38;5;151m✓[39m  [1mShell[0m [38;5;103mgrep -C 2 "dex\.DexType" ./src/graph/dex_class.go [in r8_go] (Check how dex.DexType is used in DexProgramClass.)[39m                                                  [38;5;59m│[39m
+[38;5;59m│[39m                                                                                                                                                                            [38;5;59m│[39m
+[38;5;59m│[39m         typ *dex.DexType,                                                                                                                                                  [38;5;59m│[39m
+[38;5;59m│[39m         classOrigin origin.Origin,                                                                                                                                         [38;5;59m│[39m
+[38;5;59m│[39m         flags *AccessFlags,                                                                                                                                                [38;5;59m│[39m
+[38;5;59m│[39m --                                                                                                                                                                         [38;5;59m│[39m
+[38;5;59m│[39m }                                                                                                                                                                          [38;5;59m│[39m
+[38;5;59m│[39m                                                                                                                                                                            [38;5;59m│[39m
+[38;5;59m│[39m func (c *DexLibraryClass) Type() *dex.DexType {                                                                                                                            [38;5;59m│[39m
+[38;5;59m│[39m         return c.typ                                                                                                                                                       [38;5;59m│[39m
+[38;5;59m│[39m }                                                                                                                                                                          [38;5;59m│[39m
+[38;5;59m│[39m --                                                                                                                                                                         [38;5;59m│[39m
+[38;5;59m│[39m }                                                                                                                                                                          [38;5;59m│[39m
+[38;5;59m│[39m                                                                                                                                                                            [38;5;59m│[39m
+[38;5;59m│[39m func (c *DexLibraryClass) GetContextType() *dex.DexType {                                                                                                                  [38;5;59m│[39m
+[38;5;59m│[39m         return c.Type()                                                                                                                                                    [38;5;59m│[39m
+[38;5;59m│[39m }                                                                                                                                                                          [38;5;59m│[39m
+[38;5;59m╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[39m
+[38;5;59m╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮[39m
+[38;5;59m│[39m [38;5;151m✓[39m  [1mShell[0m [38;5;103mcat ./src/dex/dex_method.go [in r8_go] (View dex/dex_method.go to compare with GraphDexMethod.)[39m                                                                   [38;5;59m│[39m
+[38;5;59m│[39m                                                                                                                                                                            [38;5;59m│[39m
+[38;5;59m│[39m         var b strings.Builder                                                                                                                                              [38;5;59m│[39m
+[38;5;59m│[39m         b.WriteString(m.holder.ToSourceString())                                                                                                                           [38;5;59m│[39m
+[38;5;59m│[39m         b.WriteString(".")                                                                                                                                                 [38;5;59m│[39m
+[38;5;59m│[39m         b.WriteString(m.name.String())                                                                                                                                     [38;5;59m│[39m
+[38;5;59m│[39m         b.WriteString(m.proto.DescriptorString())                                                                                                                          [38;5;59m│[39m
+[38;5;59m│[39m         return b.String()                                                                                                                                                  [38;5;59m│[39m
+[38;5;59m│[39m }                                                                                                                                                                          [38;5;59m│[39m
+[38;5;59m│[39m                                                                                                                                                                            [38;5;59m│[39m
+[38;5;59m│[39m func (m *DexMethod) CompareKey() string {                                                                                                                                  [38;5;59m│[39m
+[38;5;59m│[39m         return m.holder.ToDescriptorString() + "|" + m.name.String() + "|" + m.proto.DescriptorString()                                                                    [38;5;59m│[39m
+[38;5;59m│[39m }                                                                                                                                                                          [38;5;59m│[39m
+[38;5;59m│[39m                                                                                                                                                                            [38;5;59m│[39m
+[38;5;59m│[39m func (m *DexMethod) CompareTo(other *DexMethod) int {                                                                                                                      [38;5;59m│[39m
+[38;5;59m│[39m         return utils.Sign(strings.Compare(m.CompareKey(), other.CompareKey()))                                                                                             [38;5;59m│[39m
+[38;5;59m│[39m }                                                                                                                                                                          [38;5;59m│[39m
+[38;5;59m╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[39m
+[38;5;59m╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮[39m
+[38;5;59m│[39m [38;5;151m✓[39m  [1mShell[0m [38;5;103mgrep -rl "\*AppView" ./src [in r8_go] (Find files using *AppView pointer.)[39m                                                                                        [38;5;59m│[39m
+[38;5;59m│[39m                                                                                                                                                                            [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/application_writer.go                                                                                                                                          [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/merged_program_class_prune.go                                                                                                                                  [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/graph_gap_coverage_test.go                                                                                                                                     [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/application_writer_test.go                                                                                                                                     [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/app_view_test.go                                                                                                                                               [38;5;59m│[39m
+[38;5;59m│[39m ./src/graph/app_view.go                                                                                                                                                    [38;5;59m│[39m
+[38;5;59m╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[39m
+[38;5;59m╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮[39m
+[38;5;59m│[39m [38;5;151m✓[39m  [1mShell[0m [38;5;103mgrep -rl "\*graph\.AppView" ./src [in r8_go] (Find usages of *graph.AppView from other packages.)[39m                                                                 [38;5;59m│[39m
+[38;5;59m│[39m                                                                                                                                                                            [38;5;59m│[39m
+[38;5;59m│[39m ./src/features/isolated_feature_splits_checker.go                                                                                                                          [38;5;59m│[39m
+[38;5;59m│[39m ./src/features/class_to_feature_split_map.go                                                                                                                               [38;5;59m│[39m
+[38;5;59m│[39m ./src/profile/abstract_profile.go                                                                                                                                          [38;5;59m│[39m
+[38;5;59m│[39m ./src/profile/startup/instrumentation/startup_instrumentation.go                                                                                                           [38;5;59m│[39m
+[38;5;59m│[39m ./src/profile/startup/profile/empty_startup_profile.go                                                                                                                     [38;5;59m│[39m
+[38;5;59m│[39m ./src/profile/startup/profile/startup_profile.go                                                                                                                           [38;5;59m│[39m
+[38;5;59m│[39m ./src/profile/startup/profile/non_empty_startup_profile.go                                                                                                                 [38;5;59m│[39m
+[38;5;59m│[39m ./src/profile/startup/startup_completeness.go                                                                                                                              [38;5;59m│[39m
+[38;5;59m│[39m ./src/profile/startup/optimization/startup_boundary_optimization_utils.go                                                                                                  [38;5;59m│[39m
+[38;5;59m│[39m ./src/androidapi/api_reference_stubber.go                                                                                                                                  [38;5;59m│[39m
+[38;5;59m│[39m ./src/androidapi/api_reference_stubber_test.go                                                                                                                             [38;5;59m│[39m
+[38;5;59m│[39m ./src/androidapi/android_api_reference_level_cache.go                                                                                                                      [38;5;59m│[39m
+[38;5;59m│[39m ./src/androidapi/api_reference_stubber_event_consumer.go                                                                                                                   [38;5;59m│[39m
+[38;5;59m│[39m ./src/androidapi/android_api_level_compute.go                                                                                                                              [38;5;59m│[39m
+[38;5;59m│[39m ./src/repackaging/repackaging.go                                                                                                                                           [38;5;59m│[39m
+[38;5;59m╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[39m
+[38;5;59m╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮[39m
+[38;5;59m│[39m [38;5;151m✓[39m  [1mShell[0m [38;5;103mgrep "^func (av \*AppView)" src/graph/app_view.go [in r8_go] (List all methods of AppView to generate the interface.)[39m                                             [38;5;59m│[39m
+[38;5;59m│[39m                                                                                                                                                                            [38;5;59m│[39m
+[38;5;59m│[39m func (av *AppView) RewriteWithLens(_ any, _ any, _ any) {                                                                                                                  [38;5;59m│[39m
+[38;5;59m│[39m func (av *AppView) HasCfByteCodePassThroughMethods() bool {                                                                                                                [38;5;59m│[39m
+[38;5;59m│[39m func (av *AppView) SetHasCfByteCodePassThroughMethods(hasPassThrough bool) {                                                                                               [38;5;59m│[39m
+[38;5;59m│[39m func (av *AppView) SetVerticallyMergedClasses(verticallyMergedClasses any, _ ...any) {                                                                                     [38;5;59m│[39m
+[38;5;59m│[39m func (av *AppView) GetVerticallyMergedClasses() any {                                                                                                                      [38;5;59m│[39m
+[38;5;59m│[39m func (av *AppView) HasVerticallyMergedClasses() bool {                                                                                                                     [38;5;59m│[39m
+[38;5;59m│[39m func (av *AppView) RebuildRequested() bool {                                                                                                                               [38;5;59m│[39m
+[38;5;59m│[39m func (av *AppView) IsSubtype(sub *DexProgramClass, super *DexProgramClass) bool {                                                                                          [38;5;59m│[39m
+[38;5;59m│[39m func (av *AppView) isSubtypeType(                                                                                                                                          [38;5;59m│[39m
+[38;5;59m│[39m func (av *AppView) ContextIndependentDefinitionForWithResolutionResult(t *dex.DexType) DexClass {                                                                          [38;5;59m│[39m
+[38;5;59m│[39m func (av *AppView) DexItemFactory() *dex.DexItemFactory {                                                                                                                  [38;5;59m│[39m
+[38;5;59m│[39m func (av *AppView) GetSyntheticItems() *SyntheticItems {                                                                                                                   [38;5;59m│[39m
+[38;5;59m│[39m func (av *AppView) EnableWholeProgramOptimizations() bool {                                                                                                                [38;5;59m│[39m
+[38;5;59m│[39m func (av *AppView) rebuildAppInfo() {                                                                                                                                      [38;5;59m│[39m
+[38;5;59m│[39m func (av *AppView) optionsOrElseNil() *InternalOptions {                                                                                                                   [38;5;59m│[39m
+[38;5;59m╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯[39m
+
+ [38;5;183m⠙[39m [3mWhy do Java developers wear glasses? Because they don't C#.[0m [38;5;103m(esc to cancel, 2m 52s)[39m                                                                           [38;5;103m ? for shortcuts
+[38;5;59m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[30m[48;5;234m▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+[39m [38;5;217m* [39m이미 끝난 것과 아직 불완전한 것을 구분하고, 검증이 약한 부분을 보강하면서 계속 진행하자.
+   프로젝트 코드 분석해봐. 개선포인트를 찾고 하나씩 진행하자.
+   진행률을 점검하고 미진한 부분, 누락된 작업, 남은 리스크를 리스트업한 뒤 우선순위 높은 것부터 진행해보자.
+   clean architecture, single responsibility principle, interface-oriented programming 관점에서 구조를 분석하고 어긋난 부분을 개선하자.
+   s/w architect 관점에서 현재 구조를 분석하고 결합도, 책임 분리, 확장성, 테스트 용이성 측면 개선 포인트를 찾아 적용하자.
+   이미 끝난 것과 아직 불완전한 것을 구분하고, 검증이 약한 부분을 보강하면서 계속 진행하자.
+   프로젝트 코드 분석해봐. 개선포인트를 찾고 하나씩 진행하자.
+   진행률을 점검하고 미진한 부분, 누락된 작업, 남은 리스크를 리스트업한 뒤 우선순위 높은 것부터 진행해보자.
+   [7m [0m[48;5;234m
+[30m▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+[39m[49m /workspace/tmp[38;5;103m (4aa08788a4*)[39m                                                    [38;5;217mno sandbox[38;5;103m (see /docs)[39m                                                    [38;5;103m/model [39mAuto (Gemini 3)
+

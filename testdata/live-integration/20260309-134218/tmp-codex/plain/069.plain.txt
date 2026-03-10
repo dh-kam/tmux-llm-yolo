@@ -1,0 +1,139 @@
+• Edited d8_r8/settings.gradle.kts (+26
+-16)
+     8  import java.nio.file.attribute.Fi
+        leTime
+     9 +import java.nio.charset.StandardC
+        harsets
+    10  import org.gradle.internal.os.Ope
+        ratingSystem
+       ⋮
+    17
+    17 -fun getRepoRoot() : File {
+    18 -  var current = root
+    19 -  while (!current.getName().equal
+        s("d8_r8")) {
+    20 -    current = current.getParentFi
+        le()
+    18 +fun getRepoRoot(start: File) : Fi
+        le {
+    19 +  var current: File? = start
+    20 +  while (current != null && curre
+        nt.name != "d8_r8") {
+    21 +    current = current.parentFile
+    22    }
+    22 -  return current.getParentFile()
+    23 +  return current?.parentFile
+    24 +    ?: throw GradleException("Una
+        ble to locate repository root fro
+        m ${start.absolutePath}")
+    25  }
+    26
+    25 -fun downloadFromGoogleStorage(out
+        putDir : File) {
+    27 +fun downloadFromGoogleStorage(rep
+        oRoot: File, outputDir : File) {
+    28    val targz = File(outputDir.toSt
+        ring() + ".tar.gz")
+    29    val sha1File = File(targz.toStr
+        ing() + ".sha1")
+    30 +  if (!sha1File.exists()) {
+    31 +    throw GradleException("Missin
+        g bootstrap sha1 file: ${sha1File
+        .absolutePath}")
+    32 +  }
+    33    if (outputDir.exists()
+       ⋮
+    54    println("Executing command: ${c
+        md.joinToString(" ")}")
+    50 -  val process = ProcessBuilder().
+        command(cmd).start()
+    51 -  process.waitFor()
+    52 -  if (process.exitValue() != 0) {
+    55 +  val process =
+    56 +    ProcessBuilder()
+    57 +      .directory(repoRoot)
+    58 +      .redirectErrorStream(true)
+    59 +      .command(cmd)
+    60 +      .start()
+    61 +  val processOutput =
+    62 +    process.inputStream.bufferedR
+        eader(StandardCharsets.UTF_8).use
+         { it.readText() }
+    63 +  val exitCode = process.waitFor(
+        )
+    64 +  if (exitCode != 0) {
+    65      throw GradleException(
+    66        "Bootstrapping ${outputDir}
+         download failed:\n"
+    55 -        + "${String(process.getEr
+        rorStream().readAllBytes(),
+    56 -                    java.nio.char
+        set.StandardCharsets.UTF_8)}\n"
+    57 -        + String(process.getInput
+        Stream().readAllBytes(),
+    58 -                 java.nio.charset
+        .StandardCharsets.UTF_8))
+    67 +        + processOutput)
+    68    } else {
+       ⋮
+    76
+    68 -val thirdParty = getRepoRoot().re
+        solve("third_party")
+    69 -downloadFromGoogleStorage(thirdPa
+        rty.resolve("dependencies"))
+    70 -downloadFromGoogleStorage(thirdPa
+        rty.resolve("dependencies_plugin"
+        ))
+    77 +val repoRoot = getRepoRoot(root)
+    78 +val thirdParty = repoRoot.resolve
+        ("third_party")
+    79 +downloadFromGoogleStorage(repoRoo
+        t, thirdParty.resolve("dependenci
+        es"))
+    80 +downloadFromGoogleStorage(repoRoo
+        t, thirdParty.resolve("dependenci
+        es_plugin"))
+    81
+
+─────────────────────────────────────────
+
+• 변경 후에는 라인 기준으로 다시 읽고, 문
+  법/구조 수준에서 문제 없는지 확인하겠습
+  니다.
+
+• Ran git diff -- d8_r8/
+  │ settings.gradle.kts
+  └ diff --git a/d8_r8/
+    settings.gradle.kts b/d8_r8/
+    … +82 lines
+     pluginManagement {
+       repositories {
+
+• Explored
+  └ Read settings.gradle.kts
+
+• Ran test -f third_party/
+  │ dependencies.tar.gz.sha1 && echo
+  │ deps_sha1_yes || echo deps_sha1_no;
+  │ … +4 lines
+  └ deps_sha1_no
+    plugin_sha1_no
+
+─────────────────────────────────────────
+
+• 한 가지 더 보입니다. 저장소 루트는 이미
+  계산해 놓고 있는데, 저장소 레포지토리는
+  여전히 file:../third_party/... 같은 상
+  대 경로를 씁니다. settings.gradle.kts
+  위치가 바뀌면 바로 깨지는 부분이라 같이
+  정리하겠습니다.
+
+◦ Working (47s • esc to interrupt)
+
+
+› 진행률을 점검하고 미진한 부분, 누락된
+  작업, 남은 리스크를 리스트업한 뒤 우선
+  순위 높은 것부터 진행해보자.
+
+
+  tab to queue message 87% context left

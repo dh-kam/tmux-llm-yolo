@@ -1,0 +1,139 @@
+    ✔ 빌드/테스트 진입점과 개선 후보 분석
+    □ 루트 clean 태스크의 포함 빌드 누락
+      수정
+    □ 관련 Gradle 태스크 검증
+    □ 다음 개선 후보를 우선순위로 정리
+
+─────────────────────────────────────────
+
+• 수정 범위를 확정했습니다. 루트 d8_r8/
+  build.gradle.kts의 clean 태스크에 포함
+  빌드 assistant와 shared 정리를 추가하겠
+  습니다.
+
+• Edited d8_r8/build.gradle.kts (+2 -0)
+    12      dependsOn(gradle.includedBuil
+        d("commonBuildSrc").task(":clean"
+        ))
+    13 +    dependsOn(gradle.includedBuil
+        d("shared").task(":clean"))
+    14 +    dependsOn(gradle.includedBuil
+        d("assistant").task(":clean"))
+    15      dependsOn(gradle.includedBuil
+        d("keepanno").task(":clean"))
+
+─────────────────────────────────────────
+
+• 패치는 반영됐습니다. 이제 변경이 의도대
+  로 최소 수정인지 확인하고, 이 저장소에
+  서 바로 검증 가능한 수준까지 점검하겠습
+  니다.
+
+• Ran git diff -- d8_r8/build.gradle.kts
+  └ diff --git a/d8_r8/build.gradle.kts
+    b/d8_r8/build.gradle.kts
+    … +20 lines
+    dependsOn(gradle.includedBuild("main"
+    ).task(":clean"))
+
+• Ran test -f tools/gradle.py && echo yes
+  │ || echo no
+  └ no
+
+• Explored
+  └ Read build.gradle.kts
+
+─────────────────────────────────────────
+
+• 로컬 부트스트랩 스크립트는 이 워크스페
+  이스에 없어서, 전체 Gradle 실행 검증은
+  바로 연결되지 않습니다. 대신 문법 수준
+  과 diff를 확인했고, 다음 후보를 추려 우
+  선순위를 제시하겠습니다.
+
+•       ed
+• Ran command -v gradle || t
+  └ (no output)
+    Search tasks \{\s*\"clean\"|
+           dependsOn\(gradle\.includedBui
+ld\(
+           \".*\"\)\.task\(\":clean\"\)\)
+in
+           d8_r8
+
+◦ Working (59s • esc to interrupt)
+
+
+› Analyze this project, list improvement
+  points, and implement them one by one.
+
+
+  tab to queue message 93% context left
+
+
+• Explored
+  └ Search includeBuild\( in
+           settings.gradle.kts
+    Search tasks \{\s*\"clean\"|
+
+dependsOn\(gradle\.includedBuild\(
+           \".*\"\)\.task\(\":clean\"\)\)
+in
+           d8_r8
+
+• Updated Plan
+  └ 첫 개선은 반영했고, 포함 빌드 목록과
+    `clean` 의존성을 대조해 누락이 해소됐
+    는지 정적으로 확인했습니다. 런타임 검
+    증은 이 워크스페이스에 Gradle 부트스
+    트랩 경로가 없어 여기까지 진행했습니
+    다.
+    ✔ 빌드/테스트 진입점과 개선 후보 분석
+    ✔ 루트 clean 태스크의 포함 빌드 누락
+      수정
+    ✔ 관련 Gradle 태스크 검증
+    ✔ 다음 개선 후보를 우선순위로 정리
+
+─────────────────────────────────────────
+
+• 첫 개선은 반영했습니다. 루트 clean 태스
+  크가 settings.gradle.kts에 포함된 빌드
+  중 shared, assistant를 누락하고 있었고,
+  이 상태면 해당 모듈의 build/ 산출물이
+  남을 수 있습니다. d8_r8/
+  build.gradle.kts:11 에 두 모듈의 :clean
+  의존성을 추가했습니다.
+
+  정적으로는 d8_r8/settings.gradle.kts:92
+  의 includeBuild(...) 목록과 루트 clean
+  의존성이 이제 일치하는 걸 확인했습니다.
+  이 워크스페이스에는 tools/gradle.py나
+  시스템 gradle이 없어 실제 태스크 실행
+  검증은 못 했습니다.
+
+  다음 개선 후보는 이 순서로 보는 게 낫습
+  니다.
+
+  1. d8_r8/settings.gradle.kts의 부트스트
+     랩 다운로드 로직 분리
+  2. main/test 빌드 스크립트의 중복 task
+     wiring 정리
+  3. 오래된 TODO 중 빌드 안정성에 직접 영
+     향 주는 항목 선별
+
+  다음으로는 settings.gradle.kts 쪽 구조
+  개선을 이어서 보겠습니다.
+
+
+› Analyze this project, list improvement
+  points, and implement them one by one.
+  프로젝트 코드 분석해봐. 개선포인트를
+  찾고 하나씩 진행하자.
+
+
+◦ Working (10s • esc to interrupt)
+
+
+› Find and fix a bug in @filename
+
+  gpt-5.4 medium · 93% left · /workspace…

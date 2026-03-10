@@ -1,0 +1,97 @@
+   │
+│                                                                                                                                                                                                                                                        │
+│ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮ │
+│ │ /workspace/location                                                                                                                                                                                                                                │ │
+│ ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                                                                                                                                                                                        │
+│ Copilot may read files in this folder. Reading untrusted files may lead Copilot to behave in unexpected ways. With your permission, Copilot may execute code or bash commands in this folder. Executing untrusted code is unsafe.                      │
+│                                                                                                                                                                                                                                                        │
+│ Do you trust the files in this folder?                                                                                                                                                                                                                 │
+│                                                                                                                                                                                                                                                        │
+│ ❯ 1. Yes                                                                                                                 
+╭─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Confirm folder trust                                                                                                    │
+│                                                                                                                         │
+│ ╭─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮ │
+│ │ /workspace/location                                                                                                 │ │
+│ ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                                                         │
+│ Copilot may read files in this folder. Reading untrusted files may lead Copilot to behave in unexpected ways. With your │
+│  permission, Copilot may execute code or bash commands in this folder. Executing untrusted code is unsafe.              │
+│                                                                                                                         │
+│ Do you trust the files in this folder?                                                                                  │
+│                                                                                                                         │
+│ ❯ 1. Yes                                                                                                                │
+│   2. Yes, and remember this folder for future sessions                                                                  │
+│   3. No (Esc)                                                                                                           │
+│                                                                                                                         │
+│ ↑↓ to navigate · Enter to select · Esc to cancel                                                                        │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
+│  ╭─╮╭─╮                                                                                          │
+│  ╰─╯╰─╯  GitHub Copilot v0.0.414                                                                 │
+│  █ ▘▝ █  Describe a task to get started.                                                         │
+│   ▔▔▔▔                                                                                           │
+│  Tip: /skills Manage skills for enhanced capabilities                                            │
+│  Copilot uses AI, so always check for mistakes.                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+● 💡 No copilot instructions found. Run /init to generate a copilot-instructions.md file for this project.
+
+● Folder /workspace/location has been added to trusted folders.
+
+❯ 프로젝트 분석해봐
+
+✗ 402 You have no quota
+
+ Total usage est:        0 Premium requests
+ API time spent:         0s
+ Total session time:     1m 25s
+ Total code changes:     +0 -0
+
+ Resume this session with copilot --resume=59b910ca-31e1-4f58-8743-b8684fe346cf
+ dh.kam@oci-a3  /workspace/location  glm 
+🚀 Launching Claude with GLM...
+📝 Using model: glm-5
+🎯 Starting Claude Code with temporary GLM configuration...
+
+╭─── Claude Code v2.1.47 ─────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                               │ Tips for getting started                                                                │
+│         Welcome back!         │ Run /init to create a CLAUDE.md file with instructions for Claude                       │
+│                               │ ─────────────────────────────────────────────────────────────────                       │
+│                               │ Recent activity                                                                         │
+│                               │ No recent activity                                                                      │
+│               ✻               │                                                                                         │
+│               |               │                                                                                         │
+│              ▟█▙              │                                                                                         │
+│            ▐▛███▜▌            │                                                                                         │
+│           ▝▜█████▛▘           │                                                                                         │
+│             ▘▘ ▝▝             │                                                                                         │
+│   glm-5 · API Usage Billing   │                                                                                         │
+│      /workspace/location      │                                                                                         │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                 
+  /model to try Opus 4.6
+
+❯ 프로젝트 코드 분석해봐                                                                                                   
+                         
+● 프로젝트 구조를 파악하기 위해 파일들을 탐색하겠습니다.                                                                   
+                                                                                                                          
+● Searched for 1 pattern, read 1 file (ctrl+o to expand)                                                                   
+                                                                                                                          
+● Go 언어로 작성된 프로젝트입니다. 주요 파일들을 분석하겠습니다.                                                           
+                                                                                                                          
+● Read 5 files (ctrl+o to expand)                                                                                          
+                                                                                                                           
+● 이제 내부 패키지들을 분석하겠습니다.
+                                                                                                                           
+● Reading 5 files… (ctrl+o to expand)                                                                                     
+  ⎿  internal/data/embed.go                                                                                                
+   
+* Vibing… (34s · ↓ 322 tokens · thought for 1s)                                                                            
+                  
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯  
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  esc to interrupt
+

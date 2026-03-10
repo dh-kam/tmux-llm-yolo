@@ -1,0 +1,183 @@
+● 4단계: ThreadingConfiguration 인터페이스 생성
+
+● Write(src/main/java/com/android/tools/r8/config/ThreadingConfiguration.java)
+  ⎿  Wrote 40 lines to src/main/java/com/android/tools/r8/config/ThreadingConfiguration.java
+     // Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file
+     // for details. All rights reserved. Use of this source code is governed by a
+     // BSD-style license that can be found in the LICENSE file.
+     package com.android.tools.r8.config;
+
+     import com.android.tools.r8.threading.ThreadingModule;
+     import java.util.concurrent.ExecutorService;
+
+     /**
+      * Configuration interface for threading settings.
+     … +30 lines (ctrl+o to expand)
+
+● 5단계: ApiLevelConfiguration 인터페이스 생성
+
+● Write(src/main/java/com/android/tools/r8/config/ApiLevelConfiguration.java)
+  ⎿  Wrote 49 lines to src/main/java/com/android/tools/r8/config/ApiLevelConfiguration.java
+     // Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file
+     // for details. All rights reserved. Use of this source code is governed by a
+     // BSD-style license that can be found in the LICENSE file.
+     package com.android.tools.r8.config;
+
+     import com.android.tools.r8.utils.AndroidApiLevel;
+
+     /**
+      * Configuration interface for Android API level settings.
+      * This follows Single Responsibility Principle (SRP) by focusing
+     … +39 lines (ctrl+o to expand)
+
+● 6단계: ConsumerConfiguration 인터페이스 생성
+
+● Write(src/main/java/com/android/tools/r8/config/ConsumerConfiguration.java)
+  ⎿  Wrote 86 lines to src/main/java/com/android/tools/r8/config/ConsumerConfiguration.java
+     // Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file
+     // for details. All rights reserved. Use of this source code is governed by a
+     // BSD-style license that can be found in the LICENSE file.
+     package com.android.tools.r8.config;
+
+     import com.android.tools.r8.AndroidResourceConsumer;
+     import com.android.tools.r8.AndroidResourceProvider;
+     import com.android.tools.r8.ClassFileConsumer;
+     import com.android.tools.r8.DataResourceConsumer;
+     import com.android.tools.r8.DesugarGraphConsumer;
+     … +76 lines (ctrl+o to expand)
+
+❯ 진행률을 점검하고 미진한 부분, 누락된 작업, 남은 리스크를 리스트업한 뒤 우선순위 높은 것부터 진행해보자.
+
+● 7단계: 통합 CompilerConfiguration 인터페이스 생성
+
+● Write(src/main/java/com/android/tools/r8/config/CompilerConfiguration.java)
+  ⎿  Wrote 92 lines to src/main/java/com/android/tools/r8/config/CompilerConfiguration.java
+     // Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file
+     // for details. All rights reserved. Use of this source code is governed by a
+     // BSD-style license that can be found in the LICENSE file.
+     package com.android.tools.r8.config;
+
+     /**
+      * Unified configuration interface combining all compiler configuration aspects.
+      * This follows Interface Segregation Principle (ISP) and Composite Pattern
+      * to provide a unified view while allowing individual configuration access.
+      *
+     … +82 lines (ctrl+o to expand)
+
+❯ 1
+
+❯ s/w architect 관점에서 현재 구조를 분석하고 결합도, 책임 분리, 확장성, 테스트 용이성 측면 개선 포인트를 찾아 적용하자.
+
+● 8단계: 패키지 문서화
+
+● Write(src/main/java/com/android/tools/r8/config/package-info.java)
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Create file
+ src/main/java/com/android/tools/r8/config/package-info.java
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ // Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file
+ // for details. All rights reserved. Use of this source code is governed by a
+ // BSD-style license that can be found in the LICENSE file.
+
+ /**
+  * Configuration interfaces for R8/D8 compiler.
+  *
+  * <h2>Architecture Overview</h2>
+  *
+  * <p>This package provides a set of interfaces that follow SOLID principles to improve
+  * the architecture of R8/D8 configuration management:
+  *
+  * <h3>SOLID Principles Applied</h3>
+  *
+  * <dl>
+  *   <dt><b>Single Responsibility Principle (SRP)</b></dt>
+  *   <dd>Each interface has one reason to change:
+  *     <ul>
+  *       <li>{@link CompilationConfiguration} - compilation mode and output settings</li>
+  *       <li>{@link OptimizationConfiguration} - optimization behavior settings</li>
+  *       <li>{@link DesugaringConfiguration} - desugaring behavior settings</li>
+  *       <li>{@link ThreadingConfiguration} - threading and parallelism settings</li>
+  *       <li>{@link ApiLevelConfiguration} - Android API level settings</li>
+  *       <li>{@link ConsumerConfiguration} - output consumer settings</li>
+  *     </ul>
+  *   </dd>
+  *
+  *   <dt><b>Open/Closed Principle (OCP)</b></dt>
+  *   <dd>New configuration aspects can be added by creating new interfaces
+  *       without modifying existing ones.</dd>
+  *
+  *   <dt><b>Liskov Substitution Principle (LSP)</b></dt>
+  *   <dd>Any implementation of these interfaces can be substituted without
+  *       breaking the compiler.</dd>
+  *
+  *   <dt><b>Interface Segregation Principle (ISP)</b></dt>
+  *   <dd>Clients can depend on specific configuration interfaces rather than
+  *       a monolithic configuration class.</dd>
+  *
+  *   <dt><b>Dependency Inversion Principle (DIP)</b></dt>
+  *   <dd>High-level modules depend on these abstractions, not concrete
+  *       implementations like InternalOptions.</dd>
+  * </dl>
+  *
+  * <h3>Usage Patterns</h3>
+  *
+  * <h4>1. Reducing Coupling</h4>
+  * <pre>{@code
+  * // BEFORE: Tightly coupled to InternalOptions
+  * public class Optimizer {
+  *     private final InternalOptions options;
+  *     public boolean shouldOptimize() {
+  *         return options.isOptimizing();
+  *     }
+  * }
+  *
+  * // AFTER: Depends only on required configuration
+  * public class Optimizer {
+  *     private final OptimizationConfiguration config;
+  *     public Optimizer(OptimizationConfiguration config) {
+  *         this.config = config;
+  *     }
+  *     public boolean shouldOptimize() {
+  *         return config.isTreeShakingEnabled();
+  *     }
+  * }
+  * }</pre>
+  *
+  * <h4>2. Improving Testability</h4>
+  * <pre>{@code
+  * // Easy to create test doubles
+  * OptimizationConfiguration testConfig = new OptimizationConfiguration() {
+  *     @Override public boolean isTreeShakingEnabled() { return true; }
+  *     // ... other methods with defaults
+  * };
+  * Optimizer optimizer = new Optimizer(testConfig);
+  * }</pre>
+  *
+  * <h3>Migration Strategy</h3>
+  *
+  * <ol>
+  *   <li><b>Phase 1</b>: InternalOptions implements CompilerConfiguration</li>
+  *   <li><b>Phase 2</b>: New code uses sub-interfaces instead of InternalOptions</li>
+  *   <li><b>Phase 3</b>: Existing code gradually migrates to interfaces</li>
+  *   <li><b>Phase 4</b>: InternalOptions becomes a thin facade or is removed</li>
+  * </ol>
+  *
+  * @see CompilerConfiguration
+  * @see CompilationConfiguration
+  * @see OptimizationConfiguration
+  * @see DesugaringConfiguration
+  * @see ThreadingConfiguration
+  * @see ApiLevelConfiguration
+  * @see ConsumerConfiguration
+  */
+ package com.android.tools.r8.config;
+
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ Do you want to create package-info.java?
+ ❯ 1. Yes
+   2. Yes, allow all edits during this session (shift+tab)
+   3. No
+
+ Esc to cancel · Tab to amend
+

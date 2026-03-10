@@ -1,0 +1,139 @@
+─────────────────────────────────────────
+
+• 같은 패턴이 3개 스크립트에 반복됩니다.
+  세 군데를 한 번에 정리하겠습니다.
+
+• Explored
+  └ Read
+check_native_cli_no_java_wrapper.sh
+
+• Ran test -f r8_go/scripts/
+  │ verify_native_porting_completion.sh
+  │ && echo present || echo missing
+  └ present
+
+• Ran test -d r8_go && echo yes || echo
+  │ no
+  └ yes
+
+─────────────────────────────────────────
+
+• 세 래퍼 모두 동일하게 수정합니다. 존재
+  여부 기준으로 검사하고, 에러 메시지도
+  실제 조건과 맞추겠습니다.
+
+• Edited 3 files (+6 -6)
+  └ scripts/
+check_classfile_with_lib_parity.sh (+2
+-2)
+     7
+     8 -if [[ ! -x "$r8_go_script" ]]; th
+        en
+     9 -  echo "[error] missing executabl
+        e script: $r8_go_script" >&2
+     8 +if [[ ! -f "$r8_go_script" ]]; th
+        en
+     9 +  echo "[error] missing script: $
+        r8_go_script" >&2
+    10    exit 1
+
+  └ scripts/
+check_native_cli_no_java_wrapper.sh (+2
+-2)
+     7
+     8 -if [[ ! -x "$r8_go_script" ]]; th
+        en
+     9 -  echo "[error] missing executabl
+        e script: $r8_go_script" >&2
+     8 +if [[ ! -f "$r8_go_script" ]]; th
+        en
+     9 +  echo "[error] missing script: $
+        r8_go_script" >&2
+    10    exit 1
+
+  └ scripts/
+verify_native_porting_completion.sh (+2
+-2)
+     7
+     8 -if [[ ! -x "$r8_go_gate" ]]; then
+     9 -  echo "[error] missing executabl
+        e gate script: $r8_go_gate" >&2
+     8 +if [[ ! -f "$r8_go_gate" ]]; then
+     9 +  echo "[error] missing gate scri
+        pt: $r8_go_gate" >&2
+    10    exit 1
+
+─────────────────────────────────────────
+
+• 수정 후에는 차이와 문법만 빠르게 확인하
+  겠습니다. 이 변경은 동작 경로를 넓히는
+  쪽이라 회귀 위험은 낮습니다.
+
+• Ran git diff -- scripts/
+  │ verify_native_porting_completion.sh
+  │ scripts/
+  │ … +3 lines
+  └ (no output)
+
+• Ran bash -n scripts/
+  │ verify_native_porting_completion.sh
+  │ scripts/
+  │ … +3 lines
+  └ (no output)
+
+• Explored
+  └ Read
+verify_native_porting_completion.sh,
+
+check_classfile_with_lib_parity.sh,
+
+check_native_cli_no_java_wrapper.sh
+
+─────────────────────────────────────────
+
+• 세 번째 개선은 테스트 병렬 실행 설정입
+  니다. R8_GRADLE_CORES_PER_FORK 값이 CPU
+  수보다 크면 maxParallelForks가 0이 되어
+  Gradle이 깨질 수 있어서, 최소 1을 보장
+  하도록 보강하겠습니다.
+
+• Edited d8_r8/commonBuildSrc/src/main/
+kotlin/TestConfigurationHelper.kt (+11
+-1)
+    191        if (!userDefinedCoresPerFo
+         rk.isNullOrEmpty()) {
+    192 -        test.maxParallelForks =
+         processors.div(userDefinedCoresP
+         erFork.toInt())
+    192 +        val coresPerFork =
+    193 +          userDefinedCoresPerFor
+         k.toIntOrNull()
+    194 +            ?: throw IllegalArgu
+         mentException(
+    195 +              "Invalid R8_GRADLE
+         _CORES_PER_FORK value: $userDefi
+         nedCoresPerFork"
+    196 +            )
+    197 +        if (coresPerFork <= 0) {
+    198 +          throw IllegalArgumentE
+         xception(
+    199 +            "R8_GRADLE_CORES_PER
+         _FORK must be greater than 0: $u
+         serDefinedCoresPerFork"
+    200 +          )
+    201 +        }
+    202 +        test.maxParallelForks =
+         maxOf(processors.div(coresPerFor
+         k), 1)
+    203        } else {
+
+─────────────────────────────────────────
+
+◦ Working (51s • esc to interrupt)
+
+
+› 프로젝트 코드 분석해봐. 개선포인트를
+  찾고 하나씩 진행하자.
+
+
+  tab to queue message 90% context left

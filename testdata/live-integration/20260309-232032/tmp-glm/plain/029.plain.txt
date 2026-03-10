@@ -1,0 +1,139 @@
+● 사용자의 새 요청에 따라 Clean
+  Architecture, SRP, Interface-Oriented
+  Programming 관점에서 구조를
+  분석하겠습니다.
+
+● Explore(Analyze architecture
+         principles)
+  ⎿ Done (25 tool uses · 70.6k
+  (ctrl+o to expand)
+
+❯ s/w architect 관점에서 현재 구조를
+   분석하고 결합도, 책임 분리,
+  확장성, 테스트 용이성 측면 개선
+  포인트를 찾아 적용하자.
+
+● 소프트웨어 아키텍트 관점에서 구조를
+  분석하겠습니다.
+
+● Explore(Architect-level code analysis)
+  ⎿ Done (38 tool uses · 75.9k
+─────────────────────────────────────────
+
+● 🏗️ R8/D8 아키텍처 분석 보고서
+
+  📊 종합 평가
+
+  ┌────────────┬─────────┬───────────┐
+  │    측면    │  현재   │   개선    │
+  │            │  상태   │  필요도   │
+  ├────────────┼─────────┼───────────┤
+  │ 결합도     │ 🔴 높음 │ 긴급      │
+  ├────────────┼─────────┼───────────┤
+  │ 책임 분리  │ 🔴 부족 │ 긴급      │
+  ├────────────┼─────────┼───────────┤
+  │ 확장성     │ 🟡 보통 │ 중간      │
+  ├────────────┼─────────┼───────────┤
+  │ 테스트     │ 🟡 보통 │ 중간      │
+  │ 용이성     │         │           │
+  └────────────┴─────────┴───────────┘
+
+  ---
+  1️ ⃣결합도 문제 (Coupling)
+
+  🔴 문제점: God Class InternalOptions
+
+  InternalOptions.java (3,314 lines, 470+
+   methods)
+  ├── 100+ public fields
+  ├── 컴파일 설정 + 스레딩 + 최적화 +
+  리포팅 + ...
+  └── 모든 모듈이 이 클래스에 의존
+
+  🔴 순환 의존성
+
+  AppView ←→ Enqueuer ←→ InternalOptions
+       ↑_________________________|
+
+  ---
+  2️ ⃣책임 분리 문제 (SRP 위반)
+
+  God Classes 식별
+
+  클래스: Enqueuer.java
+  라인 수: 5,520
+  메서드 수: 224+
+  문제: Tree shaking + 의존성 추적 + 규칙
+
+    처리 + ...
+  ───────────────────────────────────────
+  ─
+  클래스: InternalOptions.java
+  라인 수: 3,314
+  메서드 수: 470+
+  문제: 모든 설정을 하나의 클래스에서
+  관리
+  ───────────────────────────────────────
+  ─
+  클래스: DexItemFactory.java
+  라인 수: 3,574
+  메서드 수: -
+  문제: 모든 DEX 아이템 생성
+
+  ---
+  3️ ⃣확장성 문제
+
+  🔴 Hardcoded Strategy Selection
+
+  // R8.java:253-262
+  if (options.partialCompilationConfigura
+  tion.isEnabled()) {
+      new
+  R8Partial(options).runInternal(app,
+  executor);
+  } else {
+      new R8(options).runInternal(app,
+  executor);
+  }
+
+  🔴 플러그인 아키텍처 부재
+
+  - 새로운 최적화 패스 추가 시 핵심
+  클래스 수정 필요
+  - 새로운 출력 포맷 추가 시
+  ApplicationWriter 수정 필요
+
+  ---
+  4️ ⃣테스트 용이성 문제
+
+  🔴 Static Dependencies
+
+  // R8.java:192-196
+  public static void run(R8Command
+  command) {
+      AndroidApp app =
+  command.getInputApp();
+      InternalOptions options =
+  command.getInternalOptions();
+      runForTesting(app, options);  //
+  정적 메서드로 인해 테스트 어려움
+  }
+
+  ---
+─────────────────────────────────────────
+
+● User answered Claude's questions:
+  ⎿  · 어떤 개선 작업부터
+     시작할까요? → InternalOptions
+     분리 (Recommended)
+
+* Sublimating… (30m 21s · thinking)
+
+─────────────────────────────────────────
+❯ 
+
+
+─────────────────────────────────────────
+  ctrl+g to edit in Vim
+  Auto-updating…
+

@@ -1,0 +1,22 @@
+dh.kam@oci-a3:/workspace/tmp$ codex --yol
+o
+╭────────────────────────────────────────
+─────────────╮
+│ >_ OpenAI Codex (v0.112.0)
+│
+│
+│
+│ model:     gpt-5.4 medium   fast   /
+model to change │
+│ directory: /workspace/tmp
+│
+╰────────────────────────────────────────
+─────────────╯
+
+  Tip: New 2x rate limits until April
+  2nd.
+
+
+› Find and fix a bug in @filename
+
+  gpt-5.4 medium · 100% left · /workspac…

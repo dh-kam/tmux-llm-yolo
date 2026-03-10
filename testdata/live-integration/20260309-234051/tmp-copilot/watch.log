@@ -1,0 +1,126 @@
+[2026-03-10 08:40:52] 감시 시작: session=tmp-copilot interval=1s duration=1200s
+[2026-03-10 08:40:52] llm=copilot model= fallback_llm=glm fallback_model= capture=120 suspect_waits=1s/1s
+[2026-03-10 08:40:52] tmux target: tmp-copilot
+[2026-03-10 08:40:52] 현재 tmux 세션:
+[2026-03-10 08:40:52]   - art-codex
+[2026-03-10 08:40:52]   - heapdump-codex
+[2026-03-10 08:40:52]   - heapdump-output
+[2026-03-10 08:40:52]   - heapdump-watcher
+[2026-03-10 08:40:52]   - r8-codex
+[2026-03-10 08:40:52]   - r8-output
+[2026-03-10 08:40:52]   - r8-watch-shell-smoke
+[2026-03-10 08:40:52]   - r8-watch-smoke
+[2026-03-10 08:40:52]   - r8-watcher
+[2026-03-10 08:40:52]   - tmp-codex
+[2026-03-10 08:40:52]   - tmp-copilot
+[2026-03-10 08:40:52]   - tmp-gemini
+[2026-03-10 08:40:52]   - tmp-glm
+[2026-03-10 08:40:52]   - watcher
+[2026-03-10 08:40:52] base dual capture
+[2026-03-10 08:40:53] base dual capture
+[2026-03-10 08:40:54] base dual capture
+[2026-03-10 08:40:55] base dual capture
+[2026-03-10 08:40:56] base dual capture
+[2026-03-10 08:40:57] base dual capture
+[2026-03-10 08:40:58] base dual capture
+[2026-03-10 08:40:59] base dual capture
+[2026-03-10 08:41:00] base dual capture
+[2026-03-10 08:41:01] base dual capture
+[2026-03-10 08:41:02] base dual capture
+[2026-03-10 08:41:03] base dual capture
+[2026-03-10 08:41:04] base dual capture
+[2026-03-10 08:41:05] base dual capture
+[2026-03-10 08:41:06] base dual capture
+[2026-03-10 08:41:07] base dual capture
+[2026-03-10 08:41:08] base dual capture
+[2026-03-10 08:41:09] base dual capture
+[2026-03-10 08:41:10] base dual capture
+[2026-03-10 08:41:11] base dual capture
+[2026-03-10 08:41:12] base dual capture
+[2026-03-10 08:41:13] base dual capture
+[2026-03-10 08:41:14] base dual capture
+[2026-03-10 08:41:15] base dual capture
+[2026-03-10 08:41:16] base dual capture
+[2026-03-10 08:41:17] base dual capture
+[2026-03-10 08:41:18] base dual capture
+[2026-03-10 08:41:19] base dual capture
+[2026-03-10 08:41:20] base dual capture
+[2026-03-10 08:41:22] base dual capture
+[2026-03-10 08:41:23] base dual capture
+[2026-03-10 08:41:24] base dual capture
+[2026-03-10 08:41:25] base dual capture
+[2026-03-10 08:41:26] base dual capture
+[2026-03-10 08:41:27] base dual capture
+[2026-03-10 08:41:28] base dual capture
+[2026-03-10 08:41:29] base dual capture
+[2026-03-10 08:41:30] base dual capture
+[2026-03-10 08:41:31] base dual capture
+[2026-03-10 08:41:32] base dual capture
+[2026-03-10 08:41:33] base dual capture
+[2026-03-10 08:41:34] base dual capture
+[2026-03-10 08:41:35] base dual capture
+[2026-03-10 08:41:36] base dual capture
+[2026-03-10 08:41:37] base dual capture
+[2026-03-10 08:41:38] base dual capture
+[2026-03-10 08:41:39] base dual capture
+[2026-03-10 08:41:40] base dual capture
+[2026-03-10 08:41:41] base dual capture
+[2026-03-10 08:41:42] base dual capture
+[2026-03-10 08:41:43] base dual capture
+[2026-03-10 08:41:44] base dual capture
+[2026-03-10 08:41:45] base dual capture
+[2026-03-10 08:41:46] base dual capture
+[2026-03-10 08:41:47] base dual capture
+[2026-03-10 08:41:48] base dual capture
+[2026-03-10 08:41:49] base dual capture
+[2026-03-10 08:41:50] base dual capture
+[2026-03-10 08:41:51] base dual capture
+[2026-03-10 08:41:52] base dual capture
+[2026-03-10 08:41:53] base dual capture
+[2026-03-10 08:41:54] base dual capture
+[2026-03-10 08:41:55] base dual capture
+[2026-03-10 08:41:56] base dual capture
+[2026-03-10 08:41:57] base dual capture
+[2026-03-10 08:41:58] base dual capture
+[2026-03-10 08:41:59] base dual capture
+[2026-03-10 08:42:00] base dual capture
+[2026-03-10 08:42:01] base dual capture
+[2026-03-10 08:42:02] base dual capture
+[2026-03-10 08:42:03] base dual capture
+[2026-03-10 08:42:04] base dual capture
+[2026-03-10 08:42:05] base dual capture
+[2026-03-10 08:42:06] base dual capture
+[2026-03-10 08:42:07] base dual capture
+[2026-03-10 08:42:08] base dual capture
+[2026-03-10 08:42:09] base dual capture
+[2026-03-10 08:42:10] base dual capture
+[2026-03-10 08:42:11] base dual capture
+[2026-03-10 08:42:12] base dual capture
+[2026-03-10 08:42:13] base dual capture
+[2026-03-10 08:42:14] base dual capture
+[2026-03-10 08:42:15] base dual capture
+[2026-03-10 08:42:16] base dual capture
+[2026-03-10 08:42:17] base dual capture
+[2026-03-10 08:42:18] base dual capture
+[2026-03-10 08:42:19] base dual capture
+[2026-03-10 08:42:20] base dual capture
+[2026-03-10 08:42:21] base dual capture
+[2026-03-10 08:42:22] base dual capture
+[2026-03-10 08:42:23] base dual capture
+[2026-03-10 08:42:24] base dual capture
+[2026-03-10 08:42:25] base dual capture
+[2026-03-10 08:42:26] base dual capture
+[2026-03-10 08:42:27] base dual capture
+[2026-03-10 08:42:28] base dual capture
+[2026-03-10 08:42:29] base dual capture
+[2026-03-10 08:42:30] base dual capture
+[2026-03-10 08:42:31] base dual capture
+[2026-03-10 08:42:32] base dual capture
+[2026-03-10 08:42:33] base dual capture
+[2026-03-10 08:42:34] base dual capture
+[2026-03-10 08:42:35] base dual capture
+[2026-03-10 08:42:36] base dual capture
+[2026-03-10 08:42:37] base dual capture
+[2026-03-10 08:42:38] base dual capture
+[2026-03-10 08:42:39] base dual capture
+[2026-03-10 08:42:41] base dual capture

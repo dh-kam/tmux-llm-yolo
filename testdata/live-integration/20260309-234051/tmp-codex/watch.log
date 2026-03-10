@@ -1,0 +1,674 @@
+[2026-03-10 08:40:52] 감시 시작: session=tmp-codex interval=1s duration=1200s
+[2026-03-10 08:40:52] llm=codex model= fallback_llm=glm fallback_model= capture=120 suspect_waits=1s/1s
+[2026-03-10 08:40:52] tmux target: tmp-codex
+[2026-03-10 08:40:52] 현재 tmux 세션:
+[2026-03-10 08:40:52]   - art-codex
+[2026-03-10 08:40:52]   - heapdump-codex
+[2026-03-10 08:40:52]   - heapdump-output
+[2026-03-10 08:40:52]   - heapdump-watcher
+[2026-03-10 08:40:52]   - r8-codex
+[2026-03-10 08:40:52]   - r8-output
+[2026-03-10 08:40:52]   - r8-watch-shell-smoke
+[2026-03-10 08:40:52]   - r8-watch-smoke
+[2026-03-10 08:40:52]   - r8-watcher
+[2026-03-10 08:40:52]   - tmp-codex
+[2026-03-10 08:40:52]   - tmp-copilot
+[2026-03-10 08:40:52]   - tmp-gemini
+[2026-03-10 08:40:52]   - tmp-glm
+[2026-03-10 08:40:52]   - watcher
+[2026-03-10 08:40:52] base dual capture
+[2026-03-10 08:40:53] base dual capture
+[2026-03-10 08:40:53] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:40:54] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:40:55] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:40:55] waiting 화면 해석 시작
+[2026-03-10 08:40:55] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=179 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:40:55] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:40:55] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:40:56] base dual capture
+[2026-03-10 08:40:56] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:40:57] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:40:58] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:40:58] waiting 화면 해석 시작
+[2026-03-10 08:40:58] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=179 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:40:58] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:40:58] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:40:59] base dual capture
+[2026-03-10 08:40:59] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:00] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:01] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:41:01] waiting 화면 해석 시작
+[2026-03-10 08:41:01] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=179 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:41:01] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:41:01] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:41:02] base dual capture
+[2026-03-10 08:41:02] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:03] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:04] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:41:04] waiting 화면 해석 시작
+[2026-03-10 08:41:04] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=179 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:41:04] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:41:04] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:41:05] base dual capture
+[2026-03-10 08:41:05] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:06] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:07] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:41:07] waiting 화면 해석 시작
+[2026-03-10 08:41:07] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=179 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:41:07] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:41:07] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:41:08] base dual capture
+[2026-03-10 08:41:08] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:09] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:10] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:41:10] waiting 화면 해석 시작
+[2026-03-10 08:41:10] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=179 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:41:10] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:41:10] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:41:11] base dual capture
+[2026-03-10 08:41:11] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:12] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:13] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:41:13] waiting 화면 해석 시작
+[2026-03-10 08:41:13] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=179 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:41:13] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:41:13] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:41:14] base dual capture
+[2026-03-10 08:41:14] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:15] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:16] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:41:16] waiting 화면 해석 시작
+[2026-03-10 08:41:16] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=179 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:41:16] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:41:16] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:41:17] base dual capture
+[2026-03-10 08:41:17] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:18] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:19] 의심 단계 중 ANSI 화면이 바뀌어 60초 모니터링으로 복귀
+[2026-03-10 08:41:20] base dual capture
+[2026-03-10 08:41:21] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:22] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:23] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:41:23] waiting 화면 해석 시작
+[2026-03-10 08:41:23] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=179 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:41:23] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:41:23] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:41:24] base dual capture
+[2026-03-10 08:41:24] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:25] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:26] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:41:26] waiting 화면 해석 시작
+[2026-03-10 08:41:26] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=179 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:41:26] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:41:26] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:41:27] base dual capture
+[2026-03-10 08:41:27] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:28] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:29] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:41:29] waiting 화면 해석 시작
+[2026-03-10 08:41:29] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=179 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:41:29] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:41:29] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:41:30] base dual capture
+[2026-03-10 08:41:30] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:31] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:32] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:41:32] waiting 화면 해석 시작
+[2026-03-10 08:41:32] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=179 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:41:32] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:41:32] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:41:33] base dual capture
+[2026-03-10 08:41:33] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:34] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:35] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:41:35] waiting 화면 해석 시작
+[2026-03-10 08:41:35] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=179 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:41:35] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:41:35] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:41:36] base dual capture
+[2026-03-10 08:41:36] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:37] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:38] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:41:38] waiting 화면 해석 시작
+[2026-03-10 08:41:38] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=179 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:41:38] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:41:38] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:41:39] base dual capture
+[2026-03-10 08:41:39] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:40] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:41] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:41:41] waiting 화면 해석 시작
+[2026-03-10 08:41:41] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=179 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:41:41] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:41:41] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:41:42] base dual capture
+[2026-03-10 08:41:42] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:43] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:44] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:41:44] waiting 화면 해석 시작
+[2026-03-10 08:41:44] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=179 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:41:44] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:41:44] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:41:45] base dual capture
+[2026-03-10 08:41:45] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:46] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:47] 의심 단계 중 ANSI 화면이 바뀌어 60초 모니터링으로 복귀
+[2026-03-10 08:41:48] base dual capture
+[2026-03-10 08:41:48] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:49] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:50] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:41:50] waiting 화면 해석 시작
+[2026-03-10 08:41:50] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=178 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:41:50] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:41:50] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:41:51] base dual capture
+[2026-03-10 08:41:51] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:52] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:53] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:41:53] waiting 화면 해석 시작
+[2026-03-10 08:41:53] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=178 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:41:53] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:41:53] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:41:54] base dual capture
+[2026-03-10 08:41:54] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:55] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:56] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:41:56] waiting 화면 해석 시작
+[2026-03-10 08:41:56] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=178 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:41:56] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:41:56] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:41:57] base dual capture
+[2026-03-10 08:41:57] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:41:58] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:41:59] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:41:59] waiting 화면 해석 시작
+[2026-03-10 08:41:59] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=178 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:41:59] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:41:59] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:42:00] base dual capture
+[2026-03-10 08:42:00] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:42:01] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:42:02] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:42:02] waiting 화면 해석 시작
+[2026-03-10 08:42:02] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=178 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:42:02] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:42:02] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:42:03] base dual capture
+[2026-03-10 08:42:03] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:42:04] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:42:05] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:42:05] waiting 화면 해석 시작
+[2026-03-10 08:42:05] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=178 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:42:05] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:42:05] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:42:06] base dual capture
+[2026-03-10 08:42:06] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:42:07] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:42:08] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:42:08] waiting 화면 해석 시작
+[2026-03-10 08:42:08] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=178 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:42:08] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:42:08] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:42:09] base dual capture
+[2026-03-10 08:42:09] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:42:10] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:42:11] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:42:11] waiting 화면 해석 시작
+[2026-03-10 08:42:11] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=178 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:42:11] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:42:11] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:42:12] base dual capture
+[2026-03-10 08:42:12] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:42:13] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:42:14] 의심 단계 중 ANSI 화면이 바뀌어 60초 모니터링으로 복귀
+[2026-03-10 08:42:15] base dual capture
+[2026-03-10 08:42:15] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:42:16] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:42:17] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:42:17] waiting 화면 해석 시작
+[2026-03-10 08:42:17] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=177 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:42:17] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:42:17] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:42:18] base dual capture
+[2026-03-10 08:42:18] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:42:19] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:42:20] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:42:20] waiting 화면 해석 시작
+[2026-03-10 08:42:20] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=177 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:42:20] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:42:20] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:42:21] base dual capture
+[2026-03-10 08:42:21] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:42:22] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:42:23] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:42:23] waiting 화면 해석 시작
+[2026-03-10 08:42:23] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=177 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:42:23] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:42:23] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:42:24] base dual capture
+[2026-03-10 08:42:24] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:42:25] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:42:26] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:42:26] waiting 화면 해석 시작
+[2026-03-10 08:42:26] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=177 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:42:26] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:42:26] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:42:27] base dual capture
+[2026-03-10 08:42:27] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:42:28] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:42:29] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:42:29] waiting 화면 해석 시작
+[2026-03-10 08:42:29] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=177 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:42:29] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:42:29] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:42:30] base dual capture
+[2026-03-10 08:42:30] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:42:31] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:42:32] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:42:33] waiting 화면 해석 시작
+[2026-03-10 08:42:33] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=177 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:42:33] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:42:33] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:42:34] base dual capture
+[2026-03-10 08:42:34] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:42:35] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:42:36] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:42:36] waiting 화면 해석 시작
+[2026-03-10 08:42:36] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=177 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:42:36] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:42:36] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:42:37] base dual capture
+[2026-03-10 08:42:37] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:42:38] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심
+[2026-03-10 08:42:39] 5초 재검사까지 ANSI 화면이 동일하여 입력 대기 상태를 확신
+[2026-03-10 08:42:39] waiting 화면 해석 시작
+[2026-03-10 08:42:39] prompt analysis: provider=codex assistant_ui=true processing=true detected=true line=177 class=unknown_waiting reason=진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움 choice=
+[2026-03-10 08:42:39] latest output block:
+검증이 약한 부분:
+
+  - 실제 Gradle compile/test 실행 검증은 아직 못 했습니다. 현재 워크스페이스가 크게 dirty 상태라 정적 검토 중심으로 진행 중입니다.
+  - 이번 TestingState 변경은 외부 API를 유지한 내부 분리라 회귀 위험은 낮지만, 실행 검증은 여전히 필요합니다.
+
+  다음 우선순위:
+
+  1. TestingState 에서 stacktrace processing 분리
+  2. dependency catalog reflection 제거 또는 축소
+  3. bootstrap/download 로직 공통화
+
+  다음 턴에서는 TestingState 의 남은 stacktrace/status policy 분리를 이어가겠습니다.
+[2026-03-10 08:42:39] 진행중 신호가 남아 있어 입력하지 않고 60초 모니터링으로 복귀
+[2026-03-10 08:42:40] base dual capture
+[2026-03-10 08:42:40] ANSI 화면이 60초 기준 캡처와 동일하여 1차 입력 대기 의심
+[2026-03-10 08:42:41] 15초 재검사에서도 ANSI 화면이 동일하여 2차 입력 대기 의심

@@ -1,0 +1,115 @@
+
+[1m[38;5;2m•[0m [1mRan[0m sed -n [2m'1,220p'[0m r8_go/src/cf/code/cf_subtyping_assignability.go; echo [2m'---'[0m; sed -n [2m'1,260p'[0m r8_go/src/cf/code/
+[2m  │ [0mcf_subtyping_assignability_test.go; echo [2m'---'[0m; sed -n [2m'1,120p'[0m r8_go/src/cf/code/cf_assignability.go; echo [2m'---'[0m;
+[2m  │ [0msed -n [2m'20,80p'[0m r8_go/src/graph/access_flags.go
+[2m  └ package code
+
+[0m    [2m… +344 lines
+
+[0m    [2mfunc (flags *AccessFlags) SetInterface() {
+
+• [0;1mEdited[0m r8_go/src/cf/code/cf_subtyping_assignability.go ([38;5;2m+4[39m [38;5;1m-2[39m)
+    [2m2
+[0m    [2m3 [0m[38;5;1m-import "r8_go/src/dex"
+[39m    [2m4 [0m[38;5;1m-import "r8_go/src/graph"
+[39m    [2m3 [0m[38;5;2m+import (
+[39m    [2m4 [0m[38;5;2m+[39m [38;5;2m"r8_go/src/dex"
+[39m    [2m5 [0m[38;5;2m+[39m [38;5;2m"r8_go/src/graph"
+[39m    [2m6 [0m[38;5;2m+)
+[39m    [2m7
+
+[0;1m[38;5;2m•[0m [1mRan[0m cd /workspace/r8/r8_go [2m&&[0m gofmt -w src/cf/code/cf_subtyping_assignability.go
+[2m  └ (no output)
+
+[0;1m[38;5;2m•[0m [1mRan[0m git -C /workspace/r8 rev-parse HEAD; git -C /workspace/r8 log --oneline -- src/main/java/com/android/tools/r8/cf src/
+[2m  │ [0mtest/java/com/android/tools/r8/cf [2m|[0m sed -n [2m'1,40p'
+  └ 1e2bf94d0d Use default values for Kotlin target version and lambda generation
+[0m    [2m4d89e68b95 Update asm to version 9.8
+[0m    [2m… +36 lines
+[0m    [2m8584303e02 Remove legacy code from force inlining of constructors after class merging
+[0m    [2m3da02b22d3 Extend Kotlin testing to support both types of Koltin lambdas
+
+•[0m [1mExplored
+[0;2m  └ [0m[38;5;6mRead[39m cf_porting_tracking.md
+
+[2m• [0;1mEdited[0m r8_go/cf_porting_tracking.md ([38;5;2m+13[39m [38;5;1m-2[39m)
+    [2m  2
+[0m    [2m  3 [0m[38;5;1m-Generated on: **2026-02-21**
+[39m    [2m  3 [0m[38;5;2m+Generated on: **2026-02-22**
+[39m    [2m  4
+[0m    [2m    ⋮
+[0m    [2m 81 [0m - `code/cf_invoke_dynamic_test.go` (invokedynamic tests)
+    [2m 82 [0m[38;5;2m+- `code/cf_frame.go` (frame map + comparison/assignability support)
+[39m    [2m 83 [0m[38;5;2m+- `code/cf_frame_test.go` (ported `FrameComparisonTest` coverage)
+[39m    [2m 84 [0m[38;5;2m+- `code/cf_assignability.go` (ported `CfAssignability`)
+[39m    [2m 85 [0m[38;5;2m+- `code/cf_subtyping_assignability.go` (ported `CfSubtypingAssignability`)
+[39m    [2m 86 [0m[38;5;2m+- `code/cf_subtyping_assignability_test.go` (`CfSubtypingAssignability` behavior tests)
+[39m    [2m 87 [0m[38;5;2m+- `graph/access_flags.go` (`SetInterface` helper for interface-typed assignability checks)
+[39m    [2m 88 [0m - `go test ./src/cf` (pending execution in this sync window)
+    [2m    ⋮
+[0m    [2m121 [0m - Added additional `cf/code` abstractions (`cf_type_instruction.go`, `cf_field_instruction.go`, `cf_position.go`)
+    [2m     [0mand unit tests.
+    [2m116 [0m[38;5;1m-- The Java `cf/code` package still has many unported classes (notably `CfInstruction`, `CfFrame*`, `CfAssignabilit
+[39m    [2m     [0m[38;5;1my`, `CfSubtypingAssignability`, and full frame-type hierarchy); this file list is a working target list for subseq
+[39m    [2m     [0m[38;5;1muent sync windows.
+[39m    [2m122 [0m[38;5;2m+- The Java `cf/code` package still has many unported classes (`CfInstruction`, `cf_frame` family helpers beyond wh
+[39m    [2m     [0m[38;5;2mat is currently modeled, and broader verifier integration); this file list is a working target list for subsequent
+[39m    [2m     [0m[38;5;2m sync windows.
+[39m    [2m123 [0m[38;5;2m+
+[39m    [2m124 [0m[38;5;2m+## Sync notes
+[39m    [2m125 [0m[38;5;2m+
+[39m    [2m126 [0m[38;5;2m+- Java baseline commit recorded for this sync: `4aa08788a4dd8698c9a5ab142f6367ee769069b1` (unchanged from current
+[39m    [2m     [0m[38;5;2m`cf` head in this workspace).
+[39m    [2m127 [0m[38;5;2m+- `CfSubtypingAssignability` is now wired with class/interface-aware behavior using a callback hook from `CfAssign
+[39m    [2m     [0m[38;5;2mability`, and `CfFrame` map-reference traversal is now nil-safe.
+[39m    [2m128
+
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• [0m[38;5;6mcf[39m 포팅 중 누락되던 부분을 계속 진행해서 아래까지 반영했습니다.
+
+  [1;3m### 완료 항목
+
+[0m  [38;5;12m1. [38;5;6mr8_go/src/cf/code/cf_frame.go:246
+[39m      - [38;5;6mCfFrame.mapReferenceTypes[39m에서 [38;5;6mframeType == nil[39m 처리 추가 (널 가드)로 맵에 nil 타입이 있어도 안전하게 동작.
+  [38;5;12m2. [38;5;6mr8_go/src/cf/code/cf_assignability.go
+[39m      - [38;5;6mCfAssignability[39m에 [38;5;6mclassTypeAssignability[39m 훅 필드를 추가해 하위 클래스 타입 판정 로직을 외부에서 주입할 수 있게 변
+        경.
+      - [38;5;6minternalIsClassTypeAssignableToClassType[39m이 기본은 기존 false 유지 + 훅이 있으면 훅 호출.
+  [38;5;12m3. [38;5;6mr8_go/src/cf/code/cf_subtyping_assignability.go[39m (신규)
+      - Java [38;5;6mCfSubtypingAssignability[39m를 포팅.
+      - 기본 생성자 [38;5;6mNewCfSubtypingAssignability[39m 추가, 인터페이스 허용 플래그 제어 생성자
+        [38;5;6mNewCfSubtypingAssignabilityWithInterfaceAllowance[39m 추가.
+      - 내부에서 [38;5;6mAppView.IsSubtype(...)[39m + 인터페이스 허용 경로 반영.
+      - 인터페이스 판별용 내부 헬퍼 추가.
+  [38;5;12m4. [38;5;6mr8_go/src/graph/access_flags.go
+[39m      - 인터페이스 플래그를 코드에서 설정할 수 있도록 [38;5;6mSetInterface()[39m 추가 (테스트/동작 연결용).
+  [38;5;12m5. [39m테스트 추가
+      - [38;5;6mr8_go/src/cf/code/cf_frame_test.go[39m (Frame 비교/해시 동치성: Java [38;5;6mFrameComparisonTest[39m 포팅).
+      - [38;5;6mr8_go/src/cf/code/cf_subtyping_assignability_test.go[39m (서브타입 동작 + 인터페이스 허용 플래그 검증).
+  [38;5;12m6. [39m진행 추적 md 업데이트
+      - [38;5;6mr8_go/cf_porting_tracking.md[39m 최신 날짜/완료 항목 반영.
+
+  [1;3m### 테스트 결과
+
+[0m  - 실행:
+      - [38;5;6mcd r8_go && go test ./src/cf/code -run 'TestCfFrameHashCodeAndEqualsDependOnMapContentNotStorageOrder|
+[39m        [38;5;6mTestCfSubtypingAssignability'
+[39m  - 결과: [38;5;6mok
+[39m  - 기존 패키지 전체 실행:
+      - [38;5;6mcd r8_go && go test ./src/cf/code
+[39m  - 결과: 기존 이슈로 두 테스트 실패 유지 ([38;5;6mTestCfConstNumberInstruction[39m, [38;5;6mTestCfInvokeConstructorAndInvokeSuper[39m)
+      - 이번 변경으로 새로 발생한 실패는 아님.
+
+  [1;3m### 현재 진행률(요청하신 항목 기준)
+
+[0m  - [38;5;6mCfAssignability[39m 계열 포팅이 완료돼서, [38;5;6mCfFrame[39m 비교/맵핑과 [38;5;6mCfSubtypingAssignability[39m까지 선행되지 않은 핵심 공백이 줄어
+    듦.
+  - 아직 [38;5;6mcf[39m 전체의 나머지 미포팅 클래스/통합 파이프라인은 여전히 남아있음(이전보다 좁아진 범위 기준).
+
+  다음으로는 [38;5;6mcf/code[39m에서 남은 [38;5;6mCfFrame[39m 전체 검증 로직, 그리고 [38;5;6mjar[39m/[38;5;6mdesugar[39m 실행 세션을 이어서 진행할까요?
+
+[48;5;237m 
+[1m›[0m[48;5;237m [2mUse /skills to list available skills
+[0m[48;5;237m 
+[49m  [2m? for shortcuts[0m                                                                                        [2m11% context left

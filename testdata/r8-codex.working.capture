@@ -1,0 +1,115 @@
+    Search type ValueType|ValueType\( in code
+    Read cf_jump_instruction.go, cf_new_array.go
+    Search sortedIntKeys|Map\[int\]|Int2 in utils
+    Search CfAssignability|isFrameAssignable|isAssignable\( in cf
+    Search isFrameAssignable|FrameType\.|isFrameTypeAssignable|CfSubtypingAssignability|FrameComparisonTest in r8_go
+    Read cf_label.go, dex_string.go
+    Search cloneableType|serializableType|nullValueType|objectType|intType|byteType|booleanType|floatType|longType|
+doubleType
+           in dex_string.go
+    Search \.objectType|\.cloneableType|\.serializableType|\.nullValueType|\.booleanType in r8_go
+    Read dex_item_factory_test.go
+    Search func \(.*GetItemFactory in internal_options.go
+    Read internal_options.go
+    Search INTEGER|FLOAT|LONG|DOUBLE|TOP|NULL|UNINITIALIZED_THIS|ITEM_|TOP in r8_go
+    Search porting|frame|CfFrame|cf in cf_porting_tracking.md
+    Read cf_porting_tracking.md
+    Search type NumericType|const \(\s*NumericType in type
+    Read primitive_type.go
+    Search isFrame\(|asFrame\(|getCompareToId|getAsmOpcode\(|internalRegisterUse|write\(|evaluate\( in code
+    Search asFrame\(\)|getCompareToId\(\)|isFrame\(\) in r8_go
+
+─ Worked for 1m 34s ───────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• Context compacted
+
+• 현재 상태를 기준으로 바로 이어서 cf 프레임 계열 구현과 테스트를 이어서 붙이겠습니다. 먼저 핵심 파일 유무를 확인하고, 누락
+  된 cf 타입/프레임/assignability 구현 파일을 한 번에 추가한 뒤 테스트를 추가해 진행하겠습니다.
+
+• Explored
+  └ List code
+    Search cf/(frame|code)/
+    Search type FrameType|CfFrame|CfAssignability|CfSubtypingAssignability|IsPrecise|GetTypeOpcode|CfFrameUtils|
+           MapReferenceTypes|storeLocal|computeLocalsCount in r8_go
+    Read frame_type.go, app_view.go, type.go
+    List dex
+
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• 코드 구조 확인이 끝났고, 이제 바로 Go 포팅 코어를 작성할게요. 다음은 DexType/옵션 헬퍼 동작이 현재 코드와 맞는지 확인하고
+  바로 구현할 파일로 들어가겠습니다.
+
+• Explored
+  └ Search type DexType struct|CreateString\(|CreateType\(|GetDescriptor\(|GetName\(|IsPrimitiveType\(|TypeDescriptor|
+           Cloneable|Serializable in dex
+    Read dex_string.go, graph_dex_class.go
+    Search type DexProgramClass|type DexClass|type DexClass in graph
+    Read dex_class.go, app_view.go
+    Search IsInterface\(|IsInterface in graph
+    Read access_flags.go
+    Search type .* struct .* hash|func \(.*\) .*Equals|GetHash|Verify in code
+    Search type .* struct in cf
+    Read cf_position.go, FrameType.java, CfFrameUtils.java, CfSubtypingAssignability.java, CfAssignability.java,
+CfFrame.java,
+         OneWord.java, BaseFrameType.java, TwoWord.java, PrimitiveType.java
+    List frame
+
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• 다음으로 Java 기준 상세 구현을 일괄로 가져와서 Go 구조체/메서드에 1:1 대응할 수 있게 하겠습니다. frame 패키지 전체 핵심
+  타입과 CfFrame 나머지 메서드까지 모두 확인하고 바로 추가하겠습니다.
+
+• Explored
+  └ Read SingletonFrameType.java, UninitializedNew.java, InitializedFrameType.java, PreciseFrameType.java,
+         UninitializedThis.java, InitializedNonNullReferenceFrameType.java, UninitializedFrameType.java,
+         InitializedReferenceFrameType.java, InitializedNonNullReferenceFrameTypeWithInterfaces.java,
+         InitializedNonNullReferenceFrameTypeWithoutInterfaces.java, NullFrameType.java, PrimitiveFrameType.java,
+         SinglePrimitiveFrameType.java, FloatFrameType.java, DoubleFrameType.java, IntFrameType.java, LongFrameType.java,
+         WidePrimitiveFrameType.java, LongHighFrameType.java, DoubleHighFrameType.java, ByteFrameType.java,
+         ShortFrameType.java, BooleanFrameType.java, CharFrameType.java, CfFrame.java, CfFrameUtils.java,
+         FrameComparisonTest.java
+    Search SortedMap|sorted in r8_go
+    Read helpers.go
+    Search type Deque|[]PreciseFrameType|container/list|push|pop in code
+    Search type .*Deque|container/list|push\(|append\( in code
+    Search func \(f \*DexItemFactory\) [a-zA-Z]+Type\(|ObjectType|Cloneable|Serializable|voidType|nullValueType in
+           dex_string.go
+    Search nullValueType|cloneableType|serializableType|objectType|stringType in r8_go
+    Read dex_item_factory_test.go
+    Search \.objectType|\.intType|\.longType|\.cloneableType|\.serializableType|\.byteType|\.booleanType|\.floatType|
+           \.doubleType|\.shortType|\.charType|\.voidType|\.nullValueType in r8_go
+
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• 필요한 타입/로직은 Java 기준으로 정확히 매칭되는데, Go 쪽 DexItemFactory 내부 필드가 비공개라 타입 상수 접근을 래핑해야
+  합니다. 앞으로는 descriptor 기반 생성 헬퍼를 사용해 타입 비교/생성을 통일하겠습니다. 이어서 CfFrame/유틸/assignability/테
+  스트를 바로 작성할게요.
+
+• Explored 
+  └ Search Opcodes\.|UNINITIALIZED_THIS|INTEGER|FLOAT|LONG|DOUBLE|NULL|TOP in cf
+    Search UNINITIALIZED|UNINITIALIZED_THIS|F_NEW|F_SAME|F_APPEND|F_APPEND|F_NEW in r8_go
+    List r8_go
+    Search getTypeOpcode|GetTypeOpcode|getTypeOp|opcode in cf
+    Search type TypeElement|type ReferenceType|type PrimitiveType|func \(.*\) toTypeElement|toReferenceType in ir
+    Read reference_type.go, type_element.go, primitive_type.go
+    Search toTypeElement\(|AsReferenceType\(|AsPrimitive|asReferenceType|ToTypeElement|fromType|lessThanOrEqual in graph
+    Search func \(.*\) Join|func .*Join\( in type
+    Search lessThanOrEqual|IsSubtype|Subtype in analysis
+    Read app_view_test.go, cf_porting_tracking.md, cf_instruction.go
+    List code
+    Search CfFrame\b in r8_go
+    Read cf_try_catch.go
+    Search JoinSingle\(|JoinWide\( in frame
+    Search type ValueType|type Value in r8_go
+    Read cf_const_test.go
+    Search frame\. in cf
+    Read error.go
+    List errors
+    Read unimplemented.go
+
+◦ Working (19m 08s • esc to interrupt)                                                                
+
+ 
+› Use /skills to list available skills
+ 
+  ? for shortcuts                                                                                        30% context left

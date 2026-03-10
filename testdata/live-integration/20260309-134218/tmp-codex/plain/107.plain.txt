@@ -1,0 +1,139 @@
+
+• Explored
+  └ Search appendText\(|mkdirs\(|
+delete\( in
+           TestingState.kt
+    Search index.html|<ul>|TestingState
+in
+           tmp
+
+─────────────────────────────────────────
+
+• 리포팅 유틸은 안전장치만 추가하겠습니
+  다. 동작 포맷은 건드리지 않고, 디렉터리
+  생성/파일 삭제 실패를 조용히 삼키지 않
+  도록 바꾸겠습니다.
+
+• Edited d8_r8/commonBuildSrc/src/main/
+kotlin/TestingState.kt (+33 -6)
+     63        val indexDir = File(testin
+         gStatePath.toString())
+     64 +      ensureDir(indexDir)
+     65        val reportDir = indexDir.r
+         esolve(projectName)
+     66        val index = indexDir.resol
+         ve("index.html")
+     67 +      initializeIndexIfMissing(i
+         ndex)
+     68        val resuming = reportDir.e
+         xists()
+        ⋮
+    172
+    171 -            index.appendText(tex
+         t.toString())
+    173 +            appendText(index, te
+         xt.toString())
+    174            }
+        ⋮
+    180                if (destFile.exist
+         s()) {
+    179 -                destFile.delete(
+         )
+    181 +                deleteIfExists(d
+         estFile)
+    182                }
+        ⋮
+    202                val link = getTest
+         ReportEntryURL(reportDir, desc)
+    201 -              index.appendText("
+         <li><a href=\"${link}\">${title}
+         </a></li>")
+    203 +              appendText(index,
+         "<li><a href=\"${link}\">${title
+         }</a></li>")
+    204                if (!result.except
+         ions.isEmpty()) {
+        ⋮
+    288      private fun ensureDir(dir: F
+         ile): File {
+    287 -      dir.mkdirs()
+    289 +      if (dir.isDirectory) {
+    290 +        return dir
+    291 +      }
+    292 +      if (dir.exists()) {
+    293 +        throw IllegalStateExcept
+         ion("Path exists but is not a di
+         rectory: ${dir.absolutePath}")
+    294 +      }
+    295 +      if (!dir.mkdirs() && !dir.
+         isDirectory) {
+    296 +        throw IllegalStateExcept
+         ion("Failed to create directory:
+          ${dir.absolutePath}")
+    297 +      }
+    298        return dir
+        ⋮
+    300
+    301 +    private fun initializeIndexI
+         fMissing(index: File) {
+    302 +      if (!index.exists()) {
+    303 +        appendText(index, "<ul>"
+         )
+    304 +      }
+    305 +    }
+    306 +
+    307 +    private fun appendText(file:
+          File, text: String) {
+    308 +      file.parentFile?.let(::ens
+         ureDir)
+    309 +      file.appendText(text)
+    310 +    }
+    311 +
+    312 +    private fun deleteIfExists(f
+         ile: File) {
+    313 +      if (file.exists() && !file
+         .delete()) {
+    314 +        throw IllegalStateExcept
+         ion("Failed to delete file: ${fi
+         le.absolutePath}")
+    315 +      }
+    316 +    }
+    317 +
+    318      // Some of our test paramete
+         rs have new lines :-( We really
+         don't want test names to span li
+         nes.
+        ⋮
+    370        if (statusFile == StatusTy
+         pe.FAILURE) {
+    344 -        getTestResultEntryOutput
+         File(reportDir, desc, StatusType
+         .SUCCESS.name).delete()
+    371 +        deleteIfExists(getTestRe
+         sultEntryOutputFile(reportDir, d
+         esc, StatusType.SUCCESS.name))
+    372          val pastFailure = Status
+         Type.PAST_FAILURE.name
+        ⋮
+    374        } else {
+    348 -        getTestResultEntryOutput
+         File(reportDir, desc, StatusType
+         .FAILURE.name).delete()
+    375 +        deleteIfExists(getTestRe
+         sultEntryOutputFile(reportDir, d
+         esc, StatusType.FAILURE.name))
+    376        }
+
+• Working (1m 26s • esc to interrupt)
+
+
+› 진행률을 점검하고 미진한 부분, 누락된
+  작업, 남은 리스크를 리스트업한 뒤 우선
+  순위 높은 것부터 진행해보자.clean
+  architecture, single responsibility
+  principle, interface-oriented
+  programming 관점에서 구조를 분석하고
+  어긋난 부분을 개선하자.
+
+
+  tab to queue message 81% context left

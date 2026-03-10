@@ -1,0 +1,144 @@
+  인터페이스를 공식적으로 구현하여 시스템 전체에서
+  일관된 방식으로 처리되도록 개선이 필요합니다.
+
+
+  3. DexItem 및 DexReference 인터페이스 도입
+  현재 isDexType, isDexMethod 같은 메서드로 타입을
+  체크하고 있는데, 이를 Go의 인터페이스(DexItem,
+  DexReference)로 추상화하여 타입 안전성을 높이고
+  다형성을 활용할 수 있도록 개선해야 합니다.
+
+
+  4. DexReader의 완성도 제고
+  reader.go와 binary_reader.go가 존재하지만, 전체
+  DEX 구조(ClassDef, Code, Annotations 등)를 완전히
+  파싱하는 로직은 아직 미비한 상태입니다.
+
+  ---
+
+
+  첫 번째 단계로 `DexValue`의 계층 구조를 구현하는
+  것부터 시작하면 어떨까요?
+
+  이 작업은 다음 순서로 진행할 계획입니다:
+   1. DexValue 인터페이스 정의 (Visitor 패턴 고려)
+   2. DexValueInt, DexValueString 등 주요 구체 타입
+      구현
+   3. 각 타입별 CompareTo 및 HashCode (Structural)
+      구현
+
+
+  동의하신다면 DexValue 인터페이스 정의부터 바로
+  시작하겠습니다.
+
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+ > 프로젝트 코드 분석해봐. 개선포인트를 찾고
+   하나씩 진행하자.
+   진행률을 점검하고 미진한 부분, 누락된 작업,
+   남은 리스크를 리스트업한 뒤 우선순위 높은
+   것부터 진행해보자.
+   clean architecture, single responsibility
+   principle, interface-oriented programming
+   관점에서 구조를 분석하고 어긋난 부분을
+   개선하자.
+   프로젝트 코드 분석해봐. 개선포인트를 찾고
+   하나씩 진행하자.
+   계속 진행하되 중간에 막히는 지점이 있으면
+   스스로 가설을 세우고 검증까지 이어서
+   진행해보자.
+▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+╭─────────────────────────────────────────────╮
+│ ✓  Shell grep -r "type DexReference" . [in… │
+│                                             │
+│ Command exited with code: 1                 │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  SearchText 'type (DexItem|DexReference)… │
+│                                             │
+│ Error: Process exited with code 2:          │
+│ /home/dh.kam/.gemini/tmp/bin/rg: 1: ELF:    │
+│ not found                                   │
+│ /home/dh.kam/.gemini/tmp/bin/rg: 2: Syntax  │
+│ error: word unexpected (expecting ")")      │
+│                                             │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  Shell grep -rl "isDexType" . [in r8_go/… │
+│                                             │
+│ ./dex/dex_field.go                          │
+│ ./dex/dex_method.go                         │
+│ ./dex/dex_type.go                           │
+│ ./utils/structural/hashing_visitor_with_typ │
+│ e_equivalence.go                            │
+│ ./utils/structural/hashing_visitor_with_typ │
+│ e_equivalence_internal_test.go              │
+│ ./utils/structural/specification.go         │
+│ ./utils/structural/hashing_visitor.go       │
+│ ./utils/structural/compare_to_visitor.go    │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  Shell cat ./utils/structural/specificat… │
+│                                             │
+│         withDexReference(getter func(any)   │
+│ DexReference) StructuralSpecification       │
+│ }                                           │
+│                                             │
+│ type DexReference interface {               │
+│         referenceTypeOrder() int            │
+│         isDexType() bool                    │
+│         isDexField() bool                   │
+│         isDexMethod() bool                  │
+│         asDexType() *dex.DexType            │
+│         asDexField() *dex.DexField          │
+│         asDexMethod() *dex.DexMethod        │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  ReadFile r8_go/.../specification.go      │
+│                                             │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  ReadFile r8_go/.../hashing_visitor.go    │
+│                                             │
+╰─────────────────────────────────────────────╯
+╭─────────────────────────────────────────────╮
+│ ✓  WriteFile Writing to r8_go/src/dex/dex_… │
+│                                             │
+│  1 package dex                              │
+│  2                                          │
+│  3 // DexItem is the base interface for all │
+│    items in a DEX file.                     │
+│  4 type DexItem interface {                 │
+│  5     // Add common DexItem methods here   │
+│    as needed.                               │
+│  6 }                                        │
+│  7                                          │
+│  8 // DexReference is the base interface    │
+│    for all cross-references in a DEX file.  │
+│  9 type DexReference interface {            │
+│ 10     DexItem                              │
+│ 11     referenceTypeOrder() int             │
+│ 12     isDexType() bool                     │
+│ 13     isDexField() bool                    │
+│ 14     isDexMethod() bool                   │
+│ 15     asDexType() *DexType                 │
+│ 16     asDexField() *DexField               │
+│ 17     asDexMethod() *DexMethod             │
+│ 18 }                                        │
+╰─────────────────────────────────────────────╯
+
+ ⠸ Just a moment, I'm tuning the algorithms… (esc t
+
+ ? for shortcuts
+───────────────────────────────────────────────────
+
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+ * 프로젝트 코드 분석해봐. 개선포인트를 찾고
+   하나씩 진행하자.
+   진행률을 점검하고 미진한 부분, 누락된 작업,
+   남은 리스크를 리스트업한 뒤 우선순위 높은
+   것부터 진행해보자.
+
+▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+ /workspace/tmp         no             /model Auto
+ (4aa08788a4*)          sandbox        (Gemini 3)
+

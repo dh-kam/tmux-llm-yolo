@@ -1,0 +1,183 @@
+
+● Read 1 file (ctrl+o to expand)
+
+● InternalOptions의 구조를 파악했습니다. 이제 분리 계획을 수립하겠습니다.
+
+❯ 진행률을 점검하고 미진한 부분, 누락된 작업, 남은 리스크를 리스트업한 뒤 우선순위 높은 것부터 진행해보자.
+  clean architecture, single responsibility principle, interface-oriented programming 관점에서 구조를 분석하고 어긋난 부분을 개선하자.
+
+● 📊 진행 상황 점검 및 리스크 분석
+
+  ✅ 완료된 작업
+
+  ┌────────────────────┬──────┬──────────────────────────────────────┐
+  │        작업        │ 상태 │                 결과                 │
+  ├────────────────────┼──────┼──────────────────────────────────────┤
+  │ 프로젝트 구조 분석 │ ✅   │ R8/D8 컴파일러 도구 파악             │
+  ├────────────────────┼──────┼──────────────────────────────────────┤
+  │ TODO/FIXME 분석    │ ✅   │ 750개 (356파일) 식별                 │
+  ├────────────────────┼──────┼──────────────────────────────────────┤
+  │ 아키텍처 분석      │ ✅   │ 결합도·SRP·확장성·테스트 용이성 분석 │
+  └────────────────────┴──────┴──────────────────────────────────────┘
+
+  ⚠️ 미진/누락 작업
+
+  ┌───────────────────────────┬───────────┬──────────────────────────────┐
+  │           작업            │   상태    │            리스크            │
+  ├───────────────────────────┼───────────┼──────────────────────────────┤
+  │ InternalOptions 분리 설계 │ 🔄 진행중 │ 높음 - 3,314라인 God Class   │
+  ├───────────────────────────┼───────────┼──────────────────────────────┤
+  │ 인터페이스 추출           │ ❌ 미시작 │ 중간 - 순환 의존성 해결 필요 │
+  ├───────────────────────────┼───────────┼──────────────────────────────┤
+  │ 플러그인 아키텍처         │ ❌ 미시작 │ 중간 - 확장성 개선           │
+  ├───────────────────────────┼───────────┼──────────────────────────────┤
+  │ DI 패턴 도입              │ ❌ 미시작 │ 중간 - 테스트 용이성 개선    │
+  └───────────────────────────┴───────────┴──────────────────────────────┘
+
+  🔴 주요 리스크
+
+  1. InternalOptions 분리 - 모든 모듈이 의존하므로 변경 영향도 큼
+  2. 순환 의존성 (AppView ↔ Enqueuer ↔ InternalOptions)
+  3. 하위 호환성 - 기존 API 유지 필요
+
+  ---
+  🎯 개선 작업 계획 (우선순위 순)
+
+❯ s/w architect 관점에서 현재 구조를 분석하고 결합도, 책임 분리, 확장성, 테스트 용이성 측면 개선 포인트를 찾아 적용하자.
+
+❯ 이미 끝난 것과 아직 불완전한 것을 구분하고, 검증이 약한 부분을 보강하면서 계속 진행하자.
+
+● 📋 작업 상태 구분 및 검증 보강
+
+  ✅ 완료 (검증됨)
+
+  ┌────────────────────────────────────────────┬─────────────────────────────┐
+  │                    작업                    │          검증 방법          │
+  ├────────────────────────────────────────────┼─────────────────────────────┤
+  │ 프로젝트 구조 파악                         │ 파일 시스템 탐색, 코드 리뷰 │
+  ├────────────────────────────────────────────┼─────────────────────────────┤
+  │ TODO/FIXME 750개 식별                      │ Grep 검색으로 검증          │
+  ├────────────────────────────────────────────┼─────────────────────────────┤
+  │ God Class 식별 (InternalOptions, Enqueuer) │ 라인 수/메서드 수 측정      │
+  └────────────────────────────────────────────┴─────────────────────────────┘
+
+  ⚠️ 불완전 (검증 필요)
+
+  ┌───────────────────────────┬───────────────────────┐
+  │           작업            │       미흡한 점       │
+  ├───────────────────────────┼───────────────────────┤
+  │ 아키텍처 분석             │ 실제 코드 개선 미적용 │
+  ├───────────────────────────┼───────────────────────┤
+  │ InternalOptions 분리 설계 │ 구현 미완료           │
+  ├───────────────────────────┼───────────────────────┤
+  │ 순환 의존성 분석          │ 구체적 해결안 미제시  │
+  └───────────────────────────┴───────────────────────┘
+
+  🔍 검증 보강이 필요한 영역
+
+● Searched for 2 patterns, read 1 file (ctrl+o to expand)
+
+❯ 프로젝트 코드 분석해봐. 개선포인트를 찾고 하나씩 진행하자.
+
+❯ 진행률을 점검하고 미진한 부분, 누락된 작업, 남은 리스크를 리스트업한 뒤 우선순위 높은 것부터 진행해보자.
+
+● 📊 검증 결과
+
+  ┌───────────────────────────┬───────────────┬───────────┐
+  │           항목            │    발견 수    │  영향도   │
+  ├───────────────────────────┼───────────────┼───────────┤
+  │ new InternalOptions( 호출 │ 26회 (24파일) │ 높음      │
+  ├───────────────────────────┼───────────────┼───────────┤
+  │ options. 필드 접근        │ 수천 회       │ 매우 높음 │
+  └───────────────────────────┴───────────────┴───────────┘
+
+  🎯 실제 개선 작업 시작
+
+  가장 영향도가 적으면서 가치가 높은 작업부터 진행하겠습니다.
+
+  1단계: 인터페이스 추출 (기존 코드 변경 없음)
+
+● Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● GlobalKeepInfoConfiguration 인터페이스 패턴을 확인하겠습니다.
+
+● Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+❯ clean architecture, single responsibility principle, interface-oriented programming 관점에서 구조를 분석하고 어긋난 부분을 개선하자.
+
+● 좋습니다. 이미 GlobalKeepInfoConfiguration 인터페이스 패턴이 있습니다. 이를 확장하여 설정을 분리하겠습니다.
+
+  🔧 개선 작업 1: 인터페이스 추출
+
+  1단계: CompilationConfiguration 인터페이스 생성
+
+● Write(src/main/java/com/android/tools/r8/config/CompilationConfiguration.java)
+
+  1 tasks (0 done, 1 in progress, 0 open)
+  ◼ InternalOptions 분리 설계
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Create file
+ src/main/java/com/android/tools/r8/config/CompilationConfiguration.java
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ // Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file
+ // for details. All rights reserved. Use of this source code is governed by a
+ // BSD-style license that can be found in the LICENSE file.
+ package com.android.tools.r8.config;
+
+ import com.android.tools.r8.CompilationMode;
+ import com.android.tools.r8.ProgramConsumer;
+
+ /**
+  * Configuration interface for compilation settings.
+  * This follows Interface Segregation Principle (ISP) by separating
+  * compilation concerns from other configuration aspects.
+  *
+  * <p>Benefits:
+  * <ul>
+  *   <li>Reduces coupling - consumers depend only on compilation settings</li>
+  *   <li>Improves testability - easier to mock compilation config</li>
+  *   <li>Enables extensibility - different implementations possible</li>
+  * </ul>
+  */
+ public interface CompilationConfiguration {
+
+   /** Returns the compilation mode (DEBUG or RELEASE). */
+   CompilationMode getCompilationMode();
+
+   /** Returns true if compiling in debug mode. */
+   boolean isDebug();
+
+   /** Returns true if compiling in release mode. */
+   boolean isRelease();
+
+   /** Returns the program consumer for output. */
+   ProgramConsumer getProgramConsumer();
+
+   /** Returns true if a program consumer is set. */
+   boolean hasConsumer();
+
+   /** Returns true if generating DEX output. */
+   boolean isGeneratingDex();
+
+   /** Returns true if generating class file output. */
+   boolean isGeneratingClassFiles();
+
+   /** Returns true if generating indexed DEX output. */
+   boolean isGeneratingDexIndexed();
+
+   /** Returns true if generating per-class DEX output. */
+   boolean isGeneratingDexFilePerClassFile();
+
+   /** Returns true if intermediate output for later merging. */
+   boolean isIntermediate();
+ }
+
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ Do you want to create CompilationConfiguration.java?
+ ❯ 1. Yes
+   2. Yes, allow all edits during this session (shift+tab)
+   3. No
+
+ Esc to cancel · Tab to amend
+

@@ -1,0 +1,183 @@
+● Write(src/main/java/com/android/tools/r8/config/CompilationConfiguration.java)
+  ⎿  Wrote 52 lines to src/main/java/com/android/tools/r8/config/CompilationConfiguration.java
+     // Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file
+     // for details. All rights reserved. Use of this source code is governed by a
+     // BSD-style license that can be found in the LICENSE file.
+     package com.android.tools.r8.config;
+
+     import com.android.tools.r8.CompilationMode;
+     import com.android.tools.r8.ProgramConsumer;
+
+     /**
+      * Configuration interface for compilation settings.
+     … +42 lines (ctrl+o to expand)
+
+❯ s/w architect 관점에서 현재 구조를 분석하고 결합도, 책임 분리, 확장성, 테스트 용이성 측면 개선 포인트를 찾아 적용하자.
+
+● 2단계: OptimizationConfiguration 인터페이스 생성
+
+● Write(src/main/java/com/android/tools/r8/config/OptimizationConfiguration.java)
+  ⎿  Wrote 113 lines to src/main/java/com/android/tools/r8/config/OptimizationConfiguration.java
+     // Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file
+     // for details. All rights reserved. Use of this source code is governed by a
+     // BSD-style license that can be found in the LICENSE file.
+     package com.android.tools.r8.config;
+
+     /**
+      * Configuration interface for optimization settings.
+      * This follows Single Responsibility Principle (SRP) by focusing
+      * solely on optimization-related configuration.
+      *
+     … +103 lines (ctrl+o to expand)
+
+● 3단계: DesugaringConfiguration 인터페이스 생성
+
+● Write(src/main/java/com/android/tools/r8/config/DesugaringConfiguration.java)
+  ⎿  Wrote 103 lines to src/main/java/com/android/tools/r8/config/DesugaringConfiguration.java
+     // Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file
+     // for details. All rights reserved. Use of this source code is governed by a
+     // BSD-style license that can be found in the LICENSE file.
+     package com.android.tools.r8.config;
+
+     import com.android.tools.r8.utils.InternalOptions.DesugarState;
+     import com.android.tools.r8.utils.OffOrAuto;
+
+     /**
+      * Configuration interface for desugaring settings.
+     … +93 lines (ctrl+o to expand)
+
+● 4단계: ThreadingConfiguration 인터페이스 생성
+
+● Write(src/main/java/com/android/tools/r8/config/ThreadingConfiguration.java)
+  ⎿  Wrote 40 lines to src/main/java/com/android/tools/r8/config/ThreadingConfiguration.java
+     // Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file
+     // for details. All rights reserved. Use of this source code is governed by a
+     // BSD-style license that can be found in the LICENSE file.
+     package com.android.tools.r8.config;
+
+     import com.android.tools.r8.threading.ThreadingModule;
+     import java.util.concurrent.ExecutorService;
+
+     /**
+      * Configuration interface for threading settings.
+     … +30 lines (ctrl+o to expand)
+
+● 5단계: ApiLevelConfiguration 인터페이스 생성
+
+● Write(src/main/java/com/android/tools/r8/config/ApiLevelConfiguration.java)
+  ⎿  Wrote 49 lines to src/main/java/com/android/tools/r8/config/ApiLevelConfiguration.java
+     // Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file
+     // for details. All rights reserved. Use of this source code is governed by a
+     // BSD-style license that can be found in the LICENSE file.
+     package com.android.tools.r8.config;
+
+     import com.android.tools.r8.utils.AndroidApiLevel;
+
+     /**
+      * Configuration interface for Android API level settings.
+      * This follows Single Responsibility Principle (SRP) by focusing
+     … +39 lines (ctrl+o to expand)
+
+● 6단계: ConsumerConfiguration 인터페이스 생성
+
+● Write(src/main/java/com/android/tools/r8/config/ConsumerConfiguration.java)
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Create file
+ src/main/java/com/android/tools/r8/config/ConsumerConfiguration.java
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ // Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file
+ // for details. All rights reserved. Use of this source code is governed by a
+ // BSD-style license that can be found in the LICENSE file.
+ package com.android.tools.r8.config;
+
+ import com.android.tools.r8.AndroidResourceConsumer;
+ import com.android.tools.r8.AndroidResourceProvider;
+ import com.android.tools.r8.ClassFileConsumer;
+ import com.android.tools.r8.DataResourceConsumer;
+ import com.android.tools.r8.DesugarGraphConsumer;
+ import com.android.tools.r8.DexFilePerClassFileConsumer;
+ import com.android.tools.r8.DexIndexedConsumer;
+ import com.android.tools.r8.GlobalSyntheticsConsumer;
+ import com.android.tools.r8.ProgramConsumer;
+ import com.android.tools.r8.SyntheticInfoConsumer;
+ import java.util.function.Consumer;
+
+ /**
+  * Configuration interface for consumer settings.
+  * This follows Interface Segregation Principle (ISP) by separating
+  * output consumer configuration from other settings.
+  *
+  * <p>Benefits:
+  * <ul>
+  *   <li>Clear contract for output handling</li>
+  *   <li>Easier to implement custom output strategies</li>
+  *   <li>Better testability with mock consumers</li>
+  * </ul>
+  */
+ public interface ConsumerConfiguration {
+
+   // ========== Program Consumer ==========
+
+   /** Returns the program consumer for output. */
+   ProgramConsumer getProgramConsumer();
+
+   /** Returns true if a program consumer is set. */
+   boolean hasConsumer();
+
+   /** Returns the DEX indexed consumer if applicable. */
+   DexIndexedConsumer getDexIndexedConsumer();
+
+   /** Returns the DEX file per class consumer if applicable. */
+   DexFilePerClassFileConsumer getDexFilePerClassFileConsumer();
+
+   /** Returns the class file consumer if applicable. */
+   ClassFileConsumer getClassFileConsumer();
+
+   // ========== Resource Consumers ==========
+
+   /** Returns the data resource consumer. */
+   DataResourceConsumer getDataResourceConsumer();
+
+   /** Returns the Android resource provider. */
+   AndroidResourceProvider getAndroidResourceProvider();
+
+   /** Returns the Android resource consumer. */
+   AndroidResourceConsumer getAndroidResourceConsumer();
+
+   // ========== Special Consumers ==========
+
+   /** Returns the global synthetics consumer. */
+   GlobalSyntheticsConsumer getGlobalSyntheticsConsumer();
+
+   /** Returns true if a global synthetics consumer is set. */
+   boolean hasGlobalSyntheticsConsumer();
+
+   /** Returns the synthetic info consumer. */
+   SyntheticInfoConsumer getSyntheticInfoConsumer();
+
+   /** Returns the desugar graph consumer. */
+   DesugarGraphConsumer getDesugarGraphConsumer();
+
+   // ========== Metadata Consumers ==========
+
+   /** Returns the build metadata consumer for D8. */
+   Consumer<?> getD8BuildMetadataConsumer();
+
+   /** Returns the build metadata consumer for R8. */
+   Consumer<?> getR8BuildMetadataConsumer();
+
+   // ========== Lifecycle ==========
+
+   /** Signals completion to all registered consumers. */
+   void signalFinishedToConsumers();
+ }
+
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ Do you want to create ConsumerConfiguration.java?
+ ❯ 1. Yes
+   2. Yes, allow all edits during this session (shift+tab)
+   3. No
+
+ Esc to cancel · Tab to amend
+

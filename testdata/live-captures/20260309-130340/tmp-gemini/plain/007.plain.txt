@@ -1,0 +1,42 @@
+
+ ███         █████████
+░░░███      ███░░░░░███
+  ░░░███   ███     ░░░
+    ░░░███░███
+     ███░ ░███    █████
+   ███░   ░░███  ░░███
+ ███░      ░░█████████
+░░░         ░░░░░░░░░
+
+
+Logged in with Google: nullcode@gmail.com
+ /auth
+Plan: Gemini Code Assist in Google One AI
+ Pro
+Tips for getting started:
+1. Ask questions, edit files, or run comm
+ands.
+2. Be specific for the best results.
+3. /help for more information.
+
+
+
+ℹ Update successful! The new version will
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+ > 프로젝트 코드 분석해봐.
+   개선포인트찾아서 하나씩 진행하자.
+▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+
+ ⠸Toggle respect for .geminiignore files
+
+
+ ? for shortcuts
+─────────────────────────────────────────
+
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+ *   Type your message or @path/to/file
+▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+                   no
+ /workspace/tmp    sandbo    /model Auto
+ (4aa08788a4*)     x         (Gemini 3)
+

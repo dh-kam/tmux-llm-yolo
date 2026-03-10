@@ -1,0 +1,183 @@
+  │ TODO/FIXME 750개 식별                      │ Grep 검색으로 검증          │
+  ├────────────────────────────────────────────┼─────────────────────────────┤
+  │ God Class 식별 (InternalOptions, Enqueuer) │ 라인 수/메서드 수 측정      │
+  └────────────────────────────────────────────┴─────────────────────────────┘
+
+  [1m⚠️[0m [1m불완전[0m [1m(검증[0m [1m필요)[0m
+
+  ┌───────────────────────────┬───────────────────────┐
+  │           작업            │       미흡한 점       │
+  ├───────────────────────────┼───────────────────────┤
+  │ 아키텍처 분석             │ 실제 코드 개선 미적용 │
+  ├───────────────────────────┼───────────────────────┤
+  │ InternalOptions 분리 설계 │ 구현 미완료           │
+  ├───────────────────────────┼───────────────────────┤
+  │ 순환 의존성 분석          │ 구체적 해결안 미제시  │
+  └───────────────────────────┴───────────────────────┘
+
+  [1m🔍[0m [1m검증[0m [1m보강이[0m [1m필요한[0m [1m영역[0m
+
+[38;5;75m●[39m Searched for [1m2[0m patterns, read [1m1[0m file [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;239m[48;5;237m❯ [38;5;231m프로젝트 코드 분석해봐. 개선포인트를 찾고 하나씩 진행하자. [39m[49m
+
+[38;5;239m[48;5;237m❯ [38;5;231m진행률을 점검하고 미진한 부분, 누락된 작업, 남은 리스크를 리스트업한 뒤 우선순위 높은 것부터 진행해보자. [39m[49m
+
+[38;5;231m●[39m [1m📊[0m [1m검증[0m [1m결과[0m
+
+  ┌───────────────────────────┬───────────────┬───────────┐
+  │           항목            │    발견 수    │  영향도   │
+  ├───────────────────────────┼───────────────┼───────────┤
+  │ [38;5;153mnew[39m [38;5;153mInternalOptions([39m 호출 │ 26회 (24파일) │ 높음      │
+  ├───────────────────────────┼───────────────┼───────────┤
+  │ [38;5;153moptions.[39m 필드 접근        │ 수천 회       │ 매우 높음 │
+  └───────────────────────────┴───────────────┴───────────┘
+
+  [1m🎯[0m [1m실제[0m [1m개선[0m [1m작업[0m [1m시작[0m
+
+  가장 영향도가 적으면서 가치가 높은 작업부터 진행하겠습니다.
+
+  [1m1단계:[0m [1m인터페이스[0m [1m추출[0m [1m(기존[0m [1m코드[0m [1m변경[0m [1m없음)[0m
+
+[38;5;75m●[39m Searched for [1m1[0m pattern, read [1m1[0m file [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;231m●[39m GlobalKeepInfoConfiguration 인터페이스 패턴을 확인하겠습니다.
+
+[38;5;75m●[39m Searched for [1m1[0m pattern, read [1m1[0m file [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;239m[48;5;237m❯ [38;5;231mclean architecture, single responsibility principle, interface-oriented programming 관점에서 구조를 분석하고 어긋난 부분을 개선하자. [39m[49m
+
+[38;5;231m●[39m 좋습니다. 이미 [38;5;153mGlobalKeepInfoConfiguration[39m 인터페이스 패턴이 있습니다. 이를 확장하여 설정을 분리하겠습니다.
+
+  [1m🔧[0m [1m개선[0m [1m작업[0m [1m1:[0m [1m인터페이스[0m [1m추출[0m
+
+  [1m1단계:[0m [1mCompilationConfiguration[0m [1m인터페이스[0m [1m생성[0m
+
+[38;5;75m●[39m [1mWrite[0m(src/main/java/com/android/tools/r8/config/CompilationConfiguration.java)
+  ⎿  Wrote [1m52[0m lines to [1msrc/main/java/com/android/tools/r8/config/CompilationConfiguration.java[0m
+     [32m//[39m [32mCopyright[39m [32m(c)[39m [32m2025,[39m [32mthe[39m [32mR8[39m [32mproject[39m [32mauthors.[39m [32mPlease[39m [32msee[39m [32mthe[39m [32mAUTHORS[39m [32mfile[39m
+     [32m//[39m [32mfor[39m [32mdetails.[39m [32mAll[39m [32mrights[39m [32mreserved.[39m [32mUse[39m [32mof[39m [32mthis[39m [32msource[39m [32mcode[39m [32mis[39m [32mgoverned[39m [32mby[39m [32ma[39m
+     [32m//[39m [32mBSD-style[39m [32mlicense[39m [32mthat[39m [32mcan[39m [32mbe[39m [32mfound[39m [32min[39m [32mthe[39m [32mLICENSE[39m [32mfile.[39m
+     [34mpackage[39m com.android.tools.r8.config;
+
+     [34mimport[39m com.android.tools.r8.CompilationMode;
+     [34mimport[39m com.android.tools.r8.ProgramConsumer;
+
+     [32m/**[39m
+     [32m *[39m [32mConfiguration[39m [32minterface[39m [32mfor[39m [32mcompilation[39m [32msettings.[39m
+     [38;5;246m…[39m [38;5;246m+42[39m [38;5;246mlines[39m [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;239m[48;5;237m❯ [38;5;231ms/w architect 관점에서 현재 구조를 분석하고 결합도, 책임 분리, 확장성, 테스트 용이성 측면 개선 포인트를 찾아 적용하자. [39m[49m
+
+[38;5;231m●[39m [1m2단계:[0m [1mOptimizationConfiguration[0m [1m인터페이스[0m [1m생성[0m
+
+[38;5;75m●[39m [1mWrite[0m(src/main/java/com/android/tools/r8/config/OptimizationConfiguration.java)
+  ⎿  Wrote [1m113[0m lines to [1msrc/main/java/com/android/tools/r8/config/OptimizationConfiguration.java[0m
+     [32m//[39m [32mCopyright[39m [32m(c)[39m [32m2025,[39m [32mthe[39m [32mR8[39m [32mproject[39m [32mauthors.[39m [32mPlease[39m [32msee[39m [32mthe[39m [32mAUTHORS[39m [32mfile[39m
+     [32m//[39m [32mfor[39m [32mdetails.[39m [32mAll[39m [32mrights[39m [32mreserved.[39m [32mUse[39m [32mof[39m [32mthis[39m [32msource[39m [32mcode[39m [32mis[39m [32mgoverned[39m [32mby[39m [32ma[39m
+     [32m//[39m [32mBSD-style[39m [32mlicense[39m [32mthat[39m [32mcan[39m [32mbe[39m [32mfound[39m [32min[39m [32mthe[39m [32mLICENSE[39m [32mfile.[39m
+     [34mpackage[39m com.android.tools.r8.config;
+
+     [32m/**[39m
+     [32m *[39m [32mConfiguration[39m [32minterface[39m [32mfor[39m [32moptimization[39m [32msettings.[39m
+     [32m *[39m [32mThis[39m [32mfollows[39m [32mSingle[39m [32mResponsibility[39m [32mPrinciple[39m [32m(SRP)[39m [32mby[39m [32mfocusing[39m
+     [32m *[39m [32msolely[39m [32mon[39m [32moptimization-related[39m [32mconfiguration.[39m
+     [32m *[39m
+     [38;5;246m…[39m [38;5;246m+103[39m [38;5;246mlines[39m [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;231m●[39m [1m3단계:[0m [1mDesugaringConfiguration[0m [1m인터페이스[0m [1m생성[0m
+
+[38;5;75m●[39m [1mWrite[0m(src/main/java/com/android/tools/r8/config/DesugaringConfiguration.java)
+  ⎿  Wrote [1m103[0m lines to [1msrc/main/java/com/android/tools/r8/config/DesugaringConfiguration.java[0m
+     [32m//[39m [32mCopyright[39m [32m(c)[39m [32m2025,[39m [32mthe[39m [32mR8[39m [32mproject[39m [32mauthors.[39m [32mPlease[39m [32msee[39m [32mthe[39m [32mAUTHORS[39m [32mfile[39m
+     [32m//[39m [32mfor[39m [32mdetails.[39m [32mAll[39m [32mrights[39m [32mreserved.[39m [32mUse[39m [32mof[39m [32mthis[39m [32msource[39m [32mcode[39m [32mis[39m [32mgoverned[39m [32mby[39m [32ma[39m
+     [32m//[39m [32mBSD-style[39m [32mlicense[39m [32mthat[39m [32mcan[39m [32mbe[39m [32mfound[39m [32min[39m [32mthe[39m [32mLICENSE[39m [32mfile.[39m
+     [34mpackage[39m com.android.tools.r8.config;
+
+     [34mimport[39m com.android.tools.r8.utils.InternalOptions.DesugarState;
+     [34mimport[39m com.android.tools.r8.utils.OffOrAuto;
+
+     [32m/**[39m
+     [32m *[39m [32mConfiguration[39m [32minterface[39m [32mfor[39m [32mdesugaring[39m [32msettings.[39m
+     [38;5;246m…[39m [38;5;246m+93[39m [38;5;246mlines[39m [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;231m●[39m [1m4단계:[0m [1mThreadingConfiguration[0m [1m인터페이스[0m [1m생성[0m
+
+[38;5;75m●[39m [1mWrite[0m(src/main/java/com/android/tools/r8/config/ThreadingConfiguration.java)
+  ⎿  Wrote [1m40[0m lines to [1msrc/main/java/com/android/tools/r8/config/ThreadingConfiguration.java[0m
+     [32m//[39m [32mCopyright[39m [32m(c)[39m [32m2025,[39m [32mthe[39m [32mR8[39m [32mproject[39m [32mauthors.[39m [32mPlease[39m [32msee[39m [32mthe[39m [32mAUTHORS[39m [32mfile[39m
+     [32m//[39m [32mfor[39m [32mdetails.[39m [32mAll[39m [32mrights[39m [32mreserved.[39m [32mUse[39m [32mof[39m [32mthis[39m [32msource[39m [32mcode[39m [32mis[39m [32mgoverned[39m [32mby[39m [32ma[39m
+     [32m//[39m [32mBSD-style[39m [32mlicense[39m [32mthat[39m [32mcan[39m [32mbe[39m [32mfound[39m [32min[39m [32mthe[39m [32mLICENSE[39m [32mfile.[39m
+     [34mpackage[39m com.android.tools.r8.config;
+
+     [34mimport[39m com.android.tools.r8.threading.ThreadingModule;
+     [34mimport[39m java.util.concurrent.ExecutorService;
+
+     [32m/**[39m
+     [32m *[39m [32mConfiguration[39m [32minterface[39m [32mfor[39m [32mthreading[39m [32msettings.[39m
+     [38;5;246m…[39m [38;5;246m+30[39m [38;5;246mlines[39m [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;231m●[39m [1m5단계:[0m [1mApiLevelConfiguration[0m [1m인터페이스[0m [1m생성[0m
+
+[38;5;75m●[39m [1mWrite[0m(src/main/java/com/android/tools/r8/config/ApiLevelConfiguration.java)
+  ⎿  Wrote [1m49[0m lines to [1msrc/main/java/com/android/tools/r8/config/ApiLevelConfiguration.java[0m
+     [32m//[39m [32mCopyright[39m [32m(c)[39m [32m2025,[39m [32mthe[39m [32mR8[39m [32mproject[39m [32mauthors.[39m [32mPlease[39m [32msee[39m [32mthe[39m [32mAUTHORS[39m [32mfile[39m
+     [32m//[39m [32mfor[39m [32mdetails.[39m [32mAll[39m [32mrights[39m [32mreserved.[39m [32mUse[39m [32mof[39m [32mthis[39m [32msource[39m [32mcode[39m [32mis[39m [32mgoverned[39m [32mby[39m [32ma[39m
+     [32m//[39m [32mBSD-style[39m [32mlicense[39m [32mthat[39m [32mcan[39m [32mbe[39m [32mfound[39m [32min[39m [32mthe[39m [32mLICENSE[39m [32mfile.[39m
+     [34mpackage[39m com.android.tools.r8.config;
+
+     [34mimport[39m com.android.tools.r8.utils.AndroidApiLevel;
+
+     [32m/**[39m
+     [32m *[39m [32mConfiguration[39m [32minterface[39m [32mfor[39m [32mAndroid[39m [32mAPI[39m [32mlevel[39m [32msettings.[39m
+     [32m *[39m [32mThis[39m [32mfollows[39m [32mSingle[39m [32mResponsibility[39m [32mPrinciple[39m [32m(SRP)[39m [32mby[39m [32mfocusing[39m
+     [38;5;246m…[39m [38;5;246m+39[39m [38;5;246mlines[39m [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;231m●[39m [1m6단계:[0m [1mConsumerConfiguration[0m [1m인터페이스[0m [1m생성[0m
+
+[38;5;75m●[39m [1mWrite[0m(src/main/java/com/android/tools/r8/config/ConsumerConfiguration.java)
+  ⎿  Wrote [1m86[0m lines to [1msrc/main/java/com/android/tools/r8/config/ConsumerConfiguration.java[0m
+     [32m//[39m [32mCopyright[39m [32m(c)[39m [32m2025,[39m [32mthe[39m [32mR8[39m [32mproject[39m [32mauthors.[39m [32mPlease[39m [32msee[39m [32mthe[39m [32mAUTHORS[39m [32mfile[39m
+     [32m//[39m [32mfor[39m [32mdetails.[39m [32mAll[39m [32mrights[39m [32mreserved.[39m [32mUse[39m [32mof[39m [32mthis[39m [32msource[39m [32mcode[39m [32mis[39m [32mgoverned[39m [32mby[39m [32ma[39m
+     [32m//[39m [32mBSD-style[39m [32mlicense[39m [32mthat[39m [32mcan[39m [32mbe[39m [32mfound[39m [32min[39m [32mthe[39m [32mLICENSE[39m [32mfile.[39m
+     [34mpackage[39m com.android.tools.r8.config;
+
+     [34mimport[39m com.android.tools.r8.AndroidResourceConsumer;
+     [34mimport[39m com.android.tools.r8.AndroidResourceProvider;
+     [34mimport[39m com.android.tools.r8.ClassFileConsumer;
+     [34mimport[39m com.android.tools.r8.DataResourceConsumer;
+     [34mimport[39m com.android.tools.r8.DesugarGraphConsumer;
+     [38;5;246m…[39m [38;5;246m+76[39m [38;5;246mlines[39m [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;239m[48;5;237m❯ [38;5;231m진행률을 점검하고 미진한 부분, 누락된 작업, 남은 리스크를 리스트업한 뒤 우선순위 높은 것부터 진행해보자. [39m[49m
+
+[38;5;231m●[39m [1m7단계:[0m [1m통합[0m [1mCompilerConfiguration[0m [1m인터페이스[0m [1m생성[0m
+
+[38;5;75m●[39m [1mWrite[0m(src/main/java/com/android/tools/r8/config/CompilerConfiguration.java)
+  ⎿  Wrote [1m92[0m lines to [1msrc/main/java/com/android/tools/r8/config/CompilerConfiguration.java[0m
+     [32m// Copyright (c) 2025, the R8 project authors. Please see the AUTHORS file[39m
+     [32m// for details. All rights reserved. Use of this source code is governed by a[39m
+     [32m// BSD-style license that can be found in the LICENSE file.[39m
+     [34mpackage[39m com.android.tools.r8.config;
+
+     [32m/**[39m
+     [32m * Unified configuration interface combining all compiler configuration aspects.[39m
+     [32m *[39m [32mThis[39m [32mfollows[39m [32mInterface[39m [32mSegregation[39m [32mPrinciple[39m [32m(ISP)[39m [32mand[39m [32mComposite[39m [32mPattern[39m
+     [32m *[39m [32mto[39m [32mprovide[39m [32ma[39m [32munified[39m [32mview[39m [32mwhile[39m [32mallowing[39m [32mindividual[39m [32mconfiguration[39m [32maccess.[39m
+     [32m *[39m
+     [38;5;246m…[39m [38;5;246m+82[39m [38;5;246mlines[39m [38;5;246m(ctrl+o[39m [38;5;246mto[39m [38;5;246mexpand)[39m
+
+[38;5;239m[48;5;237m❯ [38;5;231m1 [39m[49m
+
+[38;5;239m[48;5;237m❯ [38;5;231ms/w architect 관점에서 현재 구조를 분석하고 결합도, 책임 분리, 확장성, 테스트 용이성 측면 개선 포인트를 찾아 적용하자. [39m[49m
+
+[38;5;131m✽[39m [38;5;131mInternalOptions 분리 설계 중… [38;5;246m(33m[39m [38;5;246m44s[39m [38;5;246m·[39m [38;5;246m↓[39m [38;5;246m18.5k[39m [38;5;246mtokens)[39m
+  ⎿  [38;5;215m◼[39m [1mInternalOptions[0m [1m분리[0m [1m설계[0m
+
+
+  [38;5;239m[48;5;237m❯ [38;5;231m이미 끝난 것과 아직 불완전한 것을 구분하고, 검증이 약한 부분을 보강하면서 계속 진행하자. [39m[49m
+[2m[38;5;244m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[0m[38;5;246m❯ [7m[39mP[0;2mress[0m [2mup[0m [2mto[0m [2medit[0m [2mqueued[0m [2mmessages[0m
+[2m[38;5;244m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[0m  [38;5;246mesc[39m [38;5;246mto[39m [38;5;246minterrupt[39m [38;5;246m·[39m [38;5;246mctrl+t[39m [38;5;246mto[39m [38;5;246mhide[39m [38;5;246mtasks[39m
+
