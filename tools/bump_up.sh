@@ -8,6 +8,7 @@ usage() {
   cat <<'EOF'
 Usage:
   tools/bump_up.sh --to v1.2.3-202603.1
+  tools/bump_up.sh --seq
   tools/bump_up.sh --major
   tools/bump_up.sh --minor
   tools/bump_up.sh --rev
@@ -15,10 +16,11 @@ Usage:
 Rules:
   - Version format: vMAJOR.MINOR.REV-YYYYMM.SEQ
   - --to sets the exact version.
+  - --seq keeps MAJOR/MINOR/REV and only advances YYYYMM.SEQ.
   - --major increments MAJOR and resets MINOR/REV to 0.
   - --minor increments MINOR and resets REV to 0.
   - --rev increments REV.
-  - For --major/--minor/--rev, the suffix uses the current UTC YYYYMM.
+  - For --seq/--major/--minor/--rev, the suffix uses the current UTC YYYYMM.
   - If the current version already uses the current YYYYMM, SEQ increments by 1.
     Otherwise SEQ resets to 1.
 EOF
@@ -57,16 +59,20 @@ while [[ $# -gt 0 ]]; do
       mode="to"
       ;;
     --major)
-      [[ -z "${mode}" ]] || die "only one of --to/--major/--minor/--rev may be used"
+      [[ -z "${mode}" ]] || die "only one of --to/--seq/--major/--minor/--rev may be used"
       mode="major"
       ;;
     --minor)
-      [[ -z "${mode}" ]] || die "only one of --to/--major/--minor/--rev may be used"
+      [[ -z "${mode}" ]] || die "only one of --to/--seq/--major/--minor/--rev may be used"
       mode="minor"
       ;;
     --rev)
-      [[ -z "${mode}" ]] || die "only one of --to/--major/--minor/--rev may be used"
+      [[ -z "${mode}" ]] || die "only one of --to/--seq/--major/--minor/--rev may be used"
       mode="rev"
+      ;;
+    --seq)
+      [[ -z "${mode}" ]] || die "only one of --to/--seq/--major/--minor/--rev may be used"
+      mode="seq"
       ;;
     -h|--help)
       usage
@@ -79,7 +85,7 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-[[ -n "${mode}" ]] || die "one of --to/--major/--minor/--rev is required"
+[[ -n "${mode}" ]] || die "one of --to/--seq/--major/--minor/--rev is required"
 
 current="$(current_version)"
 validate_version "${current}" || die "current version is invalid: ${current}"
@@ -97,6 +103,8 @@ else
   now_yyyymm="$(date -u +%Y%m)"
 
   case "${mode}" in
+    seq)
+      ;;
     major)
       major="$((major + 1))"
       minor="0"

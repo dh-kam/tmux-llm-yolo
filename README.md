@@ -130,6 +130,12 @@ Show version:
 go run . --version
 ```
 
+Install local git hooks:
+
+```bash
+tools/dev-init.sh
+```
+
 ## Build and test
 
 Run tests:
@@ -185,6 +191,12 @@ Update the version explicitly:
 tools/bump_up.sh --to v0.9.1-202603.2
 ```
 
+Bump only the `YYYYMM.SEQ` suffix:
+
+```bash
+tools/bump_up.sh --seq
+```
+
 Bump semantic parts:
 
 ```bash
@@ -195,6 +207,10 @@ tools/bump_up.sh --rev
 
 Rules:
 
+- `tools/dev-init.sh` installs the repository git hooks via `core.hooksPath=.githooks`
+- the installed `pre-commit` hook advances only `YYYYMM.SEQ` on each commit
+- if `YYYYMM` matches the previous committed version, `SEQ` increases by `1`
+- if `YYYYMM` changes, `SEQ` resets to `1`
 - `--major` increments major and resets minor/rev to `0`
 - `--minor` increments minor and resets rev to `0`
 - `--rev` increments rev
@@ -212,6 +228,20 @@ On `push` and `pull_request`:
 Workflow file:
 
 - [.github/workflows/test.yml](.github/workflows/test.yml)
+
+### Build workflow
+
+On `push`, `pull_request`, and manual dispatch:
+
+- runs `make linux-amd64-release`
+- runs `make linux-arm64-release`
+- uploads the exact build outputs as Actions artifacts
+- artifact `linux-amd64-release` contains `build/linux-amd64/release/tmux-llm-yolo`
+- artifact `linux-arm64-release` contains `build/linux-arm64/release/tmux-llm-yolo`
+
+Workflow file:
+
+- [.github/workflows/build.yml](.github/workflows/build.yml)
 
 ### Release workflow
 

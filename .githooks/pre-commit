@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${SKIP_VERSION_BUMP:-}" == "1" ]]; then
+  exit 0
+fi
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+VERSION_FILE="internal/buildinfo/version.go"
+
+version_from_stream() {
+  sed -n 's/^[[:space:]]*Version[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p'
+}
+
+cd "${ROOT_DIR}"
+
+chmod +x tools/bump_up.sh
+
+if ! git rev-parse --verify HEAD >/dev/null 2>&1; then
+  git add "${VERSION_FILE}"
+  exit 0
+fi
+
+head_version="$(git show "HEAD:${VERSION_FILE}" 2>/dev/null | version_from_stream || true)"
+current_version="$(version_from_stream < "${VERSION_FILE}")"
+
+if [[ -z "${head_version}" || -z "${current_version}" ]]; then
+  printf 'version hook: could not resolve current version\n' >&2
+  exit 1
+fi
+
+if [[ "${current_version}" != "${head_version}" ]]; then
+  git add "${VERSION_FILE}"
+  exit 0
+fi
+
+next_version="$(tools/bump_up.sh --seq)"
+git add "${VERSION_FILE}"
+printf 'version hook: %s\n' "${next_version}"

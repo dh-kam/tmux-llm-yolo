@@ -1,0 +1,40 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  linux-release:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - artifact_name: linux-amd64-release
+            make_target: linux-amd64-release
+            artifact_path: build/linux-amd64/release/tmux-llm-yolo
+          - artifact_name: linux-arm64-release
+            make_target: linux-arm64-release
+            artifact_path: build/linux-arm64/release/tmux-llm-yolo
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build ${{ matrix.make_target }}
+        run: make "${{ matrix.make_target }}"
+
+      - name: Upload ${{ matrix.artifact_name }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_path }}
+          if-no-files-found: error
