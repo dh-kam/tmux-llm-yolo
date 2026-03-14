@@ -105,6 +105,9 @@ func (h providerHeuristics) isPlaceholderPromptLine(promptLine int, ansiLines []
 }
 
 func detectGenericPromptLine(ansiLines []string, plainLines []string) int {
+	if idx := detectApprovalPromptLine(plainLines); idx >= 0 {
+		return idx
+	}
 	for i := len(plainLines) - 1; i >= 0; i-- {
 		plain := normalizeSpaces(strings.TrimSpace(capture.StripANSI(plainLines[i])))
 		if plain == "" {
@@ -154,6 +157,9 @@ func isGenericPlaceholderPromptLine(promptLine int, ansiLines []string, plainLin
 }
 
 func detectCodexPromptLine(ansiLines []string, plainLines []string) int {
+	if idx := detectApprovalPromptLine(plainLines); idx >= 0 {
+		return idx
+	}
 	for i := len(plainLines) - 1; i >= 0; i-- {
 		plain := normalizeSpaces(strings.TrimSpace(capture.StripANSI(plainLines[i])))
 		if strings.HasPrefix(plain, "›") {
@@ -189,6 +195,9 @@ func isCodexPlaceholderPromptLine(promptLine int, ansiLines []string, plainLines
 }
 
 func detectGeminiPromptLine(ansiLines []string, plainLines []string) int {
+	if idx := detectApprovalPromptLine(plainLines); idx >= 0 {
+		return idx
+	}
 	for i := len(plainLines) - 1; i >= 0; i-- {
 		plain := normalizeSpaces(strings.TrimSpace(capture.StripANSI(plainLines[i])))
 		if strings.HasPrefix(plain, "* ") {
@@ -226,6 +235,9 @@ func isGeminiPlaceholderPromptLine(promptLine int, ansiLines []string, plainLine
 }
 
 func detectCopilotPromptLine(ansiLines []string, plainLines []string) int {
+	if idx := detectApprovalPromptLine(plainLines); idx >= 0 {
+		return idx
+	}
 	for i := len(plainLines) - 1; i >= 0; i-- {
 		plain := normalizeSpaces(strings.TrimSpace(capture.StripANSI(plainLines[i])))
 		if strings.HasPrefix(plain, "❯  Type @ to mention files") {
@@ -260,6 +272,9 @@ func isCopilotPlaceholderPromptLine(promptLine int, ansiLines []string, plainLin
 }
 
 func detectGLMPromptLine(ansiLines []string, plainLines []string) int {
+	if idx := detectApprovalPromptLine(plainLines); idx >= 0 {
+		return idx
+	}
 	for i := len(plainLines) - 1; i >= 0; i-- {
 		plain := normalizeSpaces(strings.TrimSpace(capture.StripANSI(plainLines[i])))
 		if plain == "❯" || strings.HasPrefix(plain, "❯ ") {
@@ -320,4 +335,19 @@ func hasOnlyPromptTail(promptLine int, plainLines []string) bool {
 		return false
 	}
 	return true
+}
+
+func detectApprovalPromptLine(plainLines []string) int {
+	for i := len(plainLines) - 1; i >= 0; i-- {
+		plain := normalizeSpaces(strings.TrimSpace(capture.StripANSI(plainLines[i])))
+		if plain == "" || !selectedNumberedMenuPattern.MatchString(plain) {
+			continue
+		}
+		windowStart := max(0, i-6)
+		window := strings.Join(plainLines[windowStart:min(len(plainLines), i+4)], "\n")
+		if approvalPromptPattern.MatchString(window) && numberedMenuPattern.MatchString(window) {
+			return i
+		}
+	}
+	return -1
 }

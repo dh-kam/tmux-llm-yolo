@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"testing"
 	"strings"
+	"testing"
 )
 
 type corpusManifest struct {
@@ -234,8 +234,8 @@ func TestAnalyzeWithHintRecoversGLMConfirmationUI(t *testing.T) {
 	if !analysis.AssistantUI {
 		t.Fatalf("assistantUI=false want true")
 	}
-	if analysis.Classification != ClassNumberedMultipleChoice {
-		t.Fatalf("classification=%q want %q", analysis.Classification, ClassNumberedMultipleChoice)
+	if analysis.Classification != ClassCursorBasedChoice {
+		t.Fatalf("classification=%q want %q", analysis.Classification, ClassCursorBasedChoice)
 	}
 	if analysis.RecommendedChoice != "1" {
 		t.Fatalf("recommended choice=%q want 1", analysis.RecommendedChoice)
@@ -280,11 +280,41 @@ func TestAnalyzeWithHintCapturesCodexApprovalPromptWhileReadingSpinnerMoves(t *t
 		if !analysis.InteractivePrompt {
 			t.Fatalf("sample %s interactivePrompt=false want true", sampleID)
 		}
-		if analysis.Classification != ClassNumberedMultipleChoice {
-			t.Fatalf("sample %s classification=%q want %q", sampleID, analysis.Classification, ClassNumberedMultipleChoice)
+		if analysis.Classification != ClassCursorBasedChoice {
+			t.Fatalf("sample %s classification=%q want %q", sampleID, analysis.Classification, ClassCursorBasedChoice)
 		}
-		if analysis.RecommendedChoice != "1" {
-			t.Fatalf("sample %s recommended choice=%q want 1", sampleID, analysis.RecommendedChoice)
+		if analysis.RecommendedChoice != "2" {
+			t.Fatalf("sample %s recommended choice=%q want 2", sampleID, analysis.RecommendedChoice)
+		}
+		if !strings.Contains(analysis.OutputBlock, "Do you want to proceed?") {
+			t.Fatalf("sample %s outputBlock missing approval prompt: %q", sampleID, analysis.OutputBlock)
+		}
+	}
+}
+
+func TestAnalyzeWithHintPrefersDontAskAgainChoiceForLiveJkdepsApprovalPrompt(t *testing.T) {
+	base := filepath.Join("..", "..", "testdata", "live-captures-codex", "20260314-012835", "jkdeps-codex")
+
+	for i := 1; i <= 20; i++ {
+		sampleID := fmt.Sprintf("%03d", i)
+		ansiPath := filepath.Join(base, "ansi", sampleID+".ansi.txt")
+		plainPath := filepath.Join(base, "plain", sampleID+".plain.txt")
+
+		ansiRaw, err := os.ReadFile(ansiPath)
+		if err != nil {
+			t.Fatalf("sample %s read ansi failed: %v", sampleID, err)
+		}
+		plainRaw, err := os.ReadFile(plainPath)
+		if err != nil {
+			t.Fatalf("sample %s read plain failed: %v", sampleID, err)
+		}
+
+		analysis := AnalyzeWithHint("glm", string(ansiRaw), string(plainRaw))
+		if analysis.Classification != ClassCursorBasedChoice {
+			t.Fatalf("sample %s classification=%q want %q", sampleID, analysis.Classification, ClassCursorBasedChoice)
+		}
+		if analysis.RecommendedChoice != "2" {
+			t.Fatalf("sample %s recommended choice=%q want 2", sampleID, analysis.RecommendedChoice)
 		}
 		if !strings.Contains(analysis.OutputBlock, "Do you want to proceed?") {
 			t.Fatalf("sample %s outputBlock missing approval prompt: %q", sampleID, analysis.OutputBlock)

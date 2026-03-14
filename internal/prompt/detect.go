@@ -34,25 +34,30 @@ type Analysis struct {
 }
 
 var (
-	promptPlaceholderPattern = regexp.MustCompile(`(?i)^[[:space:]]*([›❯>]|[#$%])\s*(type|type here|enter|press|input|입력|입력하세요|message|답변|선택|select|질문|명령|command|placeholder|press enter|다음|continue).*`)
-	promptMarkerPattern      = regexp.MustCompile(`^[[:space:]]*([›❯>]|[#$%])\s*$`)
-	numberedMenuPattern      = regexp.MustCompile(`(?m)^[[:space:]]*(?:[›❯>]\s*)?(\d+)[\).]\s+.+$`)
-	cursorMenuPattern        = regexp.MustCompile(`(?m)^[[:space:]]*([•*→]|-\>)\s+.+$`)
-	selectionContextPattern  = regexp.MustCompile(`(?i)(which|choose|select|enter to select|type something|chat about this|do you want to proceed|allow|approve|approved?|permission|bash command|don.?t ask again|yes[, ]|no[, ]|어떤 .*작업|어떤 .*개선|무엇을 할까요|선택지|선택하세요|선택 항목|선택할)`)
-	approvalPromptPattern    = regexp.MustCompile(`(?i)(do you want to proceed|bash command|allow|approve|permission|don.?t ask again|esc to cancel|tab to amend)`)
-	freeTextPattern          = regexp.MustCompile(`(?i)(enter|input|type|reply|respond|what should|provide|입력|답변|응답|작성)`)
-	continuePattern          = regexp.MustCompile(`(?i)(next step|next input|next turn|continue|proceed|go ahead|원하면|다음 작업|다음 턴|다음 우선순위|다음 단계|대기 중인 작업|작업 완료 요약|진행할까요|계속 진행|이어서 진행|이어가겠|이어가겠습니다|무엇을 할까요|tasks \(\d+ done, \d+ open\))`)
-	completedNoOpPattern     = regexp.MustCompile(`(?i)(all tasks (are )?complete|nothing more to do|no further action|done for now|모든 작업.*완료|더 할 일 없음|추가 작업 없음)`)
-	separatorPattern         = regexp.MustCompile(`^[[:space:]─-]+$`)
-	strongProcessingPattern  = regexp.MustCompile(`(?i)(esc to interrupt|esc to cancel|fermenting|thinking|refining implementation strategy|pre-heating the servers|ctrl\+b ctrl\+b|processing\.\.\.|processing request|processing your request|tokens\))`)
-	weakProcessingPattern    = regexp.MustCompile(`(?i)(readfolder|readfile|writefile|search\(|listed \d+ item|tool uses|implementing|running)`)
-	codexSignaturePattern    = regexp.MustCompile(`(?i)(openai codex|gpt-5\.[0-9]|/model to change|use /skills|context left|tab to queue)`)
-	copilotSignaturePattern  = regexp.MustCompile(`(?i)(github copilot|describe a task to get started|remaining reqs\.|copilot instructions found)`)
-	geminiSignaturePattern   = regexp.MustCompile(`(?i)(gemini code assist|yolo ctrl\+y|type your message or @path/to/file|gemini 3)`)
-	glmSignaturePattern      = regexp.MustCompile(`(?i)(claude code|fermenting|opus 4\.6|api usage billing)`)
-	promptZoneSpinnerPattern = regexp.MustCompile(`[●○◌◍◐◓◑◒•]`)
-	promptZoneDigitsPattern  = regexp.MustCompile(`\b\d+\b`)
-	promptZoneSpacePattern   = regexp.MustCompile(`\s+`)
+	promptPlaceholderPattern       = regexp.MustCompile(`(?i)^[[:space:]]*([›❯>]|[#$%])\s*(type|type here|enter|press|input|입력|입력하세요|message|답변|선택|select|질문|명령|command|placeholder|press enter|다음|continue).*`)
+	promptMarkerPattern            = regexp.MustCompile(`^[[:space:]]*([›❯>]|[#$%])\s*$`)
+	numberedMenuPattern            = regexp.MustCompile(`(?m)^[[:space:]]*(?:[›❯>]\s*)?(\d+)[\).]\s+.+$`)
+	selectedNumberedMenuPattern    = regexp.MustCompile(`(?m)^[[:space:]]*[›❯>]\s*(\d+)[\).]\s+.+$`)
+	numberedMenuOptionPattern      = regexp.MustCompile(`(?m)^[[:space:]]*(?:[›❯>]\s*)?(\d+)[\).]\s+(.+)$`)
+	cursorMenuPattern              = regexp.MustCompile(`(?m)^[[:space:]]*([•*→]|-\>)\s+.+$`)
+	selectionContextPattern        = regexp.MustCompile(`(?i)(which|choose|select|enter to select|type something|chat about this|do you want to proceed|allow|approve|approved?|permission|bash command|read file|read\(|allow reading|during this session|don.?t ask again|yes[, ]|no[, ]|어떤 .*작업|어떤 .*개선|무엇을 할까요|선택지|선택하세요|선택 항목|선택할)`)
+	approvalPromptPattern          = regexp.MustCompile(`(?i)(do you want to proceed|bash command|read file|read\(|allow reading|during this session|allow|approve|permission|don.?t ask again|esc to cancel|tab to amend)`)
+	approvalPersistentAllowPattern = regexp.MustCompile(`(?i)(don.?t ask again|always allow|remember (?:this )?(?:choice|decision)|allow this command(?: pattern)?|approve and remember|allow .* during this session|yes,? and don.?t ask again)`)
+	approvalAllowPattern           = regexp.MustCompile(`(?i)^(yes|allow|approve|proceed|run|continue)\b`)
+	approvalRejectPattern          = regexp.MustCompile(`(?i)^(no|deny|reject|cancel)\b`)
+	freeTextPattern                = regexp.MustCompile(`(?i)(enter|input|type|reply|respond|what should|provide|입력|답변|응답|작성)`)
+	continuePattern                = regexp.MustCompile(`(?i)(next step|next input|next turn|continue|proceed|go ahead|원하면|다음 작업|다음 턴|다음 우선순위|다음 단계|대기 중인 작업|작업 완료 요약|진행할까요|계속 진행|이어서 진행|이어가겠|이어가겠습니다|무엇을 할까요|tasks \(\d+ done, \d+ open\))`)
+	completedNoOpPattern           = regexp.MustCompile(`(?i)(all tasks (are )?complete|nothing more to do|no further action|done for now|모든 작업.*완료|더 할 일 없음|추가 작업 없음)`)
+	separatorPattern               = regexp.MustCompile(`^[[:space:]─-]+$`)
+	strongProcessingPattern        = regexp.MustCompile(`(?i)(esc to interrupt|esc to cancel|fermenting|thinking|refining implementation strategy|pre-heating the servers|ctrl\+b ctrl\+b|processing\.\.\.|processing request|processing your request|tokens\))`)
+	weakProcessingPattern          = regexp.MustCompile(`(?i)(readfolder|readfile|writefile|search\(|listed \d+ item|tool uses|implementing|running)`)
+	codexSignaturePattern          = regexp.MustCompile(`(?i)(openai codex|gpt-5\.[0-9]|/model to change|use /skills|context left|tab to queue)`)
+	copilotSignaturePattern        = regexp.MustCompile(`(?i)(github copilot|describe a task to get started|remaining reqs\.|copilot instructions found)`)
+	geminiSignaturePattern         = regexp.MustCompile(`(?i)(gemini code assist|yolo ctrl\+y|type your message or @path/to/file|gemini 3)`)
+	glmSignaturePattern            = regexp.MustCompile(`(?i)(claude code|fermenting|opus 4\.6|api usage billing)`)
+	promptZoneSpinnerPattern       = regexp.MustCompile(`[●○◌◍◐◓◑◒•]`)
+	promptZoneDigitsPattern        = regexp.MustCompile(`\b\d+\b`)
+	promptZoneSpacePattern         = regexp.MustCompile(`\s+`)
 )
 
 func Analyze(ansiCapture string, plainCapture string) Analysis {
@@ -108,6 +113,20 @@ func collectPromptText(promptLine int, plainLines []string, paneWidth int) strin
 		return ""
 	}
 	parts := []string{strings.TrimSpace(line)}
+	if selectedNumberedMenuPattern.MatchString(parts[0]) {
+		for i := promptLine + 1; i < len(plainLines) && len(parts) < 5; i++ {
+			next := normalizeSpaces(strings.TrimRight(plainLines[i], " "))
+			trimmed := strings.TrimSpace(next)
+			if trimmed == "" {
+				break
+			}
+			if !looksLikeMenuContinuation(trimmed) {
+				break
+			}
+			parts = append(parts, trimmed)
+		}
+		return strings.Join(parts, "\n")
+	}
 	if paneWidth <= 0 {
 		return parts[0]
 	}
@@ -130,6 +149,20 @@ func collectPromptText(promptLine int, plainLines []string, paneWidth int) strin
 		parts = append(parts, trimmed)
 	}
 	return strings.Join(parts, " ")
+}
+
+func looksLikeMenuContinuation(value string) bool {
+	trimmed := normalizeSpaces(strings.TrimSpace(value))
+	if trimmed == "" {
+		return false
+	}
+	if numberedMenuPattern.MatchString(trimmed) {
+		return true
+	}
+	lower := strings.ToLower(trimmed)
+	return strings.Contains(lower, "esc to cancel") ||
+		strings.Contains(lower, "tab to amend") ||
+		strings.Contains(lower, "enter to select")
 }
 
 func startsPromptBlock(value string) bool {
@@ -221,6 +254,10 @@ func classify(analysis Analysis) (Classification, string, string) {
 		return ClassUnknownWaiting, "", "프롬프트 주변 텍스트가 충분하지 않음"
 	}
 
+	if approvalPromptPattern.MatchString(combined) && selectedNumberedMenuPattern.MatchString(strings.Join([]string{block, promptText}, "\n")) {
+		return ClassCursorBasedChoice, preferredApprovalChoice(combined), "승인 프롬프트의 커서 선택 메뉴가 감지됨"
+	}
+
 	if matches := numberedMenuPattern.FindAllStringSubmatch(strings.Join([]string{block, promptText}, "\n"), -1); len(matches) > 0 && selectionContextPattern.MatchString(combined) {
 		return ClassNumberedMultipleChoice, matches[0][1], "번호형 선택지가 감지됨"
 	}
@@ -276,6 +313,33 @@ func hasInteractivePrompt(analysis Analysis) bool {
 		return true
 	}
 	return false
+}
+
+func preferredApprovalChoice(combined string) string {
+	if options := numberedMenuOptionPattern.FindAllStringSubmatch(combined, -1); len(options) > 0 {
+		for _, option := range options {
+			if len(option) < 3 {
+				continue
+			}
+			label := strings.TrimSpace(option[2])
+			if approvalPersistentAllowPattern.MatchString(label) {
+				return strings.TrimSpace(option[1])
+			}
+		}
+		for _, option := range options {
+			if len(option) < 3 {
+				continue
+			}
+			label := strings.TrimSpace(option[2])
+			if approvalAllowPattern.MatchString(label) && !approvalRejectPattern.MatchString(label) {
+				return strings.TrimSpace(option[1])
+			}
+		}
+	}
+	if matches := selectedNumberedMenuPattern.FindStringSubmatch(combined); len(matches) > 1 {
+		return strings.TrimSpace(matches[1])
+	}
+	return "1"
 }
 
 func PromptZoneFingerprint(plainCapture string) string {

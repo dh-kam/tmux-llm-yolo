@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/dh-kam/tmux-llm-yolo/internal/capture"
+	"github.com/dh-kam/tmux-llm-yolo/internal/llm"
 	"github.com/dh-kam/tmux-llm-yolo/internal/prompt"
 	"github.com/dh-kam/tmux-llm-yolo/internal/tmux"
 )
@@ -60,6 +61,26 @@ func (f *fakeTmuxClient) IsPaneInMode(ctx context.Context, target string) (bool,
 func (f *fakeTmuxClient) CreateSession(ctx context.Context, name string) error { return nil }
 func (f *fakeTmuxClient) AttachSession(ctx context.Context, name string) error { return nil }
 func (f *fakeTmuxClient) KillSession(ctx context.Context, name string) error   { return nil }
+
+type fakeLLMProvider struct {
+	prompt   string
+	response string
+}
+
+func (f *fakeLLMProvider) Name() string                    { return "fake" }
+func (f *fakeLLMProvider) Binary() string                  { return "fake" }
+func (f *fakeLLMProvider) ValidateBinary() (string, error) { return "fake", nil }
+func (f *fakeLLMProvider) CheckUsage(context.Context) (llm.Usage, error) {
+	return llm.Usage{}, nil
+}
+func (f *fakeLLMProvider) RunPrompt(_ context.Context, prompt string) (string, error) {
+	f.prompt = prompt
+	if strings.TrimSpace(f.response) == "" {
+		return "ACTION: INJECT_CONTINUE\nRECOMMENDED_CHOICE: none\nCONTINUE_MESSAGE: none\nREASON: test\n", nil
+	}
+	return f.response, nil
+}
+func (f *fakeLLMProvider) IsProgressingCapture(llm.Capture) (bool, string) { return false, "" }
 
 func TestLLMStatusLineIncludesPrimaryFallbackAndActive(t *testing.T) {
 	r := &Runner{
@@ -161,6 +182,19 @@ func TestCopilotSubmitKeyDefaultsToCtrlS(t *testing.T) {
 	}
 	if got := r.submitKeyFallback(); got != "" {
 		t.Fatalf("submitKeyFallback=%q want empty", got)
+	}
+}
+
+func TestPromptProviderHintPrefersConfiguredLLMOverTargetName(t *testing.T) {
+	r := &Runner{
+		cfg: Config{
+			Target:  "jkdeps-codex",
+			LLMName: "glm",
+		},
+	}
+
+	if got := r.promptProviderHint(); got != "glm" {
+		t.Fatalf("promptProviderHint=%q want glm", got)
 	}
 }
 
@@ -360,6 +394,12 @@ func TestAnalyzeWaitingTaskAllowsVolatileANSIWhenPromptZoneMatches(t *testing.T)
 			"  3. No",
 			"Esc to cancel · Tab to amend",
 		}, "\n"),
+		onSend: func(f *fakeTmuxClient, keys []string) {
+			if len(keys) == 1 && keys[0] == "Down" {
+				f.ansi = strings.Replace(f.ansi, "❯ 1. Yes", "  1. Yes", 1)
+				f.ansi = strings.Replace(f.ansi, "  2. Yes, and don't ask again for: go test:*", "❯ 2. Yes, and don't ask again for: go test:*", 1)
+			}
+		},
 	}
 	referenceANSI := strings.ReplaceAll(client.ansi, "● Reading", "  Reading")
 	r := &Runner{
@@ -382,17 +422,65 @@ func TestAnalyzeWaitingTaskAllowsVolatileANSIWhenPromptZoneMatches(t *testing.T)
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
-	if len(client.sendKeys) != 3 {
-		t.Fatalf("sendKeys calls = %d, want 3", len(client.sendKeys))
+	if len(client.sendKeys) != 2 {
+		t.Fatalf("sendKeys calls = %d, want 2", len(client.sendKeys))
 	}
-	if got := client.sendKeys[0]; len(got) != 1 || got[0] != "C-u" {
-		t.Fatalf("first sendKeys = %v, want [C-u]", got)
+	if got := client.sendKeys[0]; len(got) != 1 || got[0] != "Down" {
+		t.Fatalf("first sendKeys = %v, want [Down]", got)
 	}
-	if got := client.sendKeys[1]; len(got) != 2 || got[0] != "-l" || got[1] != "1" {
-		t.Fatalf("second sendKeys = %v, want typed choice 1", got)
+	if got := client.sendKeys[1]; len(got) != 1 || got[0] != "C-m" {
+		t.Fatalf("second sendKeys = %v, want [C-m]", got)
 	}
-	if got := client.sendKeys[2]; len(got) != 1 || got[0] != "C-m" {
-		t.Fatalf("third sendKeys = %v, want [C-m]", got)
+}
+
+func TestAnalyzeWaitingTaskSelectsPersistentAllowForLiveJkdepsApprovalPrompt(t *testing.T) {
+	base := filepath.Join("..", "..", "testdata", "live-captures-codex", "20260314-012835", "jkdeps-codex")
+	ansiRaw, err := os.ReadFile(filepath.Join(base, "ansi", "001.ansi.txt"))
+	if err != nil {
+		t.Fatalf("read ansi failed: %v", err)
+	}
+	plainRaw, err := os.ReadFile(filepath.Join(base, "plain", "001.plain.txt"))
+	if err != nil {
+		t.Fatalf("read plain failed: %v", err)
+	}
+
+	client := &fakeTmuxClient{
+		ansi:  string(ansiRaw),
+		plain: string(plainRaw),
+		onSend: func(f *fakeTmuxClient, keys []string) {
+			if len(keys) == 1 && keys[0] == "Down" {
+				f.ansi = f.ansi + "\n[moved-to-choice-2]"
+			}
+		},
+	}
+	r := &Runner{
+		cfg: Config{
+			Target:       "jkdeps-codex",
+			SubmitKey:    "C-m",
+			CaptureLines: 120,
+		},
+		client:  client,
+		fetcher: capture.Fetcher{Client: client},
+		logger:  func(string, ...interface{}) {},
+		ctx:     context.Background(),
+	}
+
+	err = (analyzeWaitingTask{
+		referenceANSI:       string(ansiRaw),
+		referencePromptZone: prompt.PromptZoneFingerprint(string(plainRaw)),
+		allowVolatileANSI:   true,
+	}).Run(r)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if len(client.sendKeys) != 2 {
+		t.Fatalf("sendKeys calls = %d, want 2: %v", len(client.sendKeys), client.sendKeys)
+	}
+	if got := client.sendKeys[0]; len(got) != 1 || got[0] != "Down" {
+		t.Fatalf("first sendKeys = %v, want [Down]", got)
+	}
+	if got := client.sendKeys[1]; len(got) != 1 || got[0] != "C-m" {
+		t.Fatalf("second sendKeys = %v, want [C-m]", got)
 	}
 }
 
@@ -646,6 +734,32 @@ func TestParseLLMDecisionSupportsContinueMessage(t *testing.T) {
 	}
 	if decision.RecommendedChoice != "" {
 		t.Fatalf("RecommendedChoice=%q want empty", decision.RecommendedChoice)
+	}
+}
+
+func TestClassifyWithLLMFallbackPromptIncludesCompletionAuditGuidance(t *testing.T) {
+	provider := &fakeLLMProvider{}
+	analysis := prompt.Analysis{
+		PromptText:  "›",
+		OutputBlock: "모든 작업 완료. parity 98%%.",
+	}
+
+	if _, err := classifyWithLLMFallback(context.Background(), provider, "glm", "", analysis, analysis.OutputBlock); err != nil {
+		t.Fatalf("classifyWithLLMFallback error = %v", err)
+	}
+	for _, needle := range []string{
+		"run the relevant build/test/unit/integration checks",
+		"scan the code for TODO, FIXME, not implemented, stub, placeholder, or missing branches",
+		"profile CPU and memory usage",
+		"reduce memory footprint where practical",
+		"Clean Architecture boundaries",
+		"Single Responsibility Principle",
+		"interface-driven design",
+		"modularity, readability, maintainability, performance, and testability",
+	} {
+		if !strings.Contains(provider.prompt, needle) {
+			t.Fatalf("prompt missing %q\n%s", needle, provider.prompt)
+		}
 	}
 }
 

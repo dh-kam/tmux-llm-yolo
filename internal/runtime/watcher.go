@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -213,7 +214,7 @@ func (r *Runner) RunOnce(ctx context.Context) error {
 		}
 		return r.injectChoiceOnce(choice, "once mode: 번호형 선택지로 감지됨")
 	case prompt.ClassCursorBasedChoice:
-		return r.injectCursorConfirmOnce("once mode: 커서 기반 선택 UI로 감지되어 방향키 반응을 확인한 뒤 현재 선택 항목을 확정")
+		return r.injectCursorChoiceOnce(analysis.RecommendedChoice, "once mode: 커서 기반 선택 UI로 감지되어 권장 항목을 선택 후 확정")
 	case prompt.ClassCompletedNoOp:
 		return r.injectContinueOnce("once mode: 완료 요약으로 보여도 continue 입력으로 폴백")
 	case prompt.ClassFreeTextRequest:
@@ -333,8 +334,8 @@ func (r *Runner) policyLine() string {
 
 func (r *Runner) promptProviderHint() string {
 	candidates := []string{
-		strings.ToLower(strings.TrimSpace(r.cfg.Target)),
 		strings.ToLower(strings.TrimSpace(r.cfg.LLMName)),
+		strings.ToLower(strings.TrimSpace(r.cfg.Target)),
 	}
 	for _, candidate := range candidates {
 		switch {
@@ -970,7 +971,7 @@ analyze:
 		}
 		return r.injectChoice(choice, "번호형 선택지로 감지됨")
 	case prompt.ClassCursorBasedChoice:
-		return r.injectCursorConfirm("커서 기반 선택 UI로 감지되어 현재 선택 항목을 Enter로 확정")
+		return r.injectCursorChoice(analysis.RecommendedChoice, "커서 기반 선택 UI로 감지되어 권장 항목을 선택 후 확정")
 	case prompt.ClassCompletedNoOp:
 		if t.forceInput {
 			return r.injectContinue("장시간 동일 ANSI 화면에서 완료 요약처럼 보여도 상호작용 정체를 풀기 위해 continue 입력")
@@ -1082,30 +1083,13 @@ func (r *Runner) injectChoiceOnce(choice string, reason string) error {
 }
 
 func (r *Runner) injectCursorConfirm(reason string) error {
+	return r.injectCursorChoice("1", reason)
+}
+
+func (r *Runner) injectCursorChoice(choice string, reason string) error {
 	r.setState(stateActing, reason)
-	beforeANSI, err := r.fetcher.CaptureANSI(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
-	if err != nil {
-		return fmt.Errorf("cursor probe capture before move failed: %w", err)
-	}
-	if err := r.client.SendKeys(r.ctx, r.cfg.Target, "Down"); err != nil {
-		return err
-	}
-	if err := waitForDuration(r.ctx, cursorProbeDelay); err != nil {
-		return err
-	}
-	afterANSI, err := r.fetcher.CaptureANSI(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
-	if err != nil {
-		return fmt.Errorf("cursor probe capture after move failed: %w", err)
-	}
-	if afterANSI == beforeANSI {
-		r.logger("cursor probe produced no ANSI change; falling back to continue")
-		return r.injectContinue(reason + " 방향키 입력 전후 ANSI 변화가 없어 continue 입력으로 폴백")
-	}
-	if err := r.client.SendKeys(r.ctx, r.cfg.Target, "Up"); err != nil {
-		return err
-	}
-	if err := waitForDuration(r.ctx, cursorProbeDelay); err != nil {
-		return err
+	if err := r.moveCursorToChoice(choice); err != nil {
+		return r.cursorChoiceFallback(reason, err)
 	}
 	if err := sendChoiceMessage(r.ctx, r.client, r.cfg.Target, "Enter", r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay, r.clearPromptBeforeTyping()); err != nil {
 		return err
@@ -1120,36 +1104,85 @@ func (r *Runner) injectCursorConfirm(reason string) error {
 }
 
 func (r *Runner) injectCursorConfirmOnce(reason string) error {
+	return r.injectCursorChoiceOnce("1", reason)
+}
+
+func (r *Runner) injectCursorChoiceOnce(choice string, reason string) error {
 	r.setState(stateActing, reason)
-	beforeANSI, err := r.fetcher.CaptureANSI(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
-	if err != nil {
-		return fmt.Errorf("cursor probe capture before move failed: %w", err)
-	}
-	if err := r.client.SendKeys(r.ctx, r.cfg.Target, "Down"); err != nil {
-		return err
-	}
-	if err := waitForDuration(r.ctx, cursorProbeDelay); err != nil {
-		return err
-	}
-	afterANSI, err := r.fetcher.CaptureANSI(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
-	if err != nil {
-		return fmt.Errorf("cursor probe capture after move failed: %w", err)
-	}
-	if afterANSI == beforeANSI {
-		r.logger("cursor probe produced no ANSI change in once mode; falling back to continue")
-		return r.injectContinueOnce(reason + " 방향키 입력 전후 ANSI 변화가 없어 continue 입력으로 폴백")
-	}
-	if err := r.client.SendKeys(r.ctx, r.cfg.Target, "Up"); err != nil {
-		return err
-	}
-	if err := waitForDuration(r.ctx, cursorProbeDelay); err != nil {
-		return err
+	if err := r.moveCursorToChoice(choice); err != nil {
+		return r.cursorChoiceFallbackOnce(reason, err)
 	}
 	if err := sendChoiceMessage(r.ctx, r.client, r.cfg.Target, "Enter", r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay, r.clearPromptBeforeTyping()); err != nil {
 		return err
 	}
 	r.setState(stateStopped, "once mode: 커서형 선택 확정 후 종료")
 	return nil
+}
+
+func (r *Runner) moveCursorToChoice(choice string) error {
+	targetChoice := prompt.ParseNumericChoice(choice)
+	if targetChoice == "" {
+		targetChoice = "1"
+	}
+	targetIndex := 1
+	if parsed, err := strconv.Atoi(targetChoice); err == nil {
+		targetIndex = parsed
+	}
+	if targetIndex < 1 {
+		targetIndex = 1
+	}
+	beforeANSI, err := r.fetcher.CaptureANSI(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
+	if err != nil {
+		return fmt.Errorf("cursor probe capture before move failed: %w", err)
+	}
+	steps := targetIndex - 1
+	for i := 0; i < steps; i++ {
+		if err := r.client.SendKeys(r.ctx, r.cfg.Target, "Down"); err != nil {
+			return err
+		}
+		if err := waitForDuration(r.ctx, cursorProbeDelay); err != nil {
+			return err
+		}
+	}
+	afterANSI, err := r.fetcher.CaptureANSI(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
+	if err != nil {
+		return fmt.Errorf("cursor probe capture after move failed: %w", err)
+	}
+	if targetIndex > 1 && afterANSI == beforeANSI {
+		return fmt.Errorf("cursor probe produced no ANSI change for choice %d", targetIndex)
+	}
+	if targetIndex == 1 {
+		if err := r.client.SendKeys(r.ctx, r.cfg.Target, "Down"); err != nil {
+			return err
+		}
+		if err := waitForDuration(r.ctx, cursorProbeDelay); err != nil {
+			return err
+		}
+		probeANSI, err := r.fetcher.CaptureANSI(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
+		if err != nil {
+			return fmt.Errorf("cursor probe capture after move failed: %w", err)
+		}
+		if probeANSI == beforeANSI {
+			return fmt.Errorf("cursor probe produced no ANSI change for choice %d", targetIndex)
+		}
+		if err := r.client.SendKeys(r.ctx, r.cfg.Target, "Up"); err != nil {
+			return err
+		}
+		if err := waitForDuration(r.ctx, cursorProbeDelay); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *Runner) cursorChoiceFallback(reason string, cause error) error {
+	r.logger("cursor choice failed; falling back to continue: %v", cause)
+	return r.injectContinue(reason + " 방향키 선택이 확인되지 않아 continue 입력으로 폴백")
+}
+
+func (r *Runner) cursorChoiceFallbackOnce(reason string, cause error) error {
+	r.logger("cursor choice failed in once mode; falling back to continue: %v", cause)
+	return r.injectContinueOnce(reason + " 방향키 선택이 확인되지 않아 continue 입력으로 폴백")
 }
 
 func (r *Runner) injectInputOnce(input string, reason string) error {
@@ -1456,6 +1489,27 @@ Rules:
 - Use INJECT_CONTINUE for completion handoff or safe generic continuation.
 - Use SKIP only if the screen clearly says there is nothing left to do.
 - If the visible text mentions parity, match rate, pass rate, or percentage progress, propose a concrete CONTINUE_MESSAGE that pushes parity toward 100%% through planned execution and verification.
+- If the visible text sounds like the work is done or nearly done, prefer a CONTINUE_MESSAGE that pushes the agent to verify completion instead of stopping early:
+  run the relevant build/test/unit/integration checks,
+  confirm the original goal is fully satisfied,
+  scan the code for TODO, FIXME, not implemented, stub, placeholder, or missing branches,
+  review whether all functional requirements are actually implemented in code,
+  and only then move on to non-functional improvement work.
+- When the work appears functionally complete, the preferred next steps are:
+  verify correctness with tests,
+  inspect for unfinished code paths,
+  profile CPU and memory usage,
+  identify and improve bottlenecks,
+  reduce memory footprint where practical,
+  and propose code-level refactors that improve modularity, readability, maintainability, performance, and testability.
+- Push the agent toward architecture and design cleanup when appropriate:
+  Clean Architecture boundaries,
+  Single Responsibility Principle,
+  interface-driven design,
+  lower coupling,
+  clearer module boundaries,
+  and easier testing/extensibility.
+- A strong CONTINUE_MESSAGE should be specific, action-oriented, and should push the agent to keep improving the code even after a completion summary.
 - CONTINUE_MESSAGE is optional, but when useful it should be a single actionable sentence in the operator's language.
 - Do not mention anything outside the visible terminal text.
 
