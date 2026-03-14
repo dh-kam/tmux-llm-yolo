@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"io"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/dh-kam/tmux-llm-yolo/internal/capture"
 	"github.com/dh-kam/tmux-llm-yolo/internal/llm"
+	"github.com/dh-kam/tmux-llm-yolo/internal/policy"
 	"github.com/dh-kam/tmux-llm-yolo/internal/prompt"
 	"github.com/dh-kam/tmux-llm-yolo/internal/tmux"
 	"github.com/dh-kam/tmux-llm-yolo/internal/tui"
@@ -44,6 +44,7 @@ type Config struct {
 	LLMModel            string
 	FallbackLLMName     string
 	FallbackLLMModel    string
+	PolicyName          string
 	Once                bool
 	LogBuffer           *tui.LogBuffer
 }
@@ -52,6 +53,7 @@ type Runner struct {
 	cfg               Config
 	client            tmux.API
 	fetcher           capture.Fetcher
+	executor          actionExecutor
 	continuePlan      continueStrategy
 	logger            func(string, ...interface{})
 	queue             []task
@@ -76,6 +78,7 @@ type Runner struct {
 	ansiHistory       []ansiSnapshot
 	screenHistory     []screenSnapshot
 	continueOverride  string
+	activePolicy      policy.Policy
 }
 
 const minimumStableWaitingDuration = 16 * time.Second
@@ -119,13 +122,16 @@ func New(cfg Config, client tmux.API, logger func(string, ...interface{})) *Runn
 	if cfg.SuspectWait3 <= 0 {
 		cfg.SuspectWait3 = 4 * time.Second
 	}
+	activePolicy := policy.Resolve(cfg.PolicyName)
 	return &Runner{
 		cfg:          cfg,
 		client:       client,
 		fetcher:      capture.Fetcher{Client: client},
-		continuePlan: newContinueStrategy(cfg.ContinueMessage),
+		executor:     newActionExecutor(client, cfg, actionProviderHint(cfg)),
+		continuePlan: newContinueStrategyWithPolicy(activePolicy, cfg.ContinueMessage),
 		logger:       logger,
 		state:        stateMonitoring,
+		activePolicy: activePolicy,
 	}
 }
 
@@ -203,25 +209,12 @@ func (r *Runner) RunOnce(ctx context.Context) error {
 		}
 		return r.submitPendingInputOnce("once mode: 입력창에 미실행 텍스트가 남아 있어 submit-only 실행")
 	}
+	if plan, ok := deterministicActionPlan(analysis, "once mode: 결정적 입력 계획을 적용"); ok {
+		return r.executeActionPlan(plan, true)
+	}
 
 	switch analysis.Classification {
-	case prompt.ClassContinueAfterDone:
-		return r.injectContinueOnce("once mode: 완료 후 다음 진행 요청으로 감지됨")
-	case prompt.ClassNumberedMultipleChoice:
-		choice := prompt.ParseNumericChoice(analysis.RecommendedChoice)
-		if choice == "" {
-			choice = "1"
-		}
-		return r.injectChoiceOnce(choice, "once mode: 번호형 선택지로 감지됨")
-	case prompt.ClassCursorBasedChoice:
-		return r.injectCursorChoiceOnce(analysis.RecommendedChoice, "once mode: 커서 기반 선택 UI로 감지되어 권장 항목을 선택 후 확정")
-	case prompt.ClassCompletedNoOp:
-		return r.injectContinueOnce("once mode: 완료 요약으로 보여도 continue 입력으로 폴백")
 	case prompt.ClassFreeTextRequest:
-		if message := continueMessageFromPlannedItems(analysis); message != "" {
-			r.maybeSetContinueOverride(message, "numbered-plan")
-			return r.injectContinueOnce("once mode: 번호 목록을 선택지가 아닌 계획 항목으로 보고 continue 입력")
-		}
 		fallthrough
 	case prompt.ClassUnknownWaiting:
 		decision, err := r.classifyWithLLM(ctx, analysis, snap.Plain)
@@ -323,6 +316,7 @@ func (r *Runner) policyLine() string {
 	parts := []string{
 		fmt.Sprintf("wait=%s->%s->%s->%s", r.baseInterval().Round(time.Second), r.suspectWait1().Round(time.Second), r.suspectWait2().Round(time.Second), r.suspectWait3().Round(time.Second)),
 		fmt.Sprintf("continue=%d sent,next-audit=%d", r.continueSentCount, r.continuePlan.nextAuditIn(r.continueSentCount)),
+		"policy=" + r.policyName(),
 	}
 	llmPlan := "llm=primary"
 	if strings.TrimSpace(r.cfg.FallbackLLMName) != "" {
@@ -332,10 +326,21 @@ func (r *Runner) policyLine() string {
 	return strings.Join(parts, " | ")
 }
 
+func (r *Runner) policyName() string {
+	if r.activePolicy != nil && strings.TrimSpace(r.activePolicy.Name()) != "" {
+		return r.activePolicy.Name()
+	}
+	return policy.Default().Name()
+}
+
 func (r *Runner) promptProviderHint() string {
+	return actionProviderHint(r.cfg)
+}
+
+func actionProviderHint(cfg Config) string {
 	candidates := []string{
-		strings.ToLower(strings.TrimSpace(r.cfg.LLMName)),
-		strings.ToLower(strings.TrimSpace(r.cfg.Target)),
+		strings.ToLower(strings.TrimSpace(cfg.LLMName)),
+		strings.ToLower(strings.TrimSpace(cfg.Target)),
 	}
 	for _, candidate := range candidates {
 		switch {
@@ -361,29 +366,6 @@ func (r *Runner) paneWidth() int {
 		return 0
 	}
 	return width
-}
-
-func (r *Runner) submitKey() string {
-	if r.promptProviderHint() == "copilot" && strings.EqualFold(strings.TrimSpace(r.cfg.SubmitKey), "C-m") {
-		return "C-s"
-	}
-	return r.cfg.SubmitKey
-}
-
-func (r *Runner) submitKeyFallback() string {
-	if r.promptProviderHint() == "copilot" {
-		return ""
-	}
-	return r.cfg.SubmitKeyFallback
-}
-
-func (r *Runner) clearPromptBeforeTyping() bool {
-	switch r.promptProviderHint() {
-	case "codex", "copilot":
-		return true
-	default:
-		return false
-	}
 }
 
 func (r *Runner) hasPendingPromptInput(analysis prompt.Analysis) bool {
@@ -960,28 +942,12 @@ analyze:
 	if r.hasPendingPromptInput(analysis) {
 		return r.submitPendingInput("입력창에 미실행 텍스트가 남아 있어 submit-only 실행")
 	}
+	if plan, ok := deterministicActionPlan(analysis, "결정적 입력 계획을 적용"); ok {
+		return r.executeActionPlan(plan, false)
+	}
 
 	switch analysis.Classification {
-	case prompt.ClassContinueAfterDone:
-		return r.injectContinue("완료 후 다음 진행 요청으로 감지됨")
-	case prompt.ClassNumberedMultipleChoice:
-		choice := prompt.ParseNumericChoice(analysis.RecommendedChoice)
-		if choice == "" {
-			choice = "1"
-		}
-		return r.injectChoice(choice, "번호형 선택지로 감지됨")
-	case prompt.ClassCursorBasedChoice:
-		return r.injectCursorChoice(analysis.RecommendedChoice, "커서 기반 선택 UI로 감지되어 권장 항목을 선택 후 확정")
-	case prompt.ClassCompletedNoOp:
-		if t.forceInput {
-			return r.injectContinue("장시간 동일 ANSI 화면에서 완료 요약처럼 보여도 상호작용 정체를 풀기 위해 continue 입력")
-		}
-		return r.injectContinue("완료 요약으로 분류되었지만 continue 입력으로 폴백")
 	case prompt.ClassFreeTextRequest:
-		if message := continueMessageFromPlannedItems(analysis); message != "" {
-			r.maybeSetContinueOverride(message, "numbered-plan")
-			return r.injectContinue("번호 목록을 선택지가 아닌 계획 항목으로 보고 continue 입력")
-		}
 		fallthrough
 	case prompt.ClassUnknownWaiting:
 		decision, err := r.classifyWithLLM(r.ctx, analysis, snap.Plain)
@@ -1033,7 +999,7 @@ func (r *Runner) injectContinue(reason string) error {
 	message := r.prepareTextInput(r.nextContinueMessage(nextCount))
 	r.setState(stateActing, reason)
 	r.logger("continue prompt selected: count=%d message=%q", nextCount, message)
-	if err := sendContinueMessage(r.ctx, r.client, r.cfg.Target, message, r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay, r.clearPromptBeforeTyping()); err != nil {
+	if err := r.getExecutor().SendContinue(r.ctx, continueRequest{Message: message}); err != nil {
 		return err
 	}
 	r.continueSentCount = nextCount
@@ -1051,7 +1017,7 @@ func (r *Runner) injectContinueOnce(reason string) error {
 	message := r.prepareTextInput(r.nextContinueMessage(nextCount))
 	r.setState(stateActing, reason)
 	r.logger("continue prompt selected: count=%d message=%q", nextCount, message)
-	if err := sendContinueMessage(r.ctx, r.client, r.cfg.Target, message, r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay, r.clearPromptBeforeTyping()); err != nil {
+	if err := r.getExecutor().SendContinue(r.ctx, continueRequest{Message: message}); err != nil {
 		return err
 	}
 	r.continueSentCount = nextCount
@@ -1061,7 +1027,7 @@ func (r *Runner) injectContinueOnce(reason string) error {
 
 func (r *Runner) injectChoice(choice string, reason string) error {
 	r.setState(stateActing, reason)
-	if err := sendChoiceMessage(r.ctx, r.client, r.cfg.Target, choice, r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay, r.clearPromptBeforeTyping()); err != nil {
+	if err := r.getExecutor().SendChoice(r.ctx, choiceRequest{Choice: choice}); err != nil {
 		return err
 	}
 	r.prevBase = capture.Snapshot{}
@@ -1075,7 +1041,7 @@ func (r *Runner) injectChoice(choice string, reason string) error {
 
 func (r *Runner) injectChoiceOnce(choice string, reason string) error {
 	r.setState(stateActing, reason)
-	if err := sendChoiceMessage(r.ctx, r.client, r.cfg.Target, choice, r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay, r.clearPromptBeforeTyping()); err != nil {
+	if err := r.getExecutor().SendChoice(r.ctx, choiceRequest{Choice: choice}); err != nil {
 		return err
 	}
 	r.setState(stateStopped, "once mode: 선택 입력 후 종료")
@@ -1088,11 +1054,8 @@ func (r *Runner) injectCursorConfirm(reason string) error {
 
 func (r *Runner) injectCursorChoice(choice string, reason string) error {
 	r.setState(stateActing, reason)
-	if err := r.moveCursorToChoice(choice); err != nil {
+	if err := r.getExecutor().SendCursorChoice(r.ctx, cursorChoiceRequest{Choice: choice}); err != nil {
 		return r.cursorChoiceFallback(reason, err)
-	}
-	if err := sendChoiceMessage(r.ctx, r.client, r.cfg.Target, "Enter", r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay, r.clearPromptBeforeTyping()); err != nil {
-		return err
 	}
 	r.prevBase = capture.Snapshot{}
 	r.enqueue(
@@ -1109,69 +1072,10 @@ func (r *Runner) injectCursorConfirmOnce(reason string) error {
 
 func (r *Runner) injectCursorChoiceOnce(choice string, reason string) error {
 	r.setState(stateActing, reason)
-	if err := r.moveCursorToChoice(choice); err != nil {
+	if err := r.getExecutor().SendCursorChoice(r.ctx, cursorChoiceRequest{Choice: choice}); err != nil {
 		return r.cursorChoiceFallbackOnce(reason, err)
 	}
-	if err := sendChoiceMessage(r.ctx, r.client, r.cfg.Target, "Enter", r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay, r.clearPromptBeforeTyping()); err != nil {
-		return err
-	}
 	r.setState(stateStopped, "once mode: 커서형 선택 확정 후 종료")
-	return nil
-}
-
-func (r *Runner) moveCursorToChoice(choice string) error {
-	targetChoice := prompt.ParseNumericChoice(choice)
-	if targetChoice == "" {
-		targetChoice = "1"
-	}
-	targetIndex := 1
-	if parsed, err := strconv.Atoi(targetChoice); err == nil {
-		targetIndex = parsed
-	}
-	if targetIndex < 1 {
-		targetIndex = 1
-	}
-	beforeANSI, err := r.fetcher.CaptureANSI(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
-	if err != nil {
-		return fmt.Errorf("cursor probe capture before move failed: %w", err)
-	}
-	steps := targetIndex - 1
-	for i := 0; i < steps; i++ {
-		if err := r.client.SendKeys(r.ctx, r.cfg.Target, "Down"); err != nil {
-			return err
-		}
-		if err := waitForDuration(r.ctx, cursorProbeDelay); err != nil {
-			return err
-		}
-	}
-	afterANSI, err := r.fetcher.CaptureANSI(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
-	if err != nil {
-		return fmt.Errorf("cursor probe capture after move failed: %w", err)
-	}
-	if targetIndex > 1 && afterANSI == beforeANSI {
-		return fmt.Errorf("cursor probe produced no ANSI change for choice %d", targetIndex)
-	}
-	if targetIndex == 1 {
-		if err := r.client.SendKeys(r.ctx, r.cfg.Target, "Down"); err != nil {
-			return err
-		}
-		if err := waitForDuration(r.ctx, cursorProbeDelay); err != nil {
-			return err
-		}
-		probeANSI, err := r.fetcher.CaptureANSI(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
-		if err != nil {
-			return fmt.Errorf("cursor probe capture after move failed: %w", err)
-		}
-		if probeANSI == beforeANSI {
-			return fmt.Errorf("cursor probe produced no ANSI change for choice %d", targetIndex)
-		}
-		if err := r.client.SendKeys(r.ctx, r.cfg.Target, "Up"); err != nil {
-			return err
-		}
-		if err := waitForDuration(r.ctx, cursorProbeDelay); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -1193,7 +1097,7 @@ func (r *Runner) injectInputOnce(input string, reason string) error {
 		return r.injectContinueOnce(fallbackReason)
 	}
 	r.setState(stateActing, reason)
-	if err := sendInputMessage(r.ctx, r.client, r.cfg.Target, input, r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay, r.clearPromptBeforeTyping()); err != nil {
+	if err := r.getExecutor().SendInput(r.ctx, inputRequest{Input: input}); err != nil {
 		return err
 	}
 	r.setState(stateStopped, "once mode: 입력값 전송 후 종료")
@@ -1202,7 +1106,7 @@ func (r *Runner) injectInputOnce(input string, reason string) error {
 
 func (r *Runner) submitPendingInput(reason string) error {
 	r.setState(stateActing, reason)
-	if err := sendSubmitOnly(r.ctx, r.client, r.cfg.Target, r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay); err != nil {
+	if err := r.getExecutor().SubmitPending(r.ctx, submitRequest{}); err != nil {
 		return err
 	}
 	r.prevBase = capture.Snapshot{}
@@ -1216,7 +1120,7 @@ func (r *Runner) submitPendingInput(reason string) error {
 
 func (r *Runner) submitPendingInputOnce(reason string) error {
 	r.setState(stateActing, reason)
-	if err := sendSubmitOnly(r.ctx, r.client, r.cfg.Target, r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay); err != nil {
+	if err := r.getExecutor().SubmitPending(r.ctx, submitRequest{}); err != nil {
 		return err
 	}
 	r.setState(stateStopped, "once mode: submit-only 실행 후 종료")
@@ -1225,7 +1129,7 @@ func (r *Runner) submitPendingInputOnce(reason string) error {
 
 func (r *Runner) clearPromptState(reason string) error {
 	r.setState(stateActing, reason)
-	if err := clearPromptState(r.ctx, r.client, r.cfg.Target); err != nil {
+	if err := r.getExecutor().ClearPrompt(r.ctx, clearPromptRequest{}); err != nil {
 		return err
 	}
 	r.prevBase = capture.Snapshot{}
@@ -1239,7 +1143,7 @@ func (r *Runner) clearPromptState(reason string) error {
 
 func (r *Runner) clearPromptStateOnce(reason string) error {
 	r.setState(stateActing, reason)
-	if err := clearPromptState(r.ctx, r.client, r.cfg.Target); err != nil {
+	if err := r.getExecutor().ClearPrompt(r.ctx, clearPromptRequest{}); err != nil {
 		return err
 	}
 	r.setState(stateStopped, "once mode: 입력창 정리 후 종료")
@@ -1326,7 +1230,7 @@ func (r *Runner) applyLLMDecision(decision llmDecision) error {
 			return r.injectContinue(r.emptyInputFallbackReason(decision.Reason))
 		}
 		r.setState(stateActing, decision.Reason)
-		if err := sendInputMessage(r.ctx, r.client, r.cfg.Target, input, r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay, r.clearPromptBeforeTyping()); err != nil {
+		if err := r.getExecutor().SendInput(r.ctx, inputRequest{Input: input}); err != nil {
 			return err
 		}
 		r.prevBase = capture.Snapshot{}
@@ -1339,6 +1243,13 @@ func (r *Runner) applyLLMDecision(decision llmDecision) error {
 	default:
 		return r.injectContinue(decision.Reason)
 	}
+}
+
+func (r *Runner) getExecutor() actionExecutor {
+	if r.executor == nil {
+		r.executor = newActionExecutor(r.client, r.cfg, r.promptProviderHint())
+	}
+	return r.executor
 }
 
 func (r *Runner) classifyWithLLM(ctx context.Context, analysis prompt.Analysis, plainCapture string) (llmDecision, error) {

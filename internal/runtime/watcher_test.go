@@ -159,6 +159,7 @@ func TestPolicyLineIncludesWaitContinueAndFallbackPlan(t *testing.T) {
 	wantParts := []string{
 		"wait=1m0s->4s->4s->4s",
 		"continue=7 sent,next-audit=93",
+		"policy=default",
 		"llm=primary->fallback",
 	}
 	for _, part := range wantParts {
@@ -168,20 +169,26 @@ func TestPolicyLineIncludesWaitContinueAndFallbackPlan(t *testing.T) {
 	}
 }
 
-func TestCopilotSubmitKeyDefaultsToCtrlS(t *testing.T) {
-	r := &Runner{
-		cfg: Config{
-			Target:            "tmp-copilot",
-			SubmitKey:         "C-m",
-			SubmitKeyFallback: "C-m",
-		},
+func TestNewUsesConfiguredPolicy(t *testing.T) {
+	r := New(Config{
+		PolicyName:      "parity-porting",
+		ContinueMessage: "",
+	}, nil, func(string, ...interface{}) {})
+
+	if got := r.policyName(); got != "parity-porting" {
+		t.Fatalf("policyName=%q want parity-porting", got)
+	}
+}
+
+func TestActionProviderHintMatchesCopilotTarget(t *testing.T) {
+	cfg := Config{
+		Target:            "tmp-copilot",
+		SubmitKey:         "C-m",
+		SubmitKeyFallback: "C-m",
 	}
 
-	if got := r.submitKey(); got != "C-s" {
-		t.Fatalf("submitKey=%q want C-s", got)
-	}
-	if got := r.submitKeyFallback(); got != "" {
-		t.Fatalf("submitKeyFallback=%q want empty", got)
+	if got := actionProviderHint(cfg); got != "copilot" {
+		t.Fatalf("actionProviderHint=%q want copilot", got)
 	}
 }
 

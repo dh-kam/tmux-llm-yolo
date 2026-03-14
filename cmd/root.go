@@ -16,6 +16,7 @@ import (
 
 	"github.com/dh-kam/tmux-llm-yolo/internal/buildinfo"
 	"github.com/dh-kam/tmux-llm-yolo/internal/llm"
+	"github.com/dh-kam/tmux-llm-yolo/internal/policy"
 	watchruntime "github.com/dh-kam/tmux-llm-yolo/internal/runtime"
 	"github.com/dh-kam/tmux-llm-yolo/internal/tmux"
 	"github.com/dh-kam/tmux-llm-yolo/internal/tui"
@@ -207,6 +208,7 @@ func init() {
 	rootCmd.PersistentFlags().Int("capture-lines", 25, "number of visible lines to capture from target pane")
 	rootCmd.PersistentFlags().Bool("capture-with-ansi", true, "capture tmux pane with ANSI escapes (-e)")
 	rootCmd.PersistentFlags().StringP("continue-message", "c", "응 계속 이어서 진행해서 포팅 완료까지 진행해보자", "message sent when model waits for user input")
+	rootCmd.PersistentFlags().String("policy", "default", "watcher policy: default, poc-completion, aggressive-architecture, parity-porting, creative-exploration")
 	rootCmd.PersistentFlags().String("submit-key", "C-m", "tmux key used to submit the message")
 	rootCmd.PersistentFlags().String("submit-key-fallback", "C-m", "fallback submit key for alternative mode")
 	rootCmd.PersistentFlags().String("submit-key-fallback-delay", "0.15", "fallback submit key delay in seconds")
@@ -226,6 +228,7 @@ func init() {
 	_ = viper.BindPFlag("capture-lines", rootCmd.PersistentFlags().Lookup("capture-lines"))
 	_ = viper.BindPFlag("capture-with-ansi", rootCmd.PersistentFlags().Lookup("capture-with-ansi"))
 	_ = viper.BindPFlag("continue-message", rootCmd.PersistentFlags().Lookup("continue-message"))
+	_ = viper.BindPFlag("policy", rootCmd.PersistentFlags().Lookup("policy"))
 	_ = viper.BindPFlag("submit-key", rootCmd.PersistentFlags().Lookup("submit-key"))
 	_ = viper.BindPFlag("submit-key-fallback", rootCmd.PersistentFlags().Lookup("submit-key-fallback"))
 	_ = viper.BindPFlag("submit-key-fallback-delay", rootCmd.PersistentFlags().Lookup("submit-key-fallback-delay"))
@@ -249,6 +252,7 @@ func init() {
 	viper.SetDefault("capture-lines", 25)
 	viper.SetDefault("capture-with-ansi", true)
 	viper.SetDefault("continue-message", "응 계속 이어서 진행해서 포팅 완료까지 진행해보자")
+	viper.SetDefault("policy", "default")
 	viper.SetDefault("submit-key", "C-m")
 	viper.SetDefault("submit-key-fallback", "C-m")
 	viper.SetDefault("submit-key-fallback-delay", "0.15")
@@ -279,7 +283,7 @@ func runWatch(cmd *cobra.Command, args []string) error {
 	logBuffer := tui.NewLogBuffer(0)
 	logger := newLogger(config.logFile, logBuffer)
 	logger("감시 시작: session=%s interval=%ds duration=%ds", config.target, config.interval, config.duration)
-	logger("llm=%s model=%s fallback_llm=%s fallback_model=%s capture=%d suspect_waits=%ds/%ds/%ds", config.llm, config.llmModel, config.fallbackLLM, config.fallbackLLMModel, config.captureLines, config.suspectWait1, config.suspectWait2, config.suspectWait3)
+	logger("llm=%s model=%s fallback_llm=%s fallback_model=%s policy=%s capture=%d suspect_waits=%ds/%ds/%ds", config.llm, config.llmModel, config.fallbackLLM, config.fallbackLLMModel, config.policy, config.captureLines, config.suspectWait1, config.suspectWait2, config.suspectWait3)
 
 	tmuxClient, err := tmux.New()
 	if err != nil {
@@ -314,6 +318,7 @@ func runWatch(cmd *cobra.Command, args []string) error {
 			LLMModel:            config.llmModel,
 			FallbackLLMName:     config.fallbackLLM,
 			FallbackLLMModel:    config.fallbackLLMModel,
+			PolicyName:          config.policy,
 			Once:                config.once,
 			LogBuffer:           logBuffer,
 		},
@@ -559,6 +564,7 @@ type watchConfig struct {
 	duration            int
 	captureLines        int
 	continueMessage     string
+	policy              string
 	submitKey           string
 	submitKeyFallback   string
 	submitFallbackDelay float64
@@ -609,6 +615,7 @@ func loadConfig(args []string) (watchConfig, error) {
 	captureWithANSI := boolFromEnv("CAPTURE_WITH_ANSI", viper.GetBool("capture-with-ansi"))
 
 	continueMessage := firstNonEmpty(os.Getenv("CONTINUE_MESSAGE"), viper.GetString("continue-message"))
+	policyName := policy.Resolve(firstNonEmpty(os.Getenv("POLICY"), viper.GetString("policy"))).Name()
 	submitKey := firstNonEmpty(os.Getenv("SUBMIT_KEY"), viper.GetString("submit-key"))
 	submitFallback := firstNonEmpty(os.Getenv("SUBMIT_KEY_FALLBACK"), viper.GetString("submit-key-fallback"))
 	submitFallbackDelay := parseFloat(
@@ -659,6 +666,7 @@ func loadConfig(args []string) (watchConfig, error) {
 		duration:            duration,
 		captureLines:        captureLines,
 		continueMessage:     continueMessage,
+		policy:              policyName,
 		submitKey:           submitKey,
 		submitKeyFallback:   submitFallback,
 		submitFallbackDelay: submitFallbackDelay,

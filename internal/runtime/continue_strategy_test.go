@@ -1,6 +1,10 @@
 package runtime
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/dh-kam/tmux-llm-yolo/internal/policy"
+)
 
 func TestContinueStrategyUsesAuditPromptAtConfiguredInterval(t *testing.T) {
 	strategy := newContinueStrategy("fallback")
@@ -37,5 +41,16 @@ func TestContinueStrategyNextAuditIn(t *testing.T) {
 		if got := strategy.nextAuditIn(count); got != want {
 			t.Fatalf("count %d nextAuditIn=%d want %d", count, got, want)
 		}
+	}
+}
+
+func TestContinueStrategyUsesConfiguredPolicyContinuation(t *testing.T) {
+	strategy := newContinueStrategyWithPolicy(policy.Resolve("poc-completion"), "")
+
+	if got := strategy.messageFor(1); got == "" {
+		t.Fatal("messageFor(1) returned empty message")
+	}
+	if got := strategy.baseFallback; got != policy.Resolve("poc-completion").Continuation().FallbackMessage {
+		t.Fatalf("baseFallback=%q want policy fallback %q", got, policy.Resolve("poc-completion").Continuation().FallbackMessage)
 	}
 }

@@ -11,8 +11,8 @@ import (
 
 	"github.com/dh-kam/tmux-llm-yolo/internal/llm"
 	watchruntime "github.com/dh-kam/tmux-llm-yolo/internal/runtime"
-	"github.com/dh-kam/tmux-llm-yolo/internal/tui"
 	"github.com/dh-kam/tmux-llm-yolo/internal/tmux"
+	"github.com/dh-kam/tmux-llm-yolo/internal/tui"
 	"github.com/spf13/viper"
 )
 
@@ -32,9 +32,9 @@ func (f *fakeTmuxClient) SendKeys(ctx context.Context, target string, keys ...st
 	return f.sendErr
 }
 func (f *fakeTmuxClient) IsPaneInMode(context.Context, string) (bool, error) { return false, nil }
-func (f *fakeTmuxClient) CreateSession(context.Context, string) error         { return nil }
-func (f *fakeTmuxClient) AttachSession(context.Context, string) error         { return nil }
-func (f *fakeTmuxClient) KillSession(context.Context, string) error           { return nil }
+func (f *fakeTmuxClient) CreateSession(context.Context, string) error        { return nil }
+func (f *fakeTmuxClient) AttachSession(context.Context, string) error        { return nil }
+func (f *fakeTmuxClient) KillSession(context.Context, string) error          { return nil }
 
 type providerSpy struct {
 	name      string
@@ -251,15 +251,18 @@ func TestNewLoggerWritesFileAndSplitsLinesIntoBuffer(t *testing.T) {
 func TestLoadConfigParsesFallbackLLM(t *testing.T) {
 	t.Setenv("FALLBACK_LLM", "")
 	t.Setenv("FALLBACK_LLM_MODEL", "")
+	t.Setenv("POLICY", "")
 	origLLM := viper.GetString("llm")
 	origLLMModel := viper.GetString("llm-model")
 	origFallbackLLM := viper.GetString("fallback-llm")
 	origFallbackLLMModel := viper.GetString("fallback-llm-model")
+	origPolicy := viper.GetString("policy")
 	t.Cleanup(func() {
 		viper.Set("llm", origLLM)
 		viper.Set("llm-model", origLLMModel)
 		viper.Set("fallback-llm", origFallbackLLM)
 		viper.Set("fallback-llm-model", origFallbackLLMModel)
+		viper.Set("policy", origPolicy)
 	})
 
 	viper.Set("llm", "codex")
@@ -276,6 +279,24 @@ func TestLoadConfigParsesFallbackLLM(t *testing.T) {
 	}
 	if cfg.fallbackLLM != "ollama" || cfg.fallbackLLMModel != "qwen2.5-coder" {
 		t.Fatalf("fallback llm parsed incorrectly: %s/%s", cfg.fallbackLLM, cfg.fallbackLLMModel)
+	}
+}
+
+func TestLoadConfigParsesPolicy(t *testing.T) {
+	t.Setenv("POLICY", "")
+	origPolicy := viper.GetString("policy")
+	t.Cleanup(func() {
+		viper.Set("policy", origPolicy)
+	})
+
+	viper.Set("policy", "parity-porting")
+
+	cfg, err := loadConfig(nil)
+	if err != nil {
+		t.Fatalf("loadConfig failed: %v", err)
+	}
+	if cfg.policy != "parity-porting" {
+		t.Fatalf("policy=%q want parity-porting", cfg.policy)
 	}
 }
 

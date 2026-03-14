@@ -69,38 +69,18 @@ func AnalyzeWithHint(providerHint string, ansiCapture string, plainCapture strin
 }
 
 func AnalyzeWithHintAndWidth(providerHint string, ansiCapture string, plainCapture string, paneWidth int) Analysis {
-	ansiLines := strings.Split(normalize(ansiCapture), "\n")
-	plainLines := strings.Split(normalize(plainCapture), "\n")
-	detectedProvider := detectProviderFromCaptures(ansiCapture, plainCapture)
-	provider := detectedProvider
-	if provider == "" {
-		provider = normalizeProviderHint(providerHint)
+	ctx := analysisContext{
+		providerHint: providerHint,
+		ansiCapture:  ansiCapture,
+		plainCapture: plainCapture,
+		paneWidth:    paneWidth,
+		ansiLines:    strings.Split(normalize(ansiCapture), "\n"),
+		plainLines:   strings.Split(normalize(plainCapture), "\n"),
 	}
-	heuristics := heuristicsFor(provider)
-	promptLine := heuristics.detectPromptLine(ansiLines, plainLines)
-	if promptLine < 0 {
-		promptLine = detectLastNonEmptyLine(plainLines)
+	var analysis Analysis
+	for _, expert := range defaultAnalysisExperts() {
+		expert.Apply(&ctx, &analysis)
 	}
-
-	analysis := Analysis{
-		PromptDetected: promptLine >= 0,
-		PromptLine:     promptLine,
-	}
-	if promptLine >= 0 && promptLine < len(plainLines) {
-		analysis.PromptText = collectPromptText(promptLine, plainLines, paneWidth)
-	}
-	analysis.PromptActive = heuristics.isActivePromptLine(promptLine, ansiLines, plainLines)
-	analysis.PromptPlaceholder = heuristics.isPlaceholderPromptLine(promptLine, ansiLines, plainLines)
-
-	analysis.Provider = provider
-	analysis.AssistantUI = heuristics.hasAssistantUI(ansiCapture, plainCapture)
-	if !analysis.AssistantUI && provider != "" && provider == normalizeProviderHint(providerHint) && analysis.PromptDetected {
-		analysis.AssistantUI = true
-	}
-	analysis.OutputBlock = extractOutputBlock(plainLines, promptLine)
-	analysis.Processing = isProcessing(analysis, plainLines)
-	analysis.Classification, analysis.RecommendedChoice, analysis.Reason = classify(analysis)
-	analysis.InteractivePrompt = hasInteractivePrompt(analysis)
 	return analysis
 }
 
