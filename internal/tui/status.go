@@ -16,12 +16,18 @@ import (
 type Snapshot struct {
 	Target      string
 	State       string
-	Scope       string
+	Mode        string
+	Capture     string
+	WaitPlan    string
+	Continue    string
 	Policy      string
 	CurrentTask string
 	CurrentDesc string
 	NextTask    string
-	LLMStatus   string
+	NextDesc    string
+	LLMPrimary  string
+	LLMFallback string
+	LLMActive   string
 	SleepReason string
 	SleepStart  time.Time
 	SleepUntil  time.Time
@@ -189,6 +195,7 @@ type cardItem struct {
 	Value    string
 	Styled   string
 	Emphasis bool
+	Wrap     bool
 }
 
 const cardLabelWidth = 7
@@ -201,15 +208,15 @@ func buildCardsForViewport(snapshot Snapshot, now time.Time, width int, height i
 				Tone:  lipgloss.Color("37"),
 				Items: []cardItem{
 					{Label: "target", Value: zeroDash(snapshot.Target)},
-					{Label: "context", Value: zeroDash(snapshot.Scope)},
+					{Label: "mode", Value: zeroDash(snapshot.Mode)},
 				},
 			},
 			{
 				Title: "Flow",
 				Tone:  lipgloss.Color("80"),
 				Items: []cardItem{
-					{Label: "status", Value: zeroDash(snapshot.State)},
-					{Label: "active", Value: zeroDash(snapshot.CurrentTask)},
+					{Label: "state", Value: compactState(snapshot.State)},
+					{Label: "now", Value: compactTask(snapshot.CurrentTask)},
 					{Label: "queued", Value: zeroDash(snapshot.NextTask)},
 				},
 			},
@@ -217,9 +224,9 @@ func buildCardsForViewport(snapshot Snapshot, now time.Time, width int, height i
 				Title: "Control",
 				Tone:  lipgloss.Color("214"),
 				Items: []cardItem{
-					{Label: "engine", Value: zeroDash(snapshot.LLMStatus)},
+					{Label: "policy", Value: zeroDash(snapshot.Policy)},
 					{Label: "expire", Value: deadlineRemaining(snapshot, now)},
-					{Label: "signal", Value: zeroDash(snapshot.LastEvent), Emphasis: true},
+					{Label: "llm", Value: compactLLM(snapshot)},
 				},
 			},
 		}
@@ -231,35 +238,44 @@ func buildCardsForViewport(snapshot Snapshot, now time.Time, width int, height i
 				Tone:  lipgloss.Color("37"),
 				Items: []cardItem{
 					{Label: "target", Value: zeroDash(snapshot.Target)},
-					{Label: "context", Value: zeroDash(snapshot.Scope)},
-					{Label: "active", Value: zeroDash(snapshot.CurrentTask)},
+					{Label: "mode", Value: zeroDash(snapshot.Mode)},
+					{Label: "capture", Value: zeroDash(snapshot.Capture)},
 				},
 			},
 			{
 				Title: "Flow",
 				Tone:  lipgloss.Color("80"),
 				Items: []cardItem{
-					{Label: "status", Value: zeroDash(snapshot.State)},
-					{Label: "queued", Value: zeroDash(snapshot.NextTask)},
-					{Label: "detail", Value: zeroDash(snapshot.CurrentDesc)},
+					{Label: "state", Value: compactState(snapshot.State)},
+					{Label: "now", Value: compactTask(snapshot.CurrentTask)},
+					{Label: "next", Value: compactTask(snapshot.NextTask)},
 				},
 			},
 			{
-				Title: "Control",
+				Title: "Timing",
 				Tone:  lipgloss.Color("214"),
 				Items: []cardItem{
-					{Label: "policy", Value: zeroDash(snapshot.Policy)},
-					{Label: "engine", Value: zeroDash(snapshot.LLMStatus)},
-					{Label: "timing", Value: sleepStatus(snapshot, now)},
+					{Label: "wait", Value: zeroDash(snapshot.WaitPlan)},
+					{Label: "sleep", Value: sleepStatus(snapshot, now)},
+					{Label: "expire", Value: deadlineRemaining(snapshot, now)},
 				},
 			},
 			{
-				Title: "Signals",
+				Title: "AI",
 				Tone:  lipgloss.Color("75"),
 				Items: []cardItem{
-					{Label: "expire", Value: deadlineRemaining(snapshot, now)},
-					{Label: "update", Value: lastUpdatedText(snapshot, now)},
-					{Label: "signal", Value: zeroDash(snapshot.LastEvent), Emphasis: true},
+					{Label: "policy", Value: zeroDash(snapshot.Policy)},
+					{Label: "llm", Value: compactLLM(snapshot)},
+					{Label: "cont", Value: zeroDash(snapshot.Continue)},
+				},
+			},
+			{
+				Title: "Detail",
+				Tone:  lipgloss.Color("111"),
+				Items: []cardItem{
+					{Label: "doing", Value: zeroDash(snapshot.CurrentDesc)},
+					{Label: "next", Value: zeroDash(snapshot.NextDesc)},
+					{Label: "event", Value: zeroDash(snapshot.LastEvent), Emphasis: true},
 				},
 			},
 		}
@@ -442,7 +458,7 @@ func renderCardItemLines(item cardItem, width int) []string {
 
 	valueWidth := maxInt(1, width-len([]rune(labelCell)))
 	var wrapped []string
-	if width < 24 {
+	if !item.Wrap || width < 24 {
 		wrapped = []string{truncatePlain(zeroDash(item.Value), valueWidth)}
 	} else {
 		wrapped = wrapText(zeroDash(item.Value), valueWidth)
@@ -463,6 +479,70 @@ func renderCardItemLines(item cardItem, width int) []string {
 		lines = append(lines, labelStyle.Render(prefix)+style.Render(line))
 	}
 	return lines
+}
+
+func compactState(state string) string {
+	switch strings.TrimSpace(state) {
+	case "monitoring":
+		return "monitor"
+	case "suspect_waiting_stage_1":
+		return "wait-1"
+	case "suspect_waiting_stage_2":
+		return "wait-2"
+	case "suspect_waiting_stage_3":
+		return "wait-3"
+	case "confident_waiting":
+		return "waiting"
+	case "interpreting":
+		return "interpret"
+	case "acting":
+		return "acting"
+	case "completed":
+		return "done"
+	case "stopped":
+		return "stopped"
+	default:
+		return zeroDash(state)
+	}
+}
+
+func compactTask(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "-"
+	}
+	name = strings.TrimSuffix(name, "Task")
+	switch name {
+	case "Capture":
+		return "capture"
+	case "CompareCapture":
+		return "compare"
+	case "InterpretWaitingState":
+		return "interpret"
+	case "CheckDeadline":
+		return "deadline"
+	case "Sleep":
+		return "sleep"
+	default:
+		return strings.ToLower(name)
+	}
+}
+
+func compactLLM(snapshot Snapshot) string {
+	parts := []string{}
+	if primary := strings.TrimSpace(snapshot.LLMPrimary); primary != "" {
+		parts = append(parts, primary)
+	}
+	if fallback := strings.TrimSpace(snapshot.LLMFallback); fallback != "" {
+		parts = append(parts, "+"+fallback)
+	}
+	if active := strings.TrimSpace(snapshot.LLMActive); active != "" {
+		parts = append(parts, "@"+active)
+	}
+	if len(parts) == 0 {
+		return "-"
+	}
+	return strings.Join(parts, " ")
 }
 
 func paddedCardLabel(label string) string {

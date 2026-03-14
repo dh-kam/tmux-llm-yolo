@@ -157,7 +157,7 @@ func TestPolicyLineIncludesWaitContinueAndFallbackPlan(t *testing.T) {
 
 	got := r.policyLine()
 	wantParts := []string{
-		"wait=1m0s->4s->4s->4s",
+		"wait=1m0s>4s>4s>4s",
 		"continue=7 sent,next-audit=93",
 		"policy=default",
 		"llm=primary->fallback",

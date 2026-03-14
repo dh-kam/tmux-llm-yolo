@@ -283,12 +283,18 @@ func (r *Runner) updateUI() {
 	r.ui.Update(tui.Snapshot{
 		Target:      strings.TrimSpace(r.cfg.Target),
 		State:       r.state,
-		Scope:       r.scopeLine(),
-		Policy:      r.policyLine(),
+		Mode:        r.modeName(),
+		Capture:     fmt.Sprintf("%d lines", r.cfg.CaptureLines),
+		WaitPlan:    r.waitPlanLine(),
+		Continue:    r.continueLine(),
+		Policy:      r.policyName(),
 		CurrentTask: currentTask,
 		CurrentDesc: currentDesc,
-		NextTask:    r.nextTaskName(),
-		LLMStatus:   r.llmStatusLine(),
+		NextTask:    r.nextTaskShortName(),
+		NextDesc:    r.nextTaskDescription(),
+		LLMPrimary:  r.providerState(r.cfg.LLMName, r.cfg.LLMModel, r.primaryInitDone, r.primaryInitErr),
+		LLMFallback: r.fallbackProviderLine(),
+		LLMActive:   r.activeLLMLine(),
 		SleepReason: r.sleepReason,
 		SleepStart:  r.sleepStarted,
 		SleepUntil:  r.sleepUntil,
@@ -312,9 +318,38 @@ func (r *Runner) scopeLine() string {
 	return strings.Join(parts, " | ")
 }
 
+func (r *Runner) modeName() string {
+	if r.cfg.Once {
+		return "once"
+	}
+	return "watch"
+}
+
+func (r *Runner) nextTaskShortName() string {
+	if len(r.queue) == 0 {
+		return ""
+	}
+	return r.queue[0].Name()
+}
+
+func (r *Runner) nextTaskDescription() string {
+	if len(r.queue) == 0 {
+		return ""
+	}
+	return r.queue[0].Description()
+}
+
+func (r *Runner) waitPlanLine() string {
+	return fmt.Sprintf("%s>%s>%s>%s", r.baseInterval().Round(time.Second), r.suspectWait1().Round(time.Second), r.suspectWait2().Round(time.Second), r.suspectWait3().Round(time.Second))
+}
+
+func (r *Runner) continueLine() string {
+	return fmt.Sprintf("%d sent / audit %d", r.continueSentCount, r.continuePlan.nextAuditIn(r.continueSentCount))
+}
+
 func (r *Runner) policyLine() string {
 	parts := []string{
-		fmt.Sprintf("wait=%s->%s->%s->%s", r.baseInterval().Round(time.Second), r.suspectWait1().Round(time.Second), r.suspectWait2().Round(time.Second), r.suspectWait3().Round(time.Second)),
+		"wait=" + r.waitPlanLine(),
 		fmt.Sprintf("continue=%d sent,next-audit=%d", r.continueSentCount, r.continuePlan.nextAuditIn(r.continueSentCount)),
 		"policy=" + r.policyName(),
 	}
@@ -505,13 +540,35 @@ func (r *Runner) llmStatusLine() string {
 	parts := []string{
 		fmt.Sprintf("primary=%s", r.providerState(r.cfg.LLMName, r.cfg.LLMModel, r.primaryInitDone, r.primaryInitErr)),
 	}
-	if strings.TrimSpace(r.cfg.FallbackLLMName) != "" {
-		parts = append(parts, fmt.Sprintf("fallback=%s", r.providerState(r.cfg.FallbackLLMName, r.cfg.FallbackLLMModel, r.fallbackInitDone, r.fallbackInitErr)))
+	if fallback := r.fallbackProviderLine(); fallback != "" {
+		parts = append(parts, "fallback="+fallback)
 	}
-	if strings.TrimSpace(r.lastLLMProvider) != "" {
-		parts = append(parts, "active="+r.lastLLMProvider)
+	if active := r.activeLLMLine(); active != "" {
+		parts = append(parts, "active="+active)
 	}
 	return strings.Join(parts, " | ")
+}
+
+func (r *Runner) fallbackProviderLine() string {
+	if strings.TrimSpace(r.cfg.FallbackLLMName) == "" {
+		return ""
+	}
+	return r.providerState(r.cfg.FallbackLLMName, r.cfg.FallbackLLMModel, r.fallbackInitDone, r.fallbackInitErr)
+}
+
+func (r *Runner) activeLLMLine() string {
+	value := strings.TrimSpace(r.lastLLMProvider)
+	if value == "" {
+		return ""
+	}
+	parts := strings.Split(value, ":")
+	if len(parts) == 0 {
+		return value
+	}
+	if len(parts) >= 2 {
+		return parts[0] + ":" + parts[1]
+	}
+	return parts[0]
 }
 
 func (r *Runner) providerState(name string, model string, initDone bool, initErr error) string {
