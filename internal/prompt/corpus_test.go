@@ -2,11 +2,12 @@ package prompt
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
+	"strings"
 )
 
 type corpusManifest struct {
@@ -139,6 +140,15 @@ func TestAnalyzeProviderSpecificFixtures(t *testing.T) {
 			wantAssistantUI: true,
 			wantClass:       ClassUnknownWaiting,
 		},
+		{
+			name:            "r8 codex numbered plan with free-text prompt",
+			ansi:            filepath.Join("..", "..", "testdata", "live-captures-codex", "20260314-010538", "r8-codex", "ansi", "001.ansi.txt"),
+			plain:           filepath.Join("..", "..", "testdata", "live-captures-codex", "20260314-010538", "r8-codex", "plain", "001.plain.txt"),
+			wantProvider:    "codex",
+			wantProcessing:  false,
+			wantAssistantUI: true,
+			wantClass:       ClassFreeTextRequest,
+		},
 	}
 
 	for _, tc := range tests {
@@ -229,5 +239,55 @@ func TestAnalyzeWithHintRecoversGLMConfirmationUI(t *testing.T) {
 	}
 	if analysis.RecommendedChoice != "1" {
 		t.Fatalf("recommended choice=%q want 1", analysis.RecommendedChoice)
+	}
+}
+
+func TestAnalyzeWithHintCapturesCodexApprovalPromptWhileReadingSpinnerMoves(t *testing.T) {
+	base := filepath.Join("..", "..", "testdata", "live-captures-codex", "20260314-000857", "jkdeps-codex")
+
+	for i := 1; i <= 10; i++ {
+		sampleID := fmt.Sprintf("%03d", i)
+		ansiPath := filepath.Join(base, "ansi", sampleID+".ansi.txt")
+		plainPath := filepath.Join(base, "plain", sampleID+".plain.txt")
+
+		ansiRaw, err := os.ReadFile(ansiPath)
+		if err != nil {
+			t.Fatalf("sample %s read ansi failed: %v", sampleID, err)
+		}
+		plainRaw, err := os.ReadFile(plainPath)
+		if err != nil {
+			t.Fatalf("sample %s read plain failed: %v", sampleID, err)
+		}
+
+		plainText := string(plainRaw)
+		if !strings.Contains(plainText, "Reading 1 file") {
+			t.Fatalf("sample %s missing reading spinner text", sampleID)
+		}
+		if !strings.Contains(plainText, "Do you want to proceed?") {
+			t.Fatalf("sample %s missing approval prompt", sampleID)
+		}
+
+		analysis := AnalyzeWithHint("codex", string(ansiRaw), plainText)
+		if !analysis.AssistantUI {
+			t.Fatalf("sample %s assistantUI=false want true", sampleID)
+		}
+		if !analysis.PromptDetected {
+			t.Fatalf("sample %s promptDetected=false want true", sampleID)
+		}
+		if analysis.Processing {
+			t.Fatalf("sample %s processing=true want false", sampleID)
+		}
+		if !analysis.InteractivePrompt {
+			t.Fatalf("sample %s interactivePrompt=false want true", sampleID)
+		}
+		if analysis.Classification != ClassNumberedMultipleChoice {
+			t.Fatalf("sample %s classification=%q want %q", sampleID, analysis.Classification, ClassNumberedMultipleChoice)
+		}
+		if analysis.RecommendedChoice != "1" {
+			t.Fatalf("sample %s recommended choice=%q want 1", sampleID, analysis.RecommendedChoice)
+		}
+		if !strings.Contains(analysis.OutputBlock, "Do you want to proceed?") {
+			t.Fatalf("sample %s outputBlock missing approval prompt: %q", sampleID, analysis.OutputBlock)
+		}
 	}
 }

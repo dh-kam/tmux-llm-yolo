@@ -3,12 +3,38 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/dh-kam/tmux-llm-yolo/internal/llm"
+	watchruntime "github.com/dh-kam/tmux-llm-yolo/internal/runtime"
+	"github.com/dh-kam/tmux-llm-yolo/internal/tui"
+	"github.com/dh-kam/tmux-llm-yolo/internal/tmux"
 	"github.com/spf13/viper"
 )
+
+type fakeTmuxClient struct {
+	sendKeys [][]string
+	sendErr  error
+}
+
+func (f *fakeTmuxClient) ListSessions(context.Context) ([]tmux.Session, error) { return nil, nil }
+func (f *fakeTmuxClient) HasSession(context.Context, string) (bool, error)     { return true, nil }
+func (f *fakeTmuxClient) CapturePane(context.Context, string, int, bool) (string, error) {
+	return "", nil
+}
+func (f *fakeTmuxClient) PaneSize(context.Context, string) (int, int, error) { return 120, 40, nil }
+func (f *fakeTmuxClient) SendKeys(ctx context.Context, target string, keys ...string) error {
+	f.sendKeys = append(f.sendKeys, append([]string(nil), keys...))
+	return f.sendErr
+}
+func (f *fakeTmuxClient) IsPaneInMode(context.Context, string) (bool, error) { return false, nil }
+func (f *fakeTmuxClient) CreateSession(context.Context, string) error         { return nil }
+func (f *fakeTmuxClient) AttachSession(context.Context, string) error         { return nil }
+func (f *fakeTmuxClient) KillSession(context.Context, string) error           { return nil }
 
 type providerSpy struct {
 	name      string
@@ -194,6 +220,34 @@ func TestParseChoiceCandidateAndLabel(t *testing.T) {
 	}
 }
 
+func TestNewLoggerWritesFileAndSplitsLinesIntoBuffer(t *testing.T) {
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "watch.log")
+	buffer := tui.NewLogBuffer(0)
+	logger := newLogger(logPath, buffer)
+
+	logger("first line\nsecond line")
+
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("ReadFile error = %v", err)
+	}
+	text := string(data)
+	if !strings.Contains(text, "first line") || !strings.Contains(text, "second line") {
+		t.Fatalf("log file missing expected lines: %q", text)
+	}
+	lines := buffer.Lines()
+	if len(lines) != 2 {
+		t.Fatalf("buffer lines=%d want 2", len(lines))
+	}
+	if !strings.Contains(lines[0], "first line") {
+		t.Fatalf("buffer[0]=%q want first line", lines[0])
+	}
+	if !strings.Contains(lines[1], "second line") {
+		t.Fatalf("buffer[1]=%q want second line", lines[1])
+	}
+}
+
 func TestLoadConfigParsesFallbackLLM(t *testing.T) {
 	t.Setenv("FALLBACK_LLM", "")
 	t.Setenv("FALLBACK_LLM_MODEL", "")
@@ -222,5 +276,19 @@ func TestLoadConfigParsesFallbackLLM(t *testing.T) {
 	}
 	if cfg.fallbackLLM != "ollama" || cfg.fallbackLLMModel != "qwen2.5-coder" {
 		t.Fatalf("fallback llm parsed incorrectly: %s/%s", cfg.fallbackLLM, cfg.fallbackLLMModel)
+	}
+}
+
+func TestSendContinueMessageStopsBeforeFallbackWhenContextCanceled(t *testing.T) {
+	client := &fakeTmuxClient{}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := watchruntime.SendContinueMessage(ctx, client, "tmp", "continue", "C-m", "C-s", 0.5, false)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context canceled", err)
+	}
+	if len(client.sendKeys) != 2 {
+		t.Fatalf("sendKeys calls = %d, want 2", len(client.sendKeys))
 	}
 }

@@ -173,7 +173,7 @@ func isCodexActivePromptLine(promptLine int, ansiLines []string, plainLines []st
 	}
 	for i := max(0, promptLine-2); i <= min(len(ansiLines)-1, promptLine+2); i++ {
 		if strings.Contains(ansiLines[i], "\x1b[") {
-			return promptLine >= len(plainLines)-12
+			return promptLine >= len(plainLines)-12 || hasOnlyPromptTail(promptLine, plainLines)
 		}
 	}
 	return false
@@ -299,4 +299,25 @@ func isGLMPlaceholderPromptLine(promptLine int, ansiLines []string, plainLines [
 		return true
 	}
 	return !strings.Contains(ansi, "\x1b[38;5;231m") && strings.Contains(ansi, "\x1b[7m")
+}
+
+func hasOnlyPromptTail(promptLine int, plainLines []string) bool {
+	if promptLine < 0 || promptLine >= len(plainLines) {
+		return false
+	}
+	for i := promptLine + 1; i < len(plainLines); i++ {
+		trimmed := normalizeSpaces(strings.TrimSpace(capture.StripANSI(plainLines[i])))
+		if trimmed == "" {
+			continue
+		}
+		lower := strings.ToLower(trimmed)
+		if strings.Contains(lower, "context left") ||
+			strings.Contains(lower, "gpt-") ||
+			strings.Contains(lower, "/workspace/") ||
+			strings.Contains(lower, "tab to queue") {
+			continue
+		}
+		return false
+	}
+	return true
 }

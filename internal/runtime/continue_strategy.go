@@ -2,6 +2,8 @@ package runtime
 
 import "strings"
 
+const auditPromptEvery = 100
+
 var defaultContinuePrompts = []string{
 	"계속 진행하되 중간에 막히는 지점이 있으면 스스로 가설을 세우고 검증까지 이어서 진행해보자.",
 	"다음 작업을 이어서 진행하고, 변경 이유와 영향 범위를 짧게 정리하면서 계속 진행해보자.",
@@ -40,8 +42,8 @@ func (s continueStrategy) messageFor(continueSentCount int) string {
 	if continueSentCount <= 0 {
 		return s.baseFallback
 	}
-	if continueSentCount%20 == 0 && len(s.auditPrompts) > 0 {
-		idx := ((continueSentCount / 20) - 1) % len(s.auditPrompts)
+	if continueSentCount%auditPromptEvery == 0 && len(s.auditPrompts) > 0 {
+		idx := ((continueSentCount / auditPromptEvery) - 1) % len(s.auditPrompts)
 		return s.auditPrompts[idx]
 	}
 	if len(s.basePrompts) == 0 {
@@ -55,9 +57,9 @@ func (s continueStrategy) nextAuditIn(continueSentCount int) int {
 	if continueSentCount < 0 {
 		continueSentCount = 0
 	}
-	remainder := continueSentCount % 20
+	remainder := continueSentCount % auditPromptEvery
 	if remainder == 0 {
-		return 20
+		return auditPromptEvery
 	}
-	return 20 - remainder
+	return auditPromptEvery - remainder
 }

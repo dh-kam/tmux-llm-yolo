@@ -18,6 +18,7 @@ import (
 	"github.com/dh-kam/tmux-llm-yolo/internal/llm"
 	watchruntime "github.com/dh-kam/tmux-llm-yolo/internal/runtime"
 	"github.com/dh-kam/tmux-llm-yolo/internal/tmux"
+	"github.com/dh-kam/tmux-llm-yolo/internal/tui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -166,7 +167,7 @@ func writeStateTextFile(path string, data []byte, logger func(string, ...interfa
 }
 
 var rootCmd = &cobra.Command{
-	Use:          "tmux-yolo",
+	Use:          buildinfo.AppName,
 	Short:        "tmux watcher with llm autopilot",
 	SilenceUsage: true,
 	Version:      buildinfo.Version,
@@ -189,6 +190,7 @@ var checkCmd = &cobra.Command{
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
@@ -197,10 +199,10 @@ func init() {
 	rootCmd.SetVersionTemplate(fmt.Sprintf("{{printf \"%%s\\ncommit: %%s\\nbuild-date: %%s\\n\" .Version %q %q}}", buildinfo.GitCommit, buildinfo.BuildDate))
 	rootCmd.PersistentFlags().StringP("llm", "l", "glm", "llm selector: glm, codex, copilot, gemini, ollama/<model> or ollama with --llm-model (also accepts gemini-cli)")
 	rootCmd.PersistentFlags().StringP("target", "t", "", "target tmux session name")
-	rootCmd.PersistentFlags().Int("interval-seconds", 5, "watch loop interval in seconds")
-	rootCmd.PersistentFlags().Int("suspect-wait-seconds-1", 5, "first waiting suspicion recheck delay in seconds")
-	rootCmd.PersistentFlags().Int("suspect-wait-seconds-2", 5, "second waiting suspicion recheck delay in seconds")
-	rootCmd.PersistentFlags().Int("suspect-wait-seconds-3", 5, "third waiting suspicion recheck delay in seconds")
+	rootCmd.PersistentFlags().Int("interval-seconds", 4, "watch loop interval in seconds")
+	rootCmd.PersistentFlags().Int("suspect-wait-seconds-1", 4, "first waiting suspicion recheck delay in seconds")
+	rootCmd.PersistentFlags().Int("suspect-wait-seconds-2", 4, "second waiting suspicion recheck delay in seconds")
+	rootCmd.PersistentFlags().Int("suspect-wait-seconds-3", 4, "third waiting suspicion recheck delay in seconds")
 	rootCmd.PersistentFlags().Int("duration-seconds", 86400, "maximum watch duration in seconds")
 	rootCmd.PersistentFlags().Int("capture-lines", 25, "number of visible lines to capture from target pane")
 	rootCmd.PersistentFlags().Bool("capture-with-ansi", true, "capture tmux pane with ANSI escapes (-e)")
@@ -239,10 +241,10 @@ func init() {
 
 	viper.SetDefault("llm", "glm")
 	viper.SetDefault("target", "")
-	viper.SetDefault("interval-seconds", 5)
-	viper.SetDefault("suspect-wait-seconds-1", 5)
-	viper.SetDefault("suspect-wait-seconds-2", 5)
-	viper.SetDefault("suspect-wait-seconds-3", 5)
+	viper.SetDefault("interval-seconds", 4)
+	viper.SetDefault("suspect-wait-seconds-1", 4)
+	viper.SetDefault("suspect-wait-seconds-2", 4)
+	viper.SetDefault("suspect-wait-seconds-3", 4)
 	viper.SetDefault("duration-seconds", 86400)
 	viper.SetDefault("capture-lines", 25)
 	viper.SetDefault("capture-with-ansi", true)
@@ -274,7 +276,8 @@ func runWatch(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 
-	logger := newLogger(config.logFile)
+	logBuffer := tui.NewLogBuffer(0)
+	logger := newLogger(config.logFile, logBuffer)
 	logger("감시 시작: session=%s interval=%ds duration=%ds", config.target, config.interval, config.duration)
 	logger("llm=%s model=%s fallback_llm=%s fallback_model=%s capture=%d suspect_waits=%ds/%ds/%ds", config.llm, config.llmModel, config.fallbackLLM, config.fallbackLLMModel, config.captureLines, config.suspectWait1, config.suspectWait2, config.suspectWait3)
 
@@ -312,6 +315,7 @@ func runWatch(cmd *cobra.Command, args []string) error {
 			FallbackLLMName:     config.fallbackLLM,
 			FallbackLLMModel:    config.fallbackLLMModel,
 			Once:                config.once,
+			LogBuffer:           logBuffer,
 		},
 		tmuxClient,
 		logger,
@@ -337,7 +341,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 
 	ctx := cmd.Context()
 
-	logger := newLogger(config.logFile)
+	logger := newLogger(config.logFile, nil)
 	logger("1회 검사 시작: session=%s capture=%d", config.target, config.captureLines)
 	logger("llm=%s model=%s fallback_llm=%s fallback_model=%s", config.llm, config.llmModel, config.fallbackLLM, config.fallbackLLMModel)
 	captureFile, err := cmd.Flags().GetString("capture-file")
@@ -1242,109 +1246,6 @@ func normalizeCaptureForWorkingCheck(capture string) string {
 	return strings.TrimRight(strings.ReplaceAll(capture, "\r\n", "\n"), "\n")
 }
 
-func sendContinueMessage(
-	ctx context.Context,
-	client tmux.API,
-	target,
-	message,
-	submitKey,
-	fallbackSubmitKey string,
-	fallbackDelay float64,
-) error {
-	if inMode, err := client.IsPaneInMode(ctx, target); err == nil && inMode {
-		if err := client.SendKeys(ctx, target, "-X", "cancel"); err != nil {
-			return err
-		}
-	}
-	if err := client.SendKeys(ctx, target, "-l", message); err != nil {
-		return err
-	}
-	if err := client.SendKeys(ctx, target, submitKey); err != nil {
-		return err
-	}
-	if fallbackSubmitKey != "" {
-		if fallbackDelay > 0 {
-			time.Sleep(time.Duration(fallbackDelay * float64(time.Second)))
-		}
-		if err := client.SendKeys(ctx, target, fallbackSubmitKey); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func sendChoiceMessage(
-	ctx context.Context,
-	client tmux.API,
-	target,
-	choice,
-	submitKey,
-	fallbackSubmitKey string,
-	fallbackDelay float64,
-) error {
-	choice = strings.TrimSpace(choice)
-	if !isNumericChoice(choice) {
-		return fmt.Errorf("추천 선택값이 유효하지 않음: %s", choice)
-	}
-
-	if inMode, err := client.IsPaneInMode(ctx, target); err == nil && inMode {
-		if err := client.SendKeys(ctx, target, "-X", "cancel"); err != nil {
-			return err
-		}
-	}
-	if err := client.SendKeys(ctx, target, "-l", choice); err != nil {
-		return err
-	}
-	if err := client.SendKeys(ctx, target, submitKey); err != nil {
-		return err
-	}
-	if fallbackSubmitKey != "" {
-		if fallbackDelay > 0 {
-			time.Sleep(time.Duration(fallbackDelay * float64(time.Second)))
-		}
-		if err := client.SendKeys(ctx, target, fallbackSubmitKey); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func sendInputMessage(
-	ctx context.Context,
-	client tmux.API,
-	target,
-	input,
-	submitKey,
-	fallbackSubmitKey string,
-	fallbackDelay float64,
-) error {
-	input = strings.TrimSpace(input)
-	if input == "" {
-		return fmt.Errorf("입력값이 비어 있음")
-	}
-
-	if inMode, err := client.IsPaneInMode(ctx, target); err == nil && inMode {
-		if err := client.SendKeys(ctx, target, "-X", "cancel"); err != nil {
-			return err
-		}
-	}
-	if err := client.SendKeys(ctx, target, "-l", input); err != nil {
-		return err
-	}
-	if err := client.SendKeys(ctx, target, submitKey); err != nil {
-		return err
-	}
-	if fallbackSubmitKey != "" {
-		if fallbackDelay > 0 {
-			time.Sleep(time.Duration(fallbackDelay * float64(time.Second)))
-		}
-		if err := client.SendKeys(ctx, target, fallbackSubmitKey); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func intFromEnv(key string, fallback int) int {
 	raw := strings.TrimSpace(os.Getenv(key))
 	if raw == "" {
@@ -1444,16 +1345,29 @@ func defaultStateDir() string {
 	return filepath.Join(filepath.Dir(execPath), ".watch-state")
 }
 
-func newLogger(logPath string) func(format string, args ...interface{}) {
+func newLogger(logPath string, logBuffer *tui.LogBuffer) func(format string, args ...interface{}) {
 	_ = os.MkdirAll(filepath.Dir(logPath), 0o755)
 	return func(format string, args ...interface{}) {
-		line := fmt.Sprintf("[%s] %s", time.Now().In(seoulLocation).Format("2006-01-02 15:04:05"), fmt.Sprintf(format, args...))
-		fmt.Println(line)
+		timestamp := time.Now().In(seoulLocation).Format("2006-01-02 15:04:05")
+		message := fmt.Sprintf(format, args...)
+		normalized := strings.ReplaceAll(message, "\r\n", "\n")
+		lines := strings.Split(normalized, "\n")
 		f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 		if err != nil {
+			if logBuffer != nil {
+				for _, entry := range lines {
+					logBuffer.Append(fmt.Sprintf("[%s] %s", timestamp, entry))
+				}
+			}
 			return
 		}
 		defer f.Close()
-		_, _ = f.WriteString(line + "\n")
+		for _, entry := range lines {
+			line := fmt.Sprintf("[%s] %s", timestamp, entry)
+			if logBuffer != nil {
+				logBuffer.Append(line)
+			}
+			_, _ = f.WriteString(line + "\n")
+		}
 	}
 }

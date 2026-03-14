@@ -1,0 +1,186 @@
+
+[1;2m› [0m남은 작업을 우선순위대로 하나씩 처리하고, 끝난 항목과 남은 항목을 구분해서 계속 진행해보자.
+
+
+[2m• [0m남은 항목 1개(스모크 게이트를 presubmit 실행 단계로 올리기)를 우선 처리하겠습니다. [38;5;6mPRESUBMIT.py[39m에 upload 시 스모크 게이트
+  를 실제 실행하도록 넣고, 실패 메시지/스킵 플래그까지 정리한 뒤 바로 문법·스모크 검증하겠습니다.
+
+[2m•[0m [1mExplored[0m
+[2m  └ [0m[38;5;6mRead[39m PRESUBMIT.py
+
+[2m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• [0m현재 업로드 단계는 경고만 출력하고 실행은 안 하고 있습니다. 여기서 [38;5;6mverify_native_porting_smoke.sh[39m를 실제 실행하도록 함수
+  추가 후 upload 훅에 연결하겠습니다.
+
+[2m• [0;1mEdited[0m PRESUBMIT.py ([38;5;2m+27[39m [38;5;1m-5[39m)
+    [2m294[0m
+[48;5;22m    [2m295 [0m[38;5;2m[48;5;22m+[38;2;203;166;247mdef[38;2;205;214;244m [38;2;137;180;250mCheckGoNativePortingSmokeGateOnUpload[38;2;147;153;178m([38;2;235;160;172minput_api[38;2;147;153;178m,[38;2;235;160;172m output_api[38;2;147;153;178m):[39m
+    [2m296 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m  [38;2;203;166;247mif[38;2;205;214;244m [38;2;203;166;247mnot[38;2;205;214;244m [38;2;137;180;250mShouldRunGoNativePortingGate[38;2;147;153;178m([38;2;205;214;244minput_api[38;2;147;153;178m):[39m
+    [2m297 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m    [38;2;203;166;247mreturn[38;2;205;214;244m [38;2;147;153;178m[][39m
+    [2m298 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m  [38;2;203;166;247mif[38;2;205;214;244m [38;2;137;180;250mos[38;2;148;226;213m.[38;2;137;180;250menviron[38;2;148;226;213m.[38;2;137;180;250mget[38;2;147;153;178m([38;2;166;227;161m'R8_SKIP_GO_NATIVE_SMOKE_GATE'[38;2;147;153;178m)[38;2;205;214;244m [38;2;148;226;213m==[38;2;205;214;244m [38;2;166;227;161m'1'[38;2;147;153;178m:[39m
+    [2m299 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m    [38;2;203;166;247mreturn[38;2;205;214;244m [38;2;147;153;178m[[38;2;137;180;250moutput_api[38;2;148;226;213m.[38;2;137;180;250mPresubmitPromptWarning[38;2;147;153;178m([39m
+    [2m300 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m        [38;2;166;227;161m'Skipping Go-native porting smoke gate on upload due to '[39m
+    [2m301 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m        [38;2;166;227;161m'R8_SKIP_GO_NATIVE_SMOKE_GATE=1'[38;2;147;153;178m)][39m
+    [2m302 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m  repo_root [38;2;148;226;213m=[38;2;205;214;244m [38;2;137;180;250minput_api[38;2;148;226;213m.[38;2;137;180;250mPresubmitLocalPath[38;2;147;153;178m()[39m
+    [2m303 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m  smoke_script [38;2;148;226;213m=[38;2;205;214;244m [38;2;137;180;250mpath[38;2;148;226;213m.[38;2;137;180;250mjoin[38;2;147;153;178m([38;2;205;214;244mrepo_root[38;2;147;153;178m,[38;2;205;214;244m [38;2;166;227;161m'scripts'[38;2;147;153;178m,[38;2;205;214;244m [38;2;166;227;161m'verify_native_porting_smoke.sh'[38;2;147;153;178m)[39m
+    [2m304 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m  [38;2;203;166;247mif[38;2;205;214;244m [38;2;203;166;247mnot[38;2;205;214;244m [38;2;137;180;250mpath[38;2;148;226;213m.[38;2;137;180;250mexists[38;2;147;153;178m([38;2;205;214;244msmoke_script[38;2;147;153;178m):[39m
+    [2m305 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m    [38;2;203;166;247mreturn[38;2;205;214;244m [38;2;147;153;178m[[38;2;137;180;250moutput_api[38;2;148;226;213m.[38;2;137;180;250mPresubmitError[38;2;147;153;178m([39m
+    [2m306 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m        [38;2;166;227;161m'Missing Go-native porting smoke gate script: %s'[38;2;205;214;244m [38;2;148;226;213m%[38;2;205;214;244m smoke_script[38;2;147;153;178m)][39m
+    [2m307 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m  [38;2;203;166;247mtry[38;2;147;153;178m:[39m
+    [2m308 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m    [38;2;137;180;250mcheck_output[38;2;147;153;178m([[38;2;166;227;161m'bash'[38;2;147;153;178m,[38;2;205;214;244m smoke_script[38;2;147;153;178m],[38;2;205;214;244m [38;2;235;160;172mstderr[38;2;148;226;213m=[38;2;250;179;135mSTDOUT[38;2;147;153;178m,[38;2;205;214;244m [38;2;235;160;172mcwd[38;2;148;226;213m=[38;2;205;214;244mrepo_root[38;2;147;153;178m)[39m
+    [2m309 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m  [38;2;203;166;247mexcept[38;2;205;214;244m CalledProcessError [38;2;203;166;247mas[38;2;205;214;244m e[38;2;147;153;178m:[39m
+    [2m310 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m    decoded_output [38;2;148;226;213m=[38;2;205;214;244m [38;2;137;180;250me[38;2;148;226;213m.[38;2;137;180;250moutput[38;2;148;226;213m.[38;2;137;180;250mdecode[38;2;147;153;178m([38;2;166;227;161m'utf-8'[38;2;147;153;178m,[38;2;205;214;244m [38;2;235;160;172merrors[38;2;148;226;213m=[38;2;166;227;161m'replace'[38;2;147;153;178m)[39m
+    [2m311 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m    details [38;2;148;226;213m=[38;2;205;214;244m [38;2;235;160;172mdecoded_output[38;2;147;153;178m[[38;2;148;226;213m-[38;2;250;179;135m12000[38;2;147;153;178m:][39m
+    [2m312 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m    [38;2;203;166;247mreturn[38;2;205;214;244m [38;2;147;153;178m[[38;2;137;180;250moutput_api[38;2;148;226;213m.[38;2;137;180;250mPresubmitError[38;2;147;153;178m([39m
+    [2m313 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m        [38;2;166;227;161m'Go-native porting smoke gate failed on upload.[38;2;245;194;231m\n[38;2;166;227;161m'[39m
+    [2m314 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m        [38;2;166;227;161m'Run manually:[38;2;245;194;231m\n[38;2;166;227;161m'[39m
+    [2m315 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m        [38;2;166;227;161m'  scripts/verify_native_porting_smoke.sh[38;2;245;194;231m\n\n[38;2;166;227;161m'[39m
+    [2m316 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m        [38;2;166;227;161m'If you must bypass temporarily, set:[38;2;245;194;231m\n[38;2;166;227;161m'[39m
+    [2m317 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m        [38;2;166;227;161m'  R8_SKIP_GO_NATIVE_SMOKE_GATE=1[38;2;245;194;231m\n\n[38;2;166;227;161m'[39m
+    [2m318 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m        [38;2;166;227;161m'Recent output:[38;2;245;194;231m\n[38;2;166;227;161m%s'[38;2;205;214;244m [38;2;148;226;213m%[38;2;205;214;244m details[38;2;147;153;178m)][39m
+    [2m319 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m  [38;2;203;166;247mreturn[38;2;205;214;244m [38;2;147;153;178m[][39m
+    [2m320 [0m[38;5;2m[48;5;22m+[39m
+[49m    [2m321 [0m [38;2;203;166;247mdef[38;2;205;214;244m [38;2;137;180;250mCheckChangeOnCommit[38;2;147;153;178m([38;2;235;160;172minput_api[38;2;147;153;178m,[38;2;235;160;172m output_api[38;2;147;153;178m):[39m
+    [2m    ⋮[0m
+    [2m327 [0m [38;2;205;214;244m  results [38;2;148;226;213m=[38;2;205;214;244m [38;2;137;180;250mCheckChange[38;2;147;153;178m([38;2;205;214;244minput_api[38;2;147;153;178m,[38;2;205;214;244m output_api[38;2;147;153;178m)[39m
+[48;5;52m    [2m302 [0m[38;5;1m[48;5;52m-[2m[38;2;205;214;244m  [38;2;203;166;247mif[38;2;205;214;244m [38;2;137;180;250mShouldRunGoNativePortingGate[38;2;147;153;178m([38;2;205;214;244minput_api[38;2;147;153;178m):[0m[48;5;52m
+    [2m303 [0m[38;5;1m[48;5;52m-[2m[38;2;205;214;244m    [38;2;137;180;250mresults[38;2;148;226;213m.[38;2;137;180;250mappend[38;2;147;153;178m([38;2;137;180;250moutput_api[38;2;148;226;213m.[38;2;137;180;250mPresubmitPromptWarning[38;2;147;153;178m([0m[48;5;52m
+    [2m304 [0m[38;5;1m[48;5;52m-[2m[38;2;205;214;244m        [38;2;166;227;161m'r8_go-related changes detected. '[0m[48;5;52m
+    [2m305 [0m[38;5;1m[48;5;52m-[2m[38;2;205;214;244m        [38;2;166;227;161m'Run scripts/verify_native_porting_smoke.sh first, then '[0m[48;5;52m
+    [2m306 [0m[38;5;1m[48;5;52m-[2m[38;2;205;214;244m        [38;2;166;227;161m'scripts/verify_native_porting_completion.sh before upload.'[38;2;147;153;178m))[0m[48;5;52m
+[48;5;22m    [2m328 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m  [38;2;137;180;250mresults[38;2;148;226;213m.[38;2;137;180;250mextend[38;2;147;153;178m([38;2;137;180;250mCheckGoNativePortingSmokeGateOnUpload[38;2;147;153;178m([38;2;205;214;244minput_api[38;2;147;153;178m,[38;2;205;214;244m output_api[38;2;147;153;178m))[39m
+[49m    [2m329 [0m [38;2;205;214;244m  [38;2;203;166;247mreturn[38;2;205;214;244m results[39m
+
+[2m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• [0m업로드 훅에 스모크 실행을 연결했습니다. 지금 [38;5;6mPRESUBMIT.py[39m 문법 확인과 스모크 게이트 실행으로 변경 안정성을 바로 확인하겠습
+  니다.
+
+[1m[38;5;2m•[0m [1mRan[0m [38;2;137;180;250mpython3[38;2;147;153;178m -[38;2;235;160;172mm[38;2;205;214;244m py_compile /workspace/r8/PRESUBMIT.py[39m
+[2m  └ (no output)[0m
+
+[1m• Waited for background terminal[0;2m · bash /workspace/r8/scripts/verify_native_porting_smoke.sh[0m
+
+[1m[38;5;2m•[0m [1mRan[0m [38;2;137;180;250mbash[38;2;205;214;244m /workspace/r8/scripts/verify_native_porting_smoke.sh[39m
+[2m  └ --- D8 parity check ---[0m
+    [2mOK: no missing parser options[0m
+[2m    … +41 lines[0m
+    [2m[pass] no Java-wrapper dependency tokens found in Go-native cmd production files[0m
+    [2m[pass] native porting smoke gate passed[0m
+
+[2m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• [0m업로드 실행 단계 변경을 문서에도 반영하겠습니다. 스킵 플래그([38;5;6mR8_SKIP_GO_NATIVE_SMOKE_GATE[39m)와 동작 범위를 [38;5;6mtodo[39m에 짧게 추가
+  하고 다시 확인하겠습니다.
+
+[2m• [0;1mEdited[0m r8_go/docs/todo.md ([38;5;2m+1[39m [38;5;1m-0[39m)
+    [2m11 [0m [38;2;205;214;244m  [38;2;147;153;178m-[38;2;205;214;244m Fast pre-gate smoke command is available: [38;2;147;153;178m`[38;2;205;214;244mscripts/verify_native_porting_smoke.sh[38;2;147;153;178m`[38;2;205;214;244m (root wrapper to [38;2;147;153;178m`[38;2;205;214;244mr8_go/scrip
+[39m    [2m    [0m[38;2;205;214;244mts/verify_native_porting_smoke.sh[38;2;147;153;178m`[38;2;205;214;244m; parser parity + focused graph/cmd tests + Kotlin 2.2 parity smoke + no-wrapper g
+[39m    [2m    [0m[38;2;205;214;244muard).[39m
+[48;5;22m    [2m12 [0m[38;5;2m[48;5;22m+[38;2;205;214;244m  [38;2;147;153;178m-[38;2;205;214;244m [38;2;147;153;178m`[38;2;205;214;244mPRESUBMIT.py[38;2;147;153;178m`[38;2;205;214;244m upload path now executes the smoke gate automatically for [38;2;147;153;178m`[38;2;205;214;244mr8_go[38;2;147;153;178m`[38;2;205;214;244m-related changes ([38;2;147;153;178m`[38;2;205;214;244mR8_SKIP_GO_NA
+[39m    [2m    [0m[38;2;205;214;244m[48;5;22mTIVE_SMOKE_GATE=1[38;2;147;153;178m`[38;2;205;214;244m temporary bypass).[39m
+[49m    [2m13 [0m [38;2;205;214;244m  [38;2;147;153;178m-[38;2;205;214;244m Gate checks include parser parity (option presence + arity), native-cli no-wrapper static guard, [38;2;147;153;178m`[38;2;205;214;244mgo test ./cmd[39m
+    [2m    [0m[38;2;205;214;244m-json[38;2;147;153;178m`[38;2;205;214;244m ([38;2;147;153;178m`[38;2;205;214;244mskip=0[38;2;147;153;178m`[38;2;205;214;244m), [38;2;147;153;178m`[38;2;205;214;244mgo test ./... -json[38;2;147;153;178m`[38;2;205;214;244m ([38;2;147;153;178m`[38;2;205;214;244mskip_with_test=0[38;2;147;153;178m`[38;2;205;214;244m), classfile corpus parity, [38;2;147;153;178m`[38;2;205;214;244m2048.jar[38;2;147;153;178m`[38;2;205;214;244m parity, [38;2;147;153;178m`[38;2;205;214;244mkotlin-s
+[39m    [2m    [0m[38;2;205;214;244mtdlib-2.0.21.jar[38;2;147;153;178m`[38;2;205;214;244m parity, [38;2;147;153;178m`[38;2;205;214;244mkotlin-stdlib 2.2.0[38;2;147;153;178m`[38;2;205;214;244m parity, [38;2;147;153;178m`[38;2;205;214;244mkotlin-compiler-embeddable-2.0.21.jar[38;2;147;153;178m`[38;2;205;214;244m classfile+lib parity
+[39m    [2m    [0m[38;2;205;214;244m, D8/R8 binary parity, and non-wrapper native smoke.[39m
+
+[1m• Waited for background terminal[0;2m · python3 -m py_compile /workspace/r8/PRESUBMIT.py && bash /workspace/r8/scripts/[0m
+[2mverify_native_porting_smoke.sh[0m
+
+[1m[38;5;2m•[0m [1mRan[0m [38;2;137;180;250mpython3[38;2;147;153;178m -[38;2;235;160;172mm[38;2;205;214;244m py_compile /workspace/r8/PRESUBMIT.py [38;2;148;226;213m&&[38;2;205;214;244m [38;2;137;180;250mbash[38;2;205;214;244m /workspace/r8/scripts/verify_native_porting_smoke.sh[39m
+[2m  └ --- D8 parity check ---[0m
+    [2mOK: no missing parser options[0m
+[2m    … +41 lines[0m
+    [2m[pass] no Java-wrapper dependency tokens found in Go-native cmd production files[0m
+    [2m[pass] native porting smoke gate passed[0m
+
+[2m•[0m [1mExplored[0m
+[2m  └ [0m[38;5;6mSearch[39m def CheckGoNativePortingSmokeGateOnUpload|def CheckChangeOnUpload|R8_SKIP_GO_NATIVE_SMOKE_GATE|
+           verify_native_porting_smoke.sh[2m in [0mPRESUBMIT.py
+    [38;5;6mRead[39m verify_native_porting_smoke.sh
+    [38;5;6mSearch[39m PRESUBMIT.py upload path now executes the smoke gate|verify_native_porting_smoke.sh[2m in [0mtodo.md
+    [38;5;6mRead[39m todo.md
+    [38;5;6mSearch[39m TestEmitSyntheticKotlinD8ClassfileBackportsSkipsWhenPayloadMissing|
+           TestKotlinD8ClassfileOverrideSyntheticDescriptorsForInputReturnsNilForEmptyInputs|
+           TestLookupKotlinD8ClassfileOverrideDefaultReturnsNilForEmptyInputs|
+           TestLookupKotlinD8ClassfileOverrideDefaultReturnsNilForBlankPayload|
+           TestBuildKotlinD8BackportInvokeRewritePlansSkipsInvalidSpecs|
+           TestRewriteCodeAttributeInvokeMethodRefsForD8SkipsMismatchedPlanBeforeMatch[2m in[0m
+           classfile_kotlin_backport_support_test.go
+
+[2m─ Worked for 1m 07s ────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• [0;1m끝난 항목[0m
+
+  - [38;5;6mclassfile_kotlin_backport_support[39m 잔여 분기 테스트를 계속 채웠습니다.
+      - 추가한 핵심 테스트:
+          - 빈 입력 early-return ([38;5;6msynthetic selector/default lookup[39m)
+          - [38;5;6memit[39m에서 payload 미존재 skip
+          - [38;5;6mbuild/rewrite[39m의 skip/인덱스 분기
+      - 변경 이유: 남은 회귀 가능 분기를 함수 단위로 고정하기 위해.
+      - 영향 범위: Kotlin backport support 경로의 분기 안정성 강화.
+      - 파일: [38;5;6mclassfile_kotlin_backport_support_test.go[39m
+  - [38;5;6mPRESUBMIT[39m 업로드 단계에서 스모크 게이트를 실제 실행하도록 반영했습니다.
+      - 변경 이유: 업로드 시점에 빠른 실패를 자동 감지하기 위해.
+      - 영향 범위: [38;5;6mr8_go[39m 관련 변경 업로드 시 [38;5;6mscripts/verify_native_porting_smoke.sh[39m 실행(임시 우회:
+        [38;5;6mR8_SKIP_GO_NATIVE_SMOKE_GATE=1[39m).
+      - 파일: [38;5;6mPRESUBMIT.py:295[39m, [38;5;6mPRESUBMIT.py:326[39m
+  - 루트 스모크 wrapper/문서 동기화 유지했습니다.
+      - 파일: [38;5;6mverify_native_porting_smoke.sh:1[39m, [38;5;6mtodo.md:11[39m
+
+  [1m검증[0m
+
+  - [38;5;6mgo test ./src/graph -count=1[39m 통과
+  - [38;5;6mgo test ./cmd -count=1[39m 통과
+  - [38;5;6mbash /workspace/r8/scripts/verify_native_porting_smoke.sh[39m 통과
+  - [38;5;6mpython3 -m py_compile /workspace/r8/PRESUBMIT.py[39m 통과
+  - 커버리지: [38;5;6mclassfile_kotlin_backport_support.go[39m의 핵심 함수([38;5;6mbuild/rewrite/collect/lookup/emit[39m) 100%
+
+  [1m남은 항목[0m
+
+  [38;5;12m1. [39mpresubmit upload에서 스모크 실행 시간을 줄이기 위한 선택적 경량 모드(예: env로 parity 대상 축소) 설계/적용
+  [38;5;12m2. [39mcompletion gate([38;5;6mverify_native_porting_completion.sh[39m)와 smoke gate의 중복 단계를 정리해 총 수행 시간 최적화
+
+
+[1m›[0m
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[2m  gpt-5.3-codex high · 36% left · /workspace/r8[0m

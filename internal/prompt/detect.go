@@ -27,6 +27,7 @@ type Analysis struct {
 	Provider          string
 	AssistantUI       bool
 	Processing        bool
+	InteractivePrompt bool
 	Classification    Classification
 	RecommendedChoice string
 	Reason            string
@@ -37,7 +38,8 @@ var (
 	promptMarkerPattern      = regexp.MustCompile(`^[[:space:]]*([›❯>]|[#$%])\s*$`)
 	numberedMenuPattern      = regexp.MustCompile(`(?m)^[[:space:]]*(?:[›❯>]\s*)?(\d+)[\).]\s+.+$`)
 	cursorMenuPattern        = regexp.MustCompile(`(?m)^[[:space:]]*([•*→]|-\>)\s+.+$`)
-	selectionContextPattern  = regexp.MustCompile(`(?i)(which|choose|select|enter to select|type something|chat about this|do you want to proceed|어떤 .*작업|어떤 .*개선|무엇을 할까요|선택)`)
+	selectionContextPattern  = regexp.MustCompile(`(?i)(which|choose|select|enter to select|type something|chat about this|do you want to proceed|allow|approve|approved?|permission|bash command|don.?t ask again|yes[, ]|no[, ]|어떤 .*작업|어떤 .*개선|무엇을 할까요|선택지|선택하세요|선택 항목|선택할)`)
+	approvalPromptPattern    = regexp.MustCompile(`(?i)(do you want to proceed|bash command|allow|approve|permission|don.?t ask again|esc to cancel|tab to amend)`)
 	freeTextPattern          = regexp.MustCompile(`(?i)(enter|input|type|reply|respond|what should|provide|입력|답변|응답|작성)`)
 	continuePattern          = regexp.MustCompile(`(?i)(next step|next input|next turn|continue|proceed|go ahead|원하면|다음 작업|다음 턴|다음 우선순위|다음 단계|대기 중인 작업|작업 완료 요약|진행할까요|계속 진행|이어서 진행|이어가겠|이어가겠습니다|무엇을 할까요|tasks \(\d+ done, \d+ open\))`)
 	completedNoOpPattern     = regexp.MustCompile(`(?i)(all tasks (are )?complete|nothing more to do|no further action|done for now|모든 작업.*완료|더 할 일 없음|추가 작업 없음)`)
@@ -48,6 +50,9 @@ var (
 	copilotSignaturePattern  = regexp.MustCompile(`(?i)(github copilot|describe a task to get started|remaining reqs\.|copilot instructions found)`)
 	geminiSignaturePattern   = regexp.MustCompile(`(?i)(gemini code assist|yolo ctrl\+y|type your message or @path/to/file|gemini 3)`)
 	glmSignaturePattern      = regexp.MustCompile(`(?i)(claude code|fermenting|opus 4\.6|api usage billing)`)
+	promptZoneSpinnerPattern = regexp.MustCompile(`[●○◌◍◐◓◑◒•]`)
+	promptZoneDigitsPattern  = regexp.MustCompile(`\b\d+\b`)
+	promptZoneSpacePattern   = regexp.MustCompile(`\s+`)
 )
 
 func Analyze(ansiCapture string, plainCapture string) Analysis {
@@ -90,6 +95,7 @@ func AnalyzeWithHintAndWidth(providerHint string, ansiCapture string, plainCaptu
 	analysis.OutputBlock = extractOutputBlock(plainLines, promptLine)
 	analysis.Processing = isProcessing(analysis, plainLines)
 	analysis.Classification, analysis.RecommendedChoice, analysis.Reason = classify(analysis)
+	analysis.InteractivePrompt = hasInteractivePrompt(analysis)
 	return analysis
 }
 
@@ -223,12 +229,12 @@ func classify(analysis Analysis) (Classification, string, string) {
 		return ClassUnknownWaiting, "", "assistant UI 시그니처가 없어 자동 입력 대상 화면으로 확신할 수 없음"
 	}
 
-	if analysis.Processing {
-		return ClassUnknownWaiting, "", "진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움"
+	if cursorMenuPattern.MatchString(block) && (selectionContextPattern.MatchString(combined) || approvalPromptPattern.MatchString(combined)) {
+		return ClassCursorBasedChoice, "", "커서형 선택 메뉴로 보이는 출력이 감지됨"
 	}
 
-	if cursorMenuPattern.MatchString(block) {
-		return ClassCursorBasedChoice, "", "커서형 선택 메뉴로 보이는 출력이 감지됨"
+	if analysis.Processing {
+		return ClassUnknownWaiting, "", "진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움"
 	}
 
 	if continuePattern.MatchString(combined) && analysis.AssistantUI && analysis.PromptActive {
@@ -237,6 +243,10 @@ func classify(analysis Analysis) (Classification, string, string) {
 
 	if completedNoOpPattern.MatchString(combined) {
 		return ClassCompletedNoOp, "", "추가 작업이 없다는 완료 요약으로 해석됨"
+	}
+
+	if analysis.PromptActive && promptMarkerPattern.MatchString(promptText) && numberedMenuPattern.MatchString(block) && !selectionContextPattern.MatchString(combined) && !approvalPromptPattern.MatchString(combined) {
+		return ClassFreeTextRequest, "", "번호 목록은 계획 항목이고 하단 prompt는 자유 텍스트 입력창으로 해석됨"
 	}
 
 	if isEditablePromptText(promptText) && analysis.PromptActive {
@@ -248,6 +258,48 @@ func classify(analysis Analysis) (Classification, string, string) {
 	}
 
 	return ClassUnknownWaiting, "", "결정적 규칙으로 분류하지 못함"
+}
+
+func hasInteractivePrompt(analysis Analysis) bool {
+	switch analysis.Classification {
+	case ClassNumberedMultipleChoice, ClassCursorBasedChoice:
+		return true
+	case ClassFreeTextRequest:
+		return analysis.PromptActive
+	}
+
+	combined := strings.TrimSpace(strings.Join([]string{analysis.OutputBlock, analysis.PromptText}, "\n"))
+	if combined == "" {
+		return false
+	}
+	if approvalPromptPattern.MatchString(combined) && numberedMenuPattern.MatchString(combined) {
+		return true
+	}
+	return false
+}
+
+func PromptZoneFingerprint(plainCapture string) string {
+	lines := strings.Split(normalize(plainCapture), "\n")
+	if len(lines) > 12 {
+		lines = lines[len(lines)-12:]
+	}
+	normalized := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := normalizeSpaces(strings.TrimSpace(line))
+		if trimmed == "" {
+			continue
+		}
+		normalized = append(normalized, normalizePromptZoneLine(trimmed))
+	}
+	return strings.Join(normalized, "\n")
+}
+
+func normalizePromptZoneLine(line string) string {
+	line = strings.ToLower(normalizeSpaces(strings.TrimSpace(line)))
+	line = promptZoneSpinnerPattern.ReplaceAllString(line, "*")
+	line = promptZoneDigitsPattern.ReplaceAllString(line, "#")
+	line = promptZoneSpacePattern.ReplaceAllString(line, " ")
+	return strings.TrimSpace(line)
 }
 
 func isProcessing(analysis Analysis, plainLines []string) bool {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"strconv"
+	"regexp"
 	"strings"
 	"time"
 
@@ -44,6 +44,7 @@ type Config struct {
 	FallbackLLMName     string
 	FallbackLLMModel    string
 	Once                bool
+	LogBuffer           *tui.LogBuffer
 }
 
 type Runner struct {
@@ -59,6 +60,7 @@ type Runner struct {
 	deadline          time.Time
 	currentTask       task
 	lastEvent         string
+	sleepStarted      time.Time
 	sleepUntil        time.Time
 	sleepReason       string
 	prevBase          capture.Snapshot
@@ -70,9 +72,32 @@ type Runner struct {
 	primaryInitErr    error
 	fallbackInitErr   error
 	lastLLMProvider   string
+	ansiHistory       []ansiSnapshot
+	screenHistory     []screenSnapshot
+	continueOverride  string
 }
 
-const minimumStableWaitingDuration = 20 * time.Second
+const minimumStableWaitingDuration = 16 * time.Second
+const ansiHistoryRetention = 3 * time.Minute
+const longStableANSIDuration = 40 * time.Second
+const defaultWatchDuration = 24 * time.Hour
+const cursorProbeDelay = 120 * time.Millisecond
+const lowActivityChangedLineThreshold = 0.08
+const interactivePromptMinimumMatches = 2
+
+var numberedPlanLinePattern = regexp.MustCompile(`(?m)^[[:space:]]*(\d+)[\).]\s+(.+)$`)
+
+type ansiSnapshot struct {
+	ANSI    string
+	TakenAt time.Time
+}
+
+type screenSnapshot struct {
+	ChangedLineRatio      float64
+	PromptZoneFingerprint string
+	InteractivePrompt     bool
+	TakenAt               time.Time
+}
 
 type task interface {
 	Name() string
@@ -82,16 +107,16 @@ type task interface {
 
 func New(cfg Config, client tmux.API, logger func(string, ...interface{})) *Runner {
 	if cfg.BaseInterval <= 0 {
-		cfg.BaseInterval = 5 * time.Second
+		cfg.BaseInterval = 4 * time.Second
 	}
 	if cfg.SuspectWait1 <= 0 {
-		cfg.SuspectWait1 = 5 * time.Second
+		cfg.SuspectWait1 = 4 * time.Second
 	}
 	if cfg.SuspectWait2 <= 0 {
-		cfg.SuspectWait2 = 5 * time.Second
+		cfg.SuspectWait2 = 4 * time.Second
 	}
 	if cfg.SuspectWait3 <= 0 {
-		cfg.SuspectWait3 = 5 * time.Second
+		cfg.SuspectWait3 = 4 * time.Second
 	}
 	return &Runner{
 		cfg:          cfg,
@@ -105,7 +130,7 @@ func New(cfg Config, client tmux.API, logger func(string, ...interface{})) *Runn
 
 func (r *Runner) Run(ctx context.Context) error {
 	r.ctx = ctx
-	r.deadline = time.Now().Add(r.cfg.Duration)
+	r.deadline = time.Now().Add(r.watchDuration())
 	r.ui = tui.Start(ctx)
 	defer r.ui.Stop()
 
@@ -141,7 +166,7 @@ func (r *Runner) Run(ctx context.Context) error {
 
 func (r *Runner) RunOnce(ctx context.Context) error {
 	r.ctx = ctx
-	r.deadline = time.Now().Add(r.cfg.Duration)
+	r.deadline = time.Now().Add(r.watchDuration())
 	r.ui = tui.Start(ctx)
 	defer r.ui.Stop()
 
@@ -188,20 +213,25 @@ func (r *Runner) RunOnce(ctx context.Context) error {
 		}
 		return r.injectChoiceOnce(choice, "once mode: 번호형 선택지로 감지됨")
 	case prompt.ClassCursorBasedChoice:
-		return r.injectChoiceOnce("Enter", "once mode: 커서 기반 선택 UI로 감지되어 현재 선택 항목을 Enter로 확정")
+		return r.injectCursorConfirmOnce("once mode: 커서 기반 선택 UI로 감지되어 방향키 반응을 확인한 뒤 현재 선택 항목을 확정")
 	case prompt.ClassCompletedNoOp:
-		r.setState(stateCompleted, "once mode: 추가 입력 없이 종료")
-		return nil
-	case prompt.ClassFreeTextRequest, prompt.ClassUnknownWaiting:
+		return r.injectContinueOnce("once mode: 완료 요약으로 보여도 continue 입력으로 폴백")
+	case prompt.ClassFreeTextRequest:
+		if message := continueMessageFromPlannedItems(analysis); message != "" {
+			r.maybeSetContinueOverride(message, "numbered-plan")
+			return r.injectContinueOnce("once mode: 번호 목록을 선택지가 아닌 계획 항목으로 보고 continue 입력")
+		}
+		fallthrough
+	case prompt.ClassUnknownWaiting:
 		decision, err := r.classifyWithLLM(ctx, analysis, snap.Plain)
 		if err != nil {
 			return r.injectContinueOnce("once mode: LLM 해석 실패로 기본 continue 입력")
 		}
+		r.maybeSetContinueOverride(decision.ContinueMessage, "llm")
 
 		switch strings.ToUpper(strings.TrimSpace(decision.Action)) {
 		case "SKIP":
-			r.setState(stateCompleted, "once mode: 추가 입력 없이 종료")
-			return nil
+			return r.injectContinueOnce(r.skipFallbackReason(decision.Reason, true))
 		case "INJECT_SELECT":
 			choice := prompt.ParseNumericChoice(decision.RecommendedChoice)
 			if choice == "" {
@@ -234,6 +264,11 @@ func (r *Runner) setState(state string, event string) {
 	r.updateUI()
 }
 
+func (r *Runner) setStateQuiet(state string) {
+	r.state = state
+	r.updateUI()
+}
+
 func (r *Runner) nextTaskName() string {
 	if len(r.queue) == 0 {
 		return ""
@@ -252,6 +287,7 @@ func (r *Runner) updateUI() {
 		currentDesc = r.currentTask.Description()
 	}
 	r.ui.Update(tui.Snapshot{
+		Target:      strings.TrimSpace(r.cfg.Target),
 		State:       r.state,
 		Scope:       r.scopeLine(),
 		Policy:      r.policyLine(),
@@ -260,10 +296,12 @@ func (r *Runner) updateUI() {
 		NextTask:    r.nextTaskName(),
 		LLMStatus:   r.llmStatusLine(),
 		SleepReason: r.sleepReason,
+		SleepStart:  r.sleepStarted,
 		SleepUntil:  r.sleepUntil,
 		Deadline:    r.deadline,
 		LastEvent:   r.lastEvent,
 		LastUpdated: time.Now(),
+		LogLines:    r.cfg.LogBuffer.Lines(),
 	})
 }
 
@@ -417,28 +455,35 @@ func displayValue(value string) string {
 
 func (r *Runner) baseInterval() time.Duration {
 	if r.cfg.BaseInterval <= 0 {
-		return 5 * time.Second
+		return 4 * time.Second
 	}
 	return r.cfg.BaseInterval
 }
 
+func (r *Runner) watchDuration() time.Duration {
+	if r.cfg.Duration <= 0 {
+		return defaultWatchDuration
+	}
+	return r.cfg.Duration
+}
+
 func (r *Runner) suspectWait1() time.Duration {
 	if r.cfg.SuspectWait1 <= 0 {
-		return 5 * time.Second
+		return 4 * time.Second
 	}
 	return r.cfg.SuspectWait1
 }
 
 func (r *Runner) suspectWait2() time.Duration {
 	if r.cfg.SuspectWait2 <= 0 {
-		return 5 * time.Second
+		return 4 * time.Second
 	}
 	return r.cfg.SuspectWait2
 }
 
 func (r *Runner) suspectWait3() time.Duration {
 	if r.cfg.SuspectWait3 <= 0 {
-		return 5 * time.Second
+		return 4 * time.Second
 	}
 	return r.cfg.SuspectWait3
 }
@@ -504,6 +549,196 @@ func (r *Runner) providerState(name string, model string, initDone bool, initErr
 	}
 }
 
+func (r *Runner) recordANSISnapshot(ansi string, takenAt time.Time) {
+	ansi = strings.TrimSpace(ansi)
+	if ansi == "" {
+		return
+	}
+	if takenAt.IsZero() {
+		takenAt = time.Now()
+	}
+	r.ansiHistory = append(r.ansiHistory, ansiSnapshot{
+		ANSI:    ansi,
+		TakenAt: takenAt,
+	})
+	r.pruneANSIHistory(takenAt)
+}
+
+func (r *Runner) pruneANSIHistory(now time.Time) {
+	if now.IsZero() {
+		now = time.Now()
+	}
+	cutoff := now.Add(-ansiHistoryRetention)
+	keepFrom := 0
+	for keepFrom < len(r.ansiHistory) && r.ansiHistory[keepFrom].TakenAt.Before(cutoff) {
+		keepFrom++
+	}
+	if keepFrom > 0 {
+		r.ansiHistory = append([]ansiSnapshot(nil), r.ansiHistory[keepFrom:]...)
+	}
+}
+
+func (r *Runner) recordScreenSnapshot(snap capture.Snapshot, analysis prompt.Analysis) screenSnapshot {
+	summary := screenSnapshot{
+		ChangedLineRatio:      changedLineRatio(r.prevBase.Plain, snap.Plain),
+		PromptZoneFingerprint: prompt.PromptZoneFingerprint(snap.Plain),
+		InteractivePrompt:     analysis.InteractivePrompt,
+		TakenAt:               snap.TakenAt,
+	}
+	if summary.TakenAt.IsZero() {
+		summary.TakenAt = time.Now()
+	}
+	r.screenHistory = append(r.screenHistory, summary)
+	r.pruneScreenHistory(summary.TakenAt)
+	return summary
+}
+
+func (r *Runner) pruneScreenHistory(now time.Time) {
+	if now.IsZero() {
+		now = time.Now()
+	}
+	cutoff := now.Add(-ansiHistoryRetention)
+	keepFrom := 0
+	for keepFrom < len(r.screenHistory) && r.screenHistory[keepFrom].TakenAt.Before(cutoff) {
+		keepFrom++
+	}
+	if keepFrom > 0 {
+		r.screenHistory = append([]screenSnapshot(nil), r.screenHistory[keepFrom:]...)
+	}
+}
+
+func (r *Runner) shouldBypassWaitingStability(snap capture.Snapshot, analysis prompt.Analysis, summary screenSnapshot) bool {
+	if !analysis.InteractivePrompt {
+		return false
+	}
+	if r.hasStableInteractivePrompt(summary.PromptZoneFingerprint, summary.TakenAt) {
+		return true
+	}
+	if summary.ChangedLineRatio > 0 && summary.ChangedLineRatio <= lowActivityChangedLineThreshold && r.hasRecentLowActivity(summary.TakenAt) {
+		return true
+	}
+	switch analysis.Classification {
+	case prompt.ClassNumberedMultipleChoice, prompt.ClassCursorBasedChoice:
+		return summary.ChangedLineRatio <= lowActivityChangedLineThreshold || r.prevBase.ANSI == ""
+	default:
+		return false
+	}
+}
+
+func (r *Runner) hasStableInteractivePrompt(fingerprint string, now time.Time) bool {
+	fingerprint = strings.TrimSpace(fingerprint)
+	if fingerprint == "" {
+		return false
+	}
+	r.pruneScreenHistory(now)
+	matches := 0
+	for i := len(r.screenHistory) - 1; i >= 0; i-- {
+		snap := r.screenHistory[i]
+		if !snap.InteractivePrompt {
+			break
+		}
+		if snap.PromptZoneFingerprint != fingerprint {
+			break
+		}
+		matches++
+		if matches >= interactivePromptMinimumMatches {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *Runner) hasRecentLowActivity(now time.Time) bool {
+	r.pruneScreenHistory(now)
+	if len(r.screenHistory) == 0 {
+		return false
+	}
+	var count int
+	var total float64
+	for i := len(r.screenHistory) - 1; i >= 0; i-- {
+		snap := r.screenHistory[i]
+		if now.Sub(snap.TakenAt) > ansiHistoryRetention {
+			break
+		}
+		if snap.ChangedLineRatio <= 0 {
+			continue
+		}
+		total += snap.ChangedLineRatio
+		count++
+		if count >= 6 {
+			break
+		}
+	}
+	if count < 2 {
+		return false
+	}
+	return total/float64(count) <= lowActivityChangedLineThreshold
+}
+
+func changedLineRatio(prevPlain string, currentPlain string) float64 {
+	prevLines := normalizeHistoryLines(prevPlain)
+	currentLines := normalizeHistoryLines(currentPlain)
+	limit := len(prevLines)
+	if len(currentLines) > limit {
+		limit = len(currentLines)
+	}
+	if limit == 0 {
+		return 0
+	}
+	changed := 0
+	for i := 0; i < limit; i++ {
+		var prev string
+		var current string
+		if i < len(prevLines) {
+			prev = prevLines[i]
+		}
+		if i < len(currentLines) {
+			current = currentLines[i]
+		}
+		if prev != current {
+			changed++
+		}
+	}
+	return float64(changed) / float64(limit)
+}
+
+func normalizeHistoryLines(plain string) []string {
+	lines := strings.Split(strings.TrimSpace(strings.ReplaceAll(plain, "\r\n", "\n")), "\n")
+	normalized := make([]string, 0, len(lines))
+	for _, line := range lines {
+		line = prompt.PromptZoneFingerprint(line)
+		if line == "" {
+			normalized = append(normalized, "")
+			continue
+		}
+		normalized = append(normalized, line)
+	}
+	return normalized
+}
+
+func (r *Runner) hasLongStableANSI(ansi string, now time.Time) bool {
+	ansi = strings.TrimSpace(ansi)
+	if ansi == "" {
+		return false
+	}
+	if now.IsZero() {
+		now = time.Now()
+	}
+	r.pruneANSIHistory(now)
+	var stableSince time.Time
+	for i := len(r.ansiHistory) - 1; i >= 0; i-- {
+		snap := r.ansiHistory[i]
+		if snap.ANSI != ansi {
+			break
+		}
+		stableSince = snap.TakenAt
+	}
+	if stableSince.IsZero() {
+		return false
+	}
+	return now.Sub(stableSince) >= longStableANSIDuration
+}
+
 type checkDeadlineTask struct{}
 
 func (checkDeadlineTask) Name() string { return "CheckDeadlineTask" }
@@ -526,11 +761,14 @@ func (baseCaptureTask) Description() string { return "기준 주기 dual capture
 func (baseCaptureTask) Run(r *Runner) error {
 	r.sleepUntil = time.Time{}
 	r.sleepReason = ""
-	r.setState(stateMonitoring, "base dual capture")
+	r.setStateQuiet(stateMonitoring)
 	snap, err := r.fetcher.CaptureDual(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
 	if err != nil {
 		return fmt.Errorf("base dual capture failed: %w", err)
 	}
+	r.recordANSISnapshot(snap.ANSI, snap.TakenAt)
+	analysis := prompt.AnalyzeWithHint(r.promptProviderHint(), snap.ANSI, snap.Plain)
+	summary := r.recordScreenSnapshot(snap, analysis)
 	if strings.TrimSpace(r.prevBase.ANSI) == "" {
 		r.prevBase = snap
 		r.enqueue(
@@ -540,6 +778,16 @@ func (baseCaptureTask) Run(r *Runner) error {
 		)
 		return nil
 	}
+	if r.shouldBypassWaitingStability(snap, analysis, summary) {
+		r.setState(stateConfidentWaiting, "하단 interactive prompt가 감지되어 ANSI 안정성 대기를 우회하고 해석으로 진입")
+		r.prevBase = snap
+		r.enqueue(checkDeadlineTask{}, analyzeWaitingTask{
+			referenceANSI:       snap.ANSI,
+			referencePromptZone: summary.PromptZoneFingerprint,
+			allowVolatileANSI:   true,
+		})
+		return nil
+	}
 	if snap.ANSI != r.prevBase.ANSI {
 		r.prevBase = snap
 		r.enqueue(
@@ -547,6 +795,12 @@ func (baseCaptureTask) Run(r *Runner) error {
 			checkDeadlineTask{},
 			baseCaptureTask{},
 		)
+		return nil
+	}
+
+	if r.hasLongStableANSI(snap.ANSI, snap.TakenAt) {
+		r.setState(stateConfidentWaiting, fmt.Sprintf("ANSI 화면이 최근 %s 이상 동일하게 유지되어 즉시 입력 대기 상태로 승격", longStableANSIDuration.Round(time.Second)))
+		r.enqueue(checkDeadlineTask{}, analyzeWaitingTask{referenceANSI: snap.ANSI, forceInput: true})
 		return nil
 	}
 
@@ -569,18 +823,37 @@ func (t ansiRecheckTask) Description() string {
 	return fmt.Sprintf("%d차 입력 대기 의심 상태에서 ANSI 재비교를 수행한다", t.stage)
 }
 func (t ansiRecheckTask) Run(r *Runner) error {
-	ansi, err := r.fetcher.CaptureANSI(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
+	snap, err := r.fetcher.CaptureDual(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
 	if err != nil {
 		return fmt.Errorf("ansi recheck failed: %w", err)
 	}
-	if ansi != t.referenceANSI {
+	r.recordANSISnapshot(snap.ANSI, snap.TakenAt)
+	analysis := prompt.AnalyzeWithHint(r.promptProviderHint(), snap.ANSI, snap.Plain)
+	summary := r.recordScreenSnapshot(snap, analysis)
+	if r.shouldBypassWaitingStability(snap, analysis, summary) {
+		r.setState(stateConfidentWaiting, "의심 단계 중 interactive prompt가 감지되어 ANSI 안정성 대기를 우회하고 해석으로 진입")
+		r.prevBase = snap
+		r.enqueue(checkDeadlineTask{}, analyzeWaitingTask{
+			referenceANSI:       snap.ANSI,
+			referencePromptZone: summary.PromptZoneFingerprint,
+			allowVolatileANSI:   true,
+		})
+		return nil
+	}
+	if snap.ANSI != t.referenceANSI {
 		r.setState(stateMonitoring, fmt.Sprintf("의심 단계 중 ANSI 화면이 바뀌어 %s 모니터링으로 복귀", r.baseInterval().Round(time.Second)))
-		r.prevBase = capture.Snapshot{ANSI: ansi, TakenAt: time.Now()}
+		r.prevBase = snap
 		r.enqueue(
 			sleepTask{duration: r.baseInterval(), reason: fmt.Sprintf("ANSI 변경 감지, 다시 %s 기준 캡처 대기", r.baseInterval().Round(time.Second))},
 			checkDeadlineTask{},
 			baseCaptureTask{},
 		)
+		return nil
+	}
+
+	if r.hasLongStableANSI(snap.ANSI, snap.TakenAt) {
+		r.setState(stateConfidentWaiting, fmt.Sprintf("ANSI 화면이 최근 %s 이상 동일하게 유지되어 즉시 입력 대기 상태로 승격", longStableANSIDuration.Round(time.Second)))
+		r.enqueue(checkDeadlineTask{}, analyzeWaitingTask{referenceANSI: snap.ANSI, forceInput: true})
 		return nil
 	}
 
@@ -595,22 +868,31 @@ func (t ansiRecheckTask) Run(r *Runner) error {
 		r.enqueue(
 			sleepTask{duration: waitMore, reason: fmt.Sprintf("%d차 입력 대기 의심, %s 후 ANSI 재확인", nextStage, waitMore.Round(time.Second))},
 			checkDeadlineTask{},
-			ansiRecheckTask{stage: nextStage, referenceANSI: ansi},
+			ansiRecheckTask{stage: nextStage, referenceANSI: snap.ANSI},
 		)
 		return nil
 	}
 
-	r.setState(stateConfidentWaiting, "20초 동안 5회 ANSI 화면이 동일하여 입력 대기 상태를 확신")
-	r.enqueue(checkDeadlineTask{}, analyzeWaitingTask{referenceANSI: ansi})
+	r.setState(stateConfidentWaiting, "16초 동안 5회 ANSI 화면이 동일하여 입력 대기 상태를 확신")
+	r.enqueue(checkDeadlineTask{}, analyzeWaitingTask{referenceANSI: snap.ANSI})
 	return nil
 }
 
 type analyzeWaitingTask struct {
-	referenceANSI string
+	referenceANSI       string
+	referencePromptZone string
+	allowVolatileANSI   bool
+	forceInput          bool
 }
 
 func (t analyzeWaitingTask) Name() string { return "InterpretWaitingStateTask" }
 func (t analyzeWaitingTask) Description() string {
+	if t.forceInput {
+		return "장기 정지 ANSI 화면을 강제 입력 대상으로 해석해 다음 동작을 결정한다"
+	}
+	if t.allowVolatileANSI {
+		return "interactive prompt를 우선시해 변동 ANSI를 허용하고 다음 동작을 결정한다"
+	}
 	return "prompt 위치와 마지막 출력 블록을 해석해 다음 동작을 결정한다"
 }
 func (t analyzeWaitingTask) Run(r *Runner) error {
@@ -620,6 +902,12 @@ func (t analyzeWaitingTask) Run(r *Runner) error {
 		return fmt.Errorf("analysis dual capture failed: %w", err)
 	}
 	if snap.ANSI != t.referenceANSI {
+		if t.allowVolatileANSI {
+			currentPromptZone := prompt.PromptZoneFingerprint(snap.Plain)
+			if currentPromptZone == t.referencePromptZone && currentPromptZone != "" {
+				goto analyze
+			}
+		}
 		r.prevBase = snap
 		r.setState(stateMonitoring, "해석 직전 화면이 바뀌어 모니터링으로 복귀")
 		r.enqueue(
@@ -630,12 +918,16 @@ func (t analyzeWaitingTask) Run(r *Runner) error {
 		return nil
 	}
 
+analyze:
 	analysis := prompt.AnalyzeWithHintAndWidth(r.promptProviderHint(), snap.ANSI, snap.Plain, r.paneWidth())
-	r.logger("prompt analysis: provider=%s assistant_ui=%t processing=%t detected=%t line=%d class=%s reason=%s choice=%s", analysis.Provider, analysis.AssistantUI, analysis.Processing, analysis.PromptDetected, analysis.PromptLine, analysis.Classification, analysis.Reason, analysis.RecommendedChoice)
+	r.logger("prompt analysis: provider=%s assistant_ui=%t processing=%t interactive=%t detected=%t line=%d class=%s reason=%s choice=%s", analysis.Provider, analysis.AssistantUI, analysis.Processing, analysis.InteractivePrompt, analysis.PromptDetected, analysis.PromptLine, analysis.Classification, analysis.Reason, analysis.RecommendedChoice)
 	if block := strings.TrimSpace(analysis.OutputBlock); block != "" {
 		r.logger("latest output block:\n%s", block)
 	}
 	if !analysis.AssistantUI {
+		if t.forceInput {
+			return r.injectContinue("장시간 동일 ANSI 화면에서 assistant UI 시그니처는 약하지만 강제 continue 입력")
+		}
 		r.prevBase = snap
 		r.setState(stateMonitoring, fmt.Sprintf("assistant UI 시그니처가 없어 입력하지 않고 %s 모니터링으로 복귀", r.baseInterval().Round(time.Second)))
 		r.enqueue(
@@ -649,6 +941,9 @@ func (t analyzeWaitingTask) Run(r *Runner) error {
 		return r.clearPromptState("Copilot slash command 상태를 정리하고 모니터링으로 복귀")
 	}
 	if analysis.Processing {
+		if t.forceInput {
+			return r.injectContinue("장시간 동일 ANSI 화면이 processing으로 보이지만 정체 상태로 판단되어 강제 continue 입력")
+		}
 		r.prevBase = snap
 		r.setState(stateMonitoring, fmt.Sprintf("진행중 신호가 남아 있어 입력하지 않고 %s 모니터링으로 복귀", r.baseInterval().Round(time.Second)))
 		r.enqueue(
@@ -677,13 +972,26 @@ func (t analyzeWaitingTask) Run(r *Runner) error {
 	case prompt.ClassCursorBasedChoice:
 		return r.injectCursorConfirm("커서 기반 선택 UI로 감지되어 현재 선택 항목을 Enter로 확정")
 	case prompt.ClassCompletedNoOp:
-		r.setState(stateCompleted, "추가 작업 없음으로 판단되어 watcher 종료")
-		r.queue = nil
-		return errStop
-	case prompt.ClassFreeTextRequest, prompt.ClassUnknownWaiting:
+		if t.forceInput {
+			return r.injectContinue("장시간 동일 ANSI 화면에서 완료 요약처럼 보여도 상호작용 정체를 풀기 위해 continue 입력")
+		}
+		return r.injectContinue("완료 요약으로 분류되었지만 continue 입력으로 폴백")
+	case prompt.ClassFreeTextRequest:
+		if message := continueMessageFromPlannedItems(analysis); message != "" {
+			r.maybeSetContinueOverride(message, "numbered-plan")
+			return r.injectContinue("번호 목록을 선택지가 아닌 계획 항목으로 보고 continue 입력")
+		}
+		fallthrough
+	case prompt.ClassUnknownWaiting:
 		decision, err := r.classifyWithLLM(r.ctx, analysis, snap.Plain)
 		if err != nil {
 			return r.injectContinue("LLM 해석 실패로 기본 continue 입력")
+		}
+		if t.forceInput && strings.EqualFold(strings.TrimSpace(decision.Action), "SKIP") {
+			decision.Action = "INJECT_CONTINUE"
+			if strings.TrimSpace(decision.Reason) == "" {
+				decision.Reason = "장시간 동일 ANSI 화면에서 강제 continue 입력"
+			}
 		}
 		return r.applyLLMDecision(decision)
 	default:
@@ -703,6 +1011,7 @@ func (t sleepTask) Run(r *Runner) error {
 		return nil
 	}
 	r.sleepReason = t.reason
+	r.sleepStarted = time.Now()
 	r.sleepUntil = time.Now().Add(t.duration)
 	r.updateUI()
 	timer := time.NewTimer(t.duration)
@@ -711,6 +1020,7 @@ func (t sleepTask) Run(r *Runner) error {
 	case <-r.ctx.Done():
 		return r.ctx.Err()
 	case <-timer.C:
+		r.sleepStarted = time.Time{}
 		r.sleepUntil = time.Time{}
 		r.sleepReason = ""
 		return nil
@@ -718,12 +1028,14 @@ func (t sleepTask) Run(r *Runner) error {
 }
 
 func (r *Runner) injectContinue(reason string) error {
-	message := r.prepareTextInput(r.nextContinueMessage())
+	nextCount := r.continueSentCount + 1
+	message := r.prepareTextInput(r.nextContinueMessage(nextCount))
 	r.setState(stateActing, reason)
-	r.logger("continue prompt selected: count=%d message=%q", r.continueSentCount, message)
+	r.logger("continue prompt selected: count=%d message=%q", nextCount, message)
 	if err := sendContinueMessage(r.ctx, r.client, r.cfg.Target, message, r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay, r.clearPromptBeforeTyping()); err != nil {
 		return err
 	}
+	r.continueSentCount = nextCount
 	r.prevBase = capture.Snapshot{}
 	r.enqueue(
 		sleepTask{duration: r.baseInterval(), reason: fmt.Sprintf("입력 전송 후 다음 %s 모니터링 대기", r.baseInterval().Round(time.Second))},
@@ -734,12 +1046,14 @@ func (r *Runner) injectContinue(reason string) error {
 }
 
 func (r *Runner) injectContinueOnce(reason string) error {
-	message := r.prepareTextInput(r.nextContinueMessage())
+	nextCount := r.continueSentCount + 1
+	message := r.prepareTextInput(r.nextContinueMessage(nextCount))
 	r.setState(stateActing, reason)
-	r.logger("continue prompt selected: count=%d message=%q", r.continueSentCount, message)
+	r.logger("continue prompt selected: count=%d message=%q", nextCount, message)
 	if err := sendContinueMessage(r.ctx, r.client, r.cfg.Target, message, r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay, r.clearPromptBeforeTyping()); err != nil {
 		return err
 	}
+	r.continueSentCount = nextCount
 	r.setState(stateStopped, "once mode: continue 입력 후 종료")
 	return nil
 }
@@ -769,6 +1083,30 @@ func (r *Runner) injectChoiceOnce(choice string, reason string) error {
 
 func (r *Runner) injectCursorConfirm(reason string) error {
 	r.setState(stateActing, reason)
+	beforeANSI, err := r.fetcher.CaptureANSI(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
+	if err != nil {
+		return fmt.Errorf("cursor probe capture before move failed: %w", err)
+	}
+	if err := r.client.SendKeys(r.ctx, r.cfg.Target, "Down"); err != nil {
+		return err
+	}
+	if err := waitForDuration(r.ctx, cursorProbeDelay); err != nil {
+		return err
+	}
+	afterANSI, err := r.fetcher.CaptureANSI(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
+	if err != nil {
+		return fmt.Errorf("cursor probe capture after move failed: %w", err)
+	}
+	if afterANSI == beforeANSI {
+		r.logger("cursor probe produced no ANSI change; falling back to continue")
+		return r.injectContinue(reason + " 방향키 입력 전후 ANSI 변화가 없어 continue 입력으로 폴백")
+	}
+	if err := r.client.SendKeys(r.ctx, r.cfg.Target, "Up"); err != nil {
+		return err
+	}
+	if err := waitForDuration(r.ctx, cursorProbeDelay); err != nil {
+		return err
+	}
 	if err := sendChoiceMessage(r.ctx, r.client, r.cfg.Target, "Enter", r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay, r.clearPromptBeforeTyping()); err != nil {
 		return err
 	}
@@ -781,8 +1119,46 @@ func (r *Runner) injectCursorConfirm(reason string) error {
 	return nil
 }
 
+func (r *Runner) injectCursorConfirmOnce(reason string) error {
+	r.setState(stateActing, reason)
+	beforeANSI, err := r.fetcher.CaptureANSI(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
+	if err != nil {
+		return fmt.Errorf("cursor probe capture before move failed: %w", err)
+	}
+	if err := r.client.SendKeys(r.ctx, r.cfg.Target, "Down"); err != nil {
+		return err
+	}
+	if err := waitForDuration(r.ctx, cursorProbeDelay); err != nil {
+		return err
+	}
+	afterANSI, err := r.fetcher.CaptureANSI(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
+	if err != nil {
+		return fmt.Errorf("cursor probe capture after move failed: %w", err)
+	}
+	if afterANSI == beforeANSI {
+		r.logger("cursor probe produced no ANSI change in once mode; falling back to continue")
+		return r.injectContinueOnce(reason + " 방향키 입력 전후 ANSI 변화가 없어 continue 입력으로 폴백")
+	}
+	if err := r.client.SendKeys(r.ctx, r.cfg.Target, "Up"); err != nil {
+		return err
+	}
+	if err := waitForDuration(r.ctx, cursorProbeDelay); err != nil {
+		return err
+	}
+	if err := sendChoiceMessage(r.ctx, r.client, r.cfg.Target, "Enter", r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay, r.clearPromptBeforeTyping()); err != nil {
+		return err
+	}
+	r.setState(stateStopped, "once mode: 커서형 선택 확정 후 종료")
+	return nil
+}
+
 func (r *Runner) injectInputOnce(input string, reason string) error {
 	input = r.prepareTextInput(input)
+	if input == "" {
+		fallbackReason := r.emptyInputFallbackReason(reason)
+		r.logger("empty recommended input in once mode; falling back to continue: reason=%q", reason)
+		return r.injectContinueOnce(fallbackReason)
+	}
 	r.setState(stateActing, reason)
 	if err := sendInputMessage(r.ctx, r.client, r.cfg.Target, input, r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay, r.clearPromptBeforeTyping()); err != nil {
 		return err
@@ -837,14 +1213,73 @@ func (r *Runner) clearPromptStateOnce(reason string) error {
 	return nil
 }
 
+func (r *Runner) emptyInputFallbackReason(reason string) string {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return "빈 free-text 입력 추천이 반환되어 기본 continue 입력으로 폴백"
+	}
+	return reason + " 빈 free-text 입력 추천이 반환되어 기본 continue 입력으로 폴백"
+}
+
+func (r *Runner) skipFallbackReason(reason string, once bool) string {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		if once {
+			return "once mode: SKIP 결정이 반환되어 continue 입력으로 폴백"
+		}
+		return "LLM이 SKIP 결정을 반환해도 continue 입력으로 폴백"
+	}
+	return reason + " SKIP 대신 continue 입력으로 폴백"
+}
+
+func continueMessageFromPlannedItems(analysis prompt.Analysis) string {
+	if analysis.Classification != prompt.ClassFreeTextRequest {
+		return ""
+	}
+	if !analysis.PromptActive {
+		return ""
+	}
+	block := strings.TrimSpace(analysis.OutputBlock)
+	if block == "" {
+		return ""
+	}
+	matches := numberedPlanLinePattern.FindAllStringSubmatch(block, -1)
+	if len(matches) == 0 {
+		return ""
+	}
+	firstNumber := strings.TrimSpace(matches[0][1])
+	firstText := strings.TrimSpace(matches[0][2])
+	if firstNumber == "" || firstText == "" {
+		return ""
+	}
+	firstText = truncatePlaintextSentence(firstText, 96)
+	return fmt.Sprintf("남은 항목 %s번(%s)부터 진행하고, 검증까지 마친 뒤 다음 항목으로 이어서 진행해보자.", firstNumber, firstText)
+}
+
+func truncatePlaintextSentence(value string, limit int) string {
+	value = strings.Join(strings.Fields(strings.TrimSpace(value)), " ")
+	if limit <= 0 || len([]rune(value)) <= limit {
+		return value
+	}
+	runes := []rune(value)
+	if limit <= 3 {
+		return string(runes[:limit])
+	}
+	return string(runes[:limit-3]) + "..."
+}
+
 type llmDecision struct {
 	Action            string
 	RecommendedChoice string
 	Reason            string
+	ContinueMessage   string
 }
 
 func (r *Runner) applyLLMDecision(decision llmDecision) error {
+	r.maybeSetContinueOverride(decision.ContinueMessage, "llm")
 	switch decision.Action {
+	case "SKIP":
+		return r.injectContinue(r.skipFallbackReason(decision.Reason, false))
 	case "INJECT_SELECT":
 		choice := prompt.ParseNumericChoice(decision.RecommendedChoice)
 		if choice == "" {
@@ -852,8 +1287,13 @@ func (r *Runner) applyLLMDecision(decision llmDecision) error {
 		}
 		return r.injectChoice(choice, decision.Reason)
 	case "INJECT_INPUT":
+		input := r.prepareTextInput(decision.RecommendedChoice)
+		if input == "" {
+			r.logger("empty recommended input from LLM; falling back to continue: action=%s reason=%q", decision.Action, decision.Reason)
+			return r.injectContinue(r.emptyInputFallbackReason(decision.Reason))
+		}
 		r.setState(stateActing, decision.Reason)
-		if err := sendInputMessage(r.ctx, r.client, r.cfg.Target, r.prepareTextInput(decision.RecommendedChoice), r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay, r.clearPromptBeforeTyping()); err != nil {
+		if err := sendInputMessage(r.ctx, r.client, r.cfg.Target, input, r.submitKey(), r.submitKeyFallback(), r.cfg.SubmitFallbackDelay, r.clearPromptBeforeTyping()); err != nil {
 			return err
 		}
 		r.prevBase = capture.Snapshot{}
@@ -966,9 +1406,28 @@ func initializeProvider(ctx context.Context, name string, model string, logger f
 	return provider, nil
 }
 
-func (r *Runner) nextContinueMessage() string {
-	r.continueSentCount++
-	return r.continuePlan.messageFor(r.continueSentCount)
+func (r *Runner) nextContinueMessage(nextCount int) string {
+	if override := strings.TrimSpace(r.continueOverride); override != "" {
+		r.continueOverride = ""
+		return override
+	}
+	if nextCount <= 0 {
+		nextCount = r.continueSentCount + 1
+	}
+	return r.continuePlan.messageFor(nextCount)
+}
+
+func (r *Runner) maybeSetContinueOverride(message string, source string) {
+	message = r.prepareTextInput(message)
+	if message == "" {
+		return
+	}
+	r.continueOverride = message
+	if strings.TrimSpace(source) == "" {
+		r.logger("continue override prepared: %q", message)
+		return
+	}
+	r.logger("continue override prepared from %s: %q", source, message)
 }
 
 func classifyWithLLMFallback(ctx context.Context, provider llm.Provider, llmName string, llmModel string, analysis prompt.Analysis, plainCapture string) (llmDecision, error) {
@@ -985,9 +1444,10 @@ The watcher is already confident the terminal is waiting for user input because 
 
 Classify the required action from the final output block and prompt line.
 
-Return exactly 3 lines:
+Return exactly 4 lines:
 ACTION: INJECT_CONTINUE | INJECT_SELECT | INJECT_INPUT | SKIP
 RECOMMENDED_CHOICE: <number, text, or none>
+CONTINUE_MESSAGE: <short follow-up continue instruction, or none>
 REASON: <one short sentence>
 
 Rules:
@@ -995,6 +1455,8 @@ Rules:
 - Use INJECT_INPUT for specific free-text input requests.
 - Use INJECT_CONTINUE for completion handoff or safe generic continuation.
 - Use SKIP only if the screen clearly says there is nothing left to do.
+- If the visible text mentions parity, match rate, pass rate, or percentage progress, propose a concrete CONTINUE_MESSAGE that pushes parity toward 100%% through planned execution and verification.
+- CONTINUE_MESSAGE is optional, but when useful it should be a single actionable sentence in the operator's language.
 - Do not mention anything outside the visible terminal text.
 
 Prompt line:
@@ -1026,6 +1488,8 @@ func parseLLMDecision(raw string) llmDecision {
 			decision.Action = strings.TrimSpace(line[len("ACTION:"):])
 		case strings.HasPrefix(strings.ToUpper(line), "RECOMMENDED_CHOICE:"):
 			decision.RecommendedChoice = strings.TrimSpace(line[len("RECOMMENDED_CHOICE:"):])
+		case strings.HasPrefix(strings.ToUpper(line), "CONTINUE_MESSAGE:"):
+			decision.ContinueMessage = strings.TrimSpace(line[len("CONTINUE_MESSAGE:"):])
 		case strings.HasPrefix(strings.ToUpper(line), "REASON:"):
 			decision.Reason = strings.TrimSpace(line[len("REASON:"):])
 		}
@@ -1033,6 +1497,9 @@ func parseLLMDecision(raw string) llmDecision {
 	decision.Action = strings.ToUpper(strings.TrimSpace(decision.Action))
 	if decision.RecommendedChoice == "none" {
 		decision.RecommendedChoice = ""
+	}
+	if strings.EqualFold(decision.ContinueMessage, "none") {
+		decision.ContinueMessage = ""
 	}
 	return decision
 }
@@ -1056,31 +1523,7 @@ func sendContinueMessage(
 	fallbackDelay float64,
 	clearBeforeTyping bool,
 ) error {
-	if inMode, err := client.IsPaneInMode(ctx, target); err == nil && inMode {
-		if err := client.SendKeys(ctx, target, "-X", "cancel"); err != nil {
-			return err
-		}
-	}
-	if clearBeforeTyping {
-		if err := client.SendKeys(ctx, target, "C-u"); err != nil {
-			return err
-		}
-	}
-	if err := client.SendKeys(ctx, target, "-l", message); err != nil {
-		return err
-	}
-	if err := client.SendKeys(ctx, target, submitKey); err != nil {
-		return err
-	}
-	if fallbackSubmitKey != "" {
-		if fallbackDelay > 0 {
-			time.Sleep(time.Duration(fallbackDelay * float64(time.Second)))
-		}
-		if err := client.SendKeys(ctx, target, fallbackSubmitKey); err != nil {
-			return err
-		}
-	}
-	return nil
+	return SendContinueMessage(ctx, client, target, message, submitKey, fallbackSubmitKey, fallbackDelay, clearBeforeTyping)
 }
 
 func sendChoiceMessage(
@@ -1093,44 +1536,7 @@ func sendChoiceMessage(
 	fallbackDelay float64,
 	clearBeforeTyping bool,
 ) error {
-	if inMode, err := client.IsPaneInMode(ctx, target); err == nil && inMode {
-		if err := client.SendKeys(ctx, target, "-X", "cancel"); err != nil {
-			return err
-		}
-	}
-	if strings.EqualFold(choice, "Enter") {
-		key := submitKey
-		if strings.TrimSpace(key) == "" {
-			key = "C-m"
-		}
-		if err := client.SendKeys(ctx, target, key); err != nil {
-			return err
-		}
-		return nil
-	}
-	if _, err := strconv.Atoi(strings.TrimSpace(choice)); err != nil {
-		return fmt.Errorf("invalid choice: %s", choice)
-	}
-	if clearBeforeTyping {
-		if err := client.SendKeys(ctx, target, "C-u"); err != nil {
-			return err
-		}
-	}
-	if err := client.SendKeys(ctx, target, "-l", choice); err != nil {
-		return err
-	}
-	if err := client.SendKeys(ctx, target, submitKey); err != nil {
-		return err
-	}
-	if fallbackSubmitKey != "" {
-		if fallbackDelay > 0 {
-			time.Sleep(time.Duration(fallbackDelay * float64(time.Second)))
-		}
-		if err := client.SendKeys(ctx, target, fallbackSubmitKey); err != nil {
-			return err
-		}
-	}
-	return nil
+	return SendChoiceMessage(ctx, client, target, choice, submitKey, fallbackSubmitKey, fallbackDelay, clearBeforeTyping)
 }
 
 func sendInputMessage(
@@ -1143,35 +1549,7 @@ func sendInputMessage(
 	fallbackDelay float64,
 	clearBeforeTyping bool,
 ) error {
-	input = strings.TrimSpace(input)
-	if input == "" {
-		return fmt.Errorf("empty input")
-	}
-	if inMode, err := client.IsPaneInMode(ctx, target); err == nil && inMode {
-		if err := client.SendKeys(ctx, target, "-X", "cancel"); err != nil {
-			return err
-		}
-	}
-	if clearBeforeTyping {
-		if err := client.SendKeys(ctx, target, "C-u"); err != nil {
-			return err
-		}
-	}
-	if err := client.SendKeys(ctx, target, "-l", input); err != nil {
-		return err
-	}
-	if err := client.SendKeys(ctx, target, submitKey); err != nil {
-		return err
-	}
-	if fallbackSubmitKey != "" {
-		if fallbackDelay > 0 {
-			time.Sleep(time.Duration(fallbackDelay * float64(time.Second)))
-		}
-		if err := client.SendKeys(ctx, target, fallbackSubmitKey); err != nil {
-			return err
-		}
-	}
-	return nil
+	return SendInputMessage(ctx, client, target, input, submitKey, fallbackSubmitKey, fallbackDelay, clearBeforeTyping)
 }
 
 func sendSubmitOnly(
@@ -1182,27 +1560,7 @@ func sendSubmitOnly(
 	fallbackSubmitKey string,
 	fallbackDelay float64,
 ) error {
-	if inMode, err := client.IsPaneInMode(ctx, target); err == nil && inMode {
-		if err := client.SendKeys(ctx, target, "-X", "cancel"); err != nil {
-			return err
-		}
-	}
-	key := strings.TrimSpace(submitKey)
-	if key == "" {
-		key = "C-m"
-	}
-	if err := client.SendKeys(ctx, target, key); err != nil {
-		return err
-	}
-	if strings.TrimSpace(fallbackSubmitKey) != "" {
-		if fallbackDelay > 0 {
-			time.Sleep(time.Duration(fallbackDelay * float64(time.Second)))
-		}
-		if err := client.SendKeys(ctx, target, fallbackSubmitKey); err != nil {
-			return err
-		}
-	}
-	return nil
+	return SendSubmitOnly(ctx, client, target, submitKey, fallbackSubmitKey, fallbackDelay)
 }
 
 func clearPromptState(
@@ -1210,19 +1568,7 @@ func clearPromptState(
 	client tmux.API,
 	target string,
 ) error {
-	if inMode, err := client.IsPaneInMode(ctx, target); err == nil && inMode {
-		if err := client.SendKeys(ctx, target, "-X", "cancel"); err != nil {
-			return err
-		}
-	}
-	if err := client.SendKeys(ctx, target, "Escape"); err != nil {
-		return err
-	}
-	time.Sleep(120 * time.Millisecond)
-	if err := client.SendKeys(ctx, target, "C-u"); err != nil {
-		return err
-	}
-	return nil
+	return ClearPromptState(ctx, client, target)
 }
 
 func RunOfflineAnalysis(ctx context.Context, provider llm.Provider, llmName string, llmModel string, raw io.Reader) (prompt.Analysis, llmDecision, error) {
