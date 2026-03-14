@@ -127,7 +127,8 @@ func (m model) View() string {
 		usedHeight += 1 + lipgloss.Height(grid)
 	}
 	logHeight := height - usedHeight
-	logPanel := renderLogPanel(m.snapshot.LogLines, width, logHeight)
+	updatedText := lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Render("updated " + lastUpdatedText(m.snapshot, m.now))
+	logPanel := renderLogPanel(m.snapshot.LogLines, width, logHeight, updatedText)
 
 	sections := []string{header}
 	if grid != "" {
@@ -188,6 +189,7 @@ type cardSpec struct {
 	Title string
 	Tone  lipgloss.Color
 	Items []cardItem
+	Full  bool
 }
 
 type cardItem struct {
@@ -207,7 +209,6 @@ func buildCardsForViewport(snapshot Snapshot, now time.Time, width int, height i
 				Title: "Session",
 				Tone:  lipgloss.Color("37"),
 				Items: []cardItem{
-					{Label: "target", Value: zeroDash(snapshot.Target)},
 					{Label: "mode", Value: zeroDash(snapshot.Mode)},
 				},
 			},
@@ -234,57 +235,56 @@ func buildCardsForViewport(snapshot Snapshot, now time.Time, width int, height i
 
 	return []cardSpec{
 		{
-				Title: "Session",
-				Tone:  lipgloss.Color("37"),
-				Items: []cardItem{
-					{Label: "target", Value: zeroDash(snapshot.Target)},
-					{Label: "mode", Value: zeroDash(snapshot.Mode)},
-					{Label: "capture", Value: zeroDash(snapshot.Capture)},
-				},
+			Title: "Session",
+			Tone:  lipgloss.Color("37"),
+			Items: []cardItem{
+				{Label: "mode", Value: zeroDash(snapshot.Mode)},
+				{Label: "capture", Value: zeroDash(snapshot.Capture)},
 			},
-			{
-				Title: "Flow",
-				Tone:  lipgloss.Color("80"),
-				Items: []cardItem{
-					{Label: "state", Value: compactState(snapshot.State)},
-					{Label: "now", Value: compactTask(snapshot.CurrentTask)},
-					{Label: "next", Value: compactTask(snapshot.NextTask)},
-				},
+		},
+		{
+			Title: "Flow",
+			Tone:  lipgloss.Color("80"),
+			Items: []cardItem{
+				{Label: "state", Value: compactState(snapshot.State)},
+				{Label: "now", Value: compactTask(snapshot.CurrentTask)},
+				{Label: "next", Value: compactTask(snapshot.NextTask)},
 			},
-			{
-				Title: "Timing",
-				Tone:  lipgloss.Color("214"),
-				Items: []cardItem{
-					{Label: "wait", Value: zeroDash(snapshot.WaitPlan)},
-					{Label: "sleep", Value: sleepStatus(snapshot, now)},
-					{Label: "expire", Value: deadlineRemaining(snapshot, now)},
-				},
+		},
+		{
+			Title: "Timing",
+			Tone:  lipgloss.Color("214"),
+			Items: []cardItem{
+				{Label: "wait", Value: zeroDash(snapshot.WaitPlan)},
+				{Label: "sleep", Value: sleepStatus(snapshot, now)},
+				{Label: "expire", Value: deadlineRemaining(snapshot, now)},
 			},
-			{
-				Title: "AI",
-				Tone:  lipgloss.Color("75"),
-				Items: []cardItem{
-					{Label: "policy", Value: zeroDash(snapshot.Policy)},
-					{Label: "llm", Value: compactLLM(snapshot)},
-					{Label: "cont", Value: zeroDash(snapshot.Continue)},
-				},
+		},
+		{
+			Title: "AI",
+			Tone:  lipgloss.Color("75"),
+			Items: []cardItem{
+				{Label: "policy", Value: zeroDash(snapshot.Policy)},
+				{Label: "llm", Value: compactLLM(snapshot)},
+				{Label: "cont", Value: zeroDash(snapshot.Continue)},
 			},
-			{
-				Title: "Detail",
-				Tone:  lipgloss.Color("111"),
-				Items: []cardItem{
-					{Label: "doing", Value: zeroDash(snapshot.CurrentDesc)},
-					{Label: "next", Value: zeroDash(snapshot.NextDesc)},
-					{Label: "event", Value: zeroDash(snapshot.LastEvent), Emphasis: true},
-				},
+		},
+		{
+			Title: "Detail",
+			Tone:  lipgloss.Color("111"),
+			Full:  true,
+			Items: []cardItem{
+				{Label: "doing", Value: zeroDash(snapshot.CurrentDesc), Wrap: true},
+				{Label: "next", Value: zeroDash(snapshot.NextDesc), Wrap: true},
+				{Label: "event", Value: zeroDash(snapshot.LastEvent), Emphasis: true, Wrap: true},
 			},
-		}
+		},
+	}
 }
 
 func renderHeaderBlock(snapshot Snapshot, now time.Time, width int) string {
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("230"))
 	versionStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("151"))
-	subtleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
 
 	title := buildinfo.AppName
 	if version := strings.TrimSpace(buildinfo.Version); version != "" {
@@ -296,19 +296,31 @@ func renderHeaderBlock(snapshot Snapshot, now time.Time, width int) string {
 	targetPill := renderTargetPill(snapshot.Target)
 	statePill := renderStatePill(snapshot.State)
 	waitText := renderWaitProgressBar(snapshot.State)
-	updatedText := subtleStyle.Render("updated " + lastUpdatedText(snapshot, now))
 
 	innerWidth := maxInt(1, width)
-	topLeft := lipgloss.JoinHorizontal(lipgloss.Center, title, " ", targetPill)
-	lines := []string{topLeft}
-	if innerWidth >= 28 {
-		lines = append(lines, joinWithSpacer(statePill, updatedText, innerWidth))
-	} else {
-		lines = append(lines, statePill)
-		lines = append(lines, updatedText)
+	topLeft := title + " " + targetPill
+
+	// Try to fit state and wait on the same line as title
+	topRight := statePill
+	if waitWidth := lipgloss.Width(waitText); waitWidth > 0 {
+		if topRight != "" {
+			topRight = topRight + " " + waitText
+		} else {
+			topRight = waitText
+		}
 	}
-	if innerWidth >= 56 {
-		lines = append(lines, waitText)
+
+	topLine := topLeft
+	if lipgloss.Width(topRight) > 0 && innerWidth > lipgloss.Width(topLeft)+2+lipgloss.Width(topRight) {
+		topLine = joinWithSpacer(topLeft, topRight, innerWidth)
+	} else {
+		topLine = topLeft
+	}
+
+	lines := []string{topLine}
+	// If state/wait didn't fit on first line, put them on second line
+	if lipgloss.Width(topLine) == lipgloss.Width(topLeft) && topRight != "" {
+		lines = append(lines, topRight)
 	}
 	return strings.Join(lines, "\n")
 }
@@ -354,37 +366,60 @@ func renderCardGrid(cards []cardSpec, width int) string {
 	const minCardWidth = 26
 
 	cols := gridColumnCount(width, len(cards), minCardWidth, gap)
-	cardWidth := (width - gap*(cols-1)) / cols
-	if cardWidth <= 0 {
-		cardWidth = width
-	}
 	showTitles := cols > 1
 
-	rows := make([]string, 0, (len(cards)+cols-1)/cols)
-	for start := 0; start < len(cards); start += cols {
-		end := start + cols
-		if end > len(cards) {
-			end = len(cards)
+	rows := make([]string, 0, len(cards))
+	pending := make([]cardSpec, 0, cols)
+	flushRow := func(rowSpecs []cardSpec) {
+		if len(rowSpecs) == 0 {
+			return
 		}
-		rowSpecs := cards[start:end]
+		cardWidth := (width - gap*(len(rowSpecs)-1)) / len(rowSpecs)
+		if cardWidth <= 0 {
+			cardWidth = width
+		}
 		contentHeights := make([]int, len(rowSpecs))
 		maxContentHeight := 0
 		for i, spec := range rowSpecs {
-			contentHeights[i] = cardContentHeight(spec, cardWidth, showTitles)
+			widthForCard := cardWidth
+			// For the last card in a 2-column row, use remaining space
+			if len(rowSpecs) == 2 && i == 1 {
+				widthForCard = width - gap - cardWidth
+			}
+			contentHeights[i] = cardContentHeight(spec, widthForCard, showTitles)
 			if contentHeights[i] > maxContentHeight {
 				maxContentHeight = contentHeights[i]
 			}
 		}
-
 		row := make([]string, 0, len(rowSpecs)*2)
 		for i, spec := range rowSpecs {
 			if i > 0 {
 				row = append(row, strings.Repeat(" ", gap))
 			}
-			row = append(row, renderCard(spec, cardWidth, maxContentHeight, showTitles))
+			widthForCard := cardWidth
+			// For the last card in a 2-column row, use remaining space
+			if len(rowSpecs) == 2 && i == 1 {
+				widthForCard = width - gap - cardWidth
+			}
+			row = append(row, renderCard(spec, widthForCard, maxContentHeight, showTitles))
 		}
 		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, row...))
 	}
+
+	for _, spec := range cards {
+		if spec.Full {
+			flushRow(pending)
+			pending = pending[:0]
+			rows = append(rows, renderCard(spec, width, cardContentHeight(spec, width, showTitles), showTitles))
+			continue
+		}
+		pending = append(pending, spec)
+		if len(pending) >= cols {
+			flushRow(pending)
+			pending = pending[:0]
+		}
+	}
+	flushRow(pending)
 	return strings.Join(rows, "\n")
 }
 
@@ -424,9 +459,56 @@ func renderCard(spec cardSpec, width int, contentHeight int, showTitle bool) str
 	if showTitle {
 		lines = append(lines, titleStyle.Render(spec.Title))
 	}
-	for _, item := range spec.Items {
-		lines = append(lines, renderCardItemLines(item, innerWidth)...)
+
+	if !spec.Full {
+		const colGap = 1
+		colWidth := (innerWidth - colGap) / 2
+		// Style for padding and gap - resets to card background
+		cardBgStyle := lipgloss.NewStyle().Background(lipgloss.Color("236"))
+		for i := 0; i < len(spec.Items); i += 2 {
+			leftLines := renderCardItemLines(spec.Items[i], colWidth)
+			var rightLines []string
+			if i+1 < len(spec.Items) {
+				rightLines = renderCardItemLines(spec.Items[i+1], colWidth)
+			}
+			maxRows := maxInt(len(leftLines), len(rightLines))
+			for row := 0; row < maxRows; row++ {
+				leftCell := ""
+				if row < len(leftLines) {
+					leftCell = leftLines[row]
+				} else {
+					leftCell = strings.Repeat(" ", colWidth)
+				}
+				// Pad leftCell to colWidth with card background style
+				leftWidth := lipgloss.Width(leftCell)
+				if leftWidth < colWidth {
+					leftCell += cardBgStyle.Render(strings.Repeat(" ", colWidth-leftWidth))
+				}
+				rightCell := ""
+				if row < len(rightLines) {
+					rightCell = rightLines[row]
+				} else if len(rightLines) > 0 {
+					rightCell = strings.Repeat(" ", colWidth)
+				}
+				// Pad rightCell to colWidth with card background style
+				rightWidth := lipgloss.Width(rightCell)
+				if rightWidth < colWidth {
+					rightCell += cardBgStyle.Render(strings.Repeat(" ", colWidth-rightWidth))
+				}
+				if rightCell != "" {
+					gapStr := cardBgStyle.Render(strings.Repeat(" ", colGap))
+					lines = append(lines, leftCell+gapStr+rightCell)
+				} else {
+					lines = append(lines, leftCell)
+				}
+			}
+		}
+	} else {
+		for _, item := range spec.Items {
+			lines = append(lines, renderCardItemLines(item, innerWidth)...)
+		}
 	}
+
 	content := strings.Join(lines, "\n")
 	return cardStyle.Height(contentHeight).Render(content)
 }
@@ -437,8 +519,22 @@ func cardContentHeight(spec cardSpec, width int, showTitle bool) int {
 	if showTitle {
 		lines = 1
 	}
-	for _, item := range spec.Items {
-		lines += len(renderCardItemLines(item, innerWidth))
+
+	if !spec.Full {
+		const colGap = 1
+		colWidth := (innerWidth - colGap) / 2
+		for i := 0; i < len(spec.Items); i += 2 {
+			leftLines := len(renderCardItemLines(spec.Items[i], colWidth))
+			rightLines := 0
+			if i+1 < len(spec.Items) {
+				rightLines = len(renderCardItemLines(spec.Items[i+1], colWidth))
+			}
+			lines += maxInt(leftLines, rightLines)
+		}
+	} else {
+		for _, item := range spec.Items {
+			lines += len(renderCardItemLines(item, innerWidth))
+		}
 	}
 	return lines
 }
@@ -555,11 +651,14 @@ func paddedCardLabel(label string) string {
 	return label + " "
 }
 
-func renderLogPanel(logLines []string, width int, height int) string {
+func renderLogPanel(logLines []string, width int, height int, updatedText string) string {
 	if width <= 0 || height <= 0 {
 		return ""
 	}
 	if height < 3 {
+		if updatedText != "" {
+			return fitViewHeight(joinWithSpacer("Activity Log", updatedText, width), width, height)
+		}
 		return fitViewHeight(lipgloss.NewStyle().Foreground(lipgloss.Color("250")).Render("Activity Log"), width, height)
 	}
 	innerWidth := maxInt(1, width-2)
@@ -575,7 +674,8 @@ func renderLogPanel(logLines []string, width int, height int) string {
 	logStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("248"))
 	innerHeight := maxInt(1, height)
 
-	contentLines := []string{titleStyle.Render("Activity Log")}
+	titleLine := joinWithSpacer(titleStyle.Render("Activity Log"), updatedText, innerWidth)
+	contentLines := []string{titleLine}
 	logSlots := innerHeight - 1
 	if logSlots < 0 {
 		logSlots = 0

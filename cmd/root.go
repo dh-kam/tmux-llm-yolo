@@ -10,16 +10,21 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/dh-kam/tmux-llm-yolo/internal/buildinfo"
+	"github.com/dh-kam/tmux-llm-yolo/internal/capture"
+	"github.com/dh-kam/tmux-llm-yolo/internal/i18n"
 	"github.com/dh-kam/tmux-llm-yolo/internal/llm"
 	"github.com/dh-kam/tmux-llm-yolo/internal/policy"
 	watchruntime "github.com/dh-kam/tmux-llm-yolo/internal/runtime"
+	sessioncheck "github.com/dh-kam/tmux-llm-yolo/internal/sessioncheck"
 	"github.com/dh-kam/tmux-llm-yolo/internal/tmux"
 	"github.com/dh-kam/tmux-llm-yolo/internal/tui"
+	"github.com/dh-kam/tmux-llm-yolo/internal/updater"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -32,15 +37,7 @@ var seoulLocation = func() *time.Location {
 	return loc
 }()
 
-type captureDecision struct {
-	Action            string
-	Status            string
-	Working           bool
-	MultiChoice       bool
-	Completed         bool
-	RecommendedChoice string
-	Reason            string
-}
+type captureDecision = sessioncheck.Decision
 
 type captureDecisionArtifact struct {
 	Command          string                `json:"command"`
@@ -82,6 +79,7 @@ func safeFilename(value string) string {
 }
 
 func writeCaptureArtifacts(
+	locale string,
 	logger func(string, ...interface{}),
 	stateDir string,
 	command string,
@@ -101,7 +99,7 @@ func writeCaptureArtifacts(
 	stem := fmt.Sprintf("%s-%s-%s-%03d", safeTarget, command, timestamp, iteration)
 	capturedDir := filepath.Join(stateDir, "captured")
 	if err := os.MkdirAll(capturedDir, 0o755); err != nil {
-		logger("경고: captured 디렉터리 생성 실패 (%s): %s", capturedDir, err)
+		logger(i18n.T(locale, "cmd.warn_capture_artifacts_dir", capturedDir, err))
 		return
 	}
 
@@ -109,12 +107,12 @@ func writeCaptureArtifacts(
 	plainCapturePath := filepath.Join(capturedDir, stem+".plain.txt")
 	decisionJSONPath := filepath.Join(capturedDir, stem+".json")
 
-	if err := writeStateTextFile(rawCapturePath, []byte(rawCapture), logger); err != nil {
-		logger("경고: captured ANSI 저장 실패 (%s): %s", rawCapturePath, err)
+	if err := writeStateTextFile(rawCapturePath, []byte(rawCapture), locale, logger); err != nil {
+		logger(i18n.T(locale, "cmd.warn_capture_raw_write", rawCapturePath, err))
 	}
 	plainCapture := stripANSICodesAll(rawCapture)
-	if err := writeStateTextFile(plainCapturePath, []byte(plainCapture), logger); err != nil {
-		logger("경고: captured plain 저장 실패 (%s): %s", plainCapturePath, err)
+	if err := writeStateTextFile(plainCapturePath, []byte(plainCapture), locale, logger); err != nil {
+		logger(i18n.T(locale, "cmd.warn_capture_plain_write", plainCapturePath, err))
 	}
 
 	record := captureDecisionArtifact{
@@ -143,11 +141,11 @@ func writeCaptureArtifacts(
 	}
 	data, err := json.MarshalIndent(record, "", "  ")
 	if err != nil {
-		logger("경고: 판정 JSON marshal 실패: %s", err)
+		logger(i18n.T(locale, "cmd.warn_capture_decision_marshal", err))
 		return
 	}
 	if err := os.WriteFile(decisionJSONPath, data, 0644); err != nil {
-		logger("경고: 판정 JSON 저장 실패 (%s): %s", decisionJSONPath, err)
+		logger(i18n.T(locale, "cmd.warn_capture_decision_json_write", decisionJSONPath, err))
 	}
 }
 
@@ -159,9 +157,9 @@ func readTextFile(path string) string {
 	return strings.TrimSpace(string(data))
 }
 
-func writeStateTextFile(path string, data []byte, logger func(string, ...interface{})) error {
+func writeStateTextFile(path string, data []byte, locale string, logger func(string, ...interface{})) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		logger("경고: 상태 파일 디렉터리 생성 실패 (%s): %s", filepath.Dir(path), err)
+		logger(i18n.T(locale, "cmd.warn_state_file_dir_mkdir", filepath.Dir(path), err))
 		return err
 	}
 	return os.WriteFile(path, data, 0644)
@@ -200,6 +198,7 @@ func init() {
 	rootCmd.SetVersionTemplate(fmt.Sprintf("{{printf \"%%s\\ncommit: %%s\\nbuild-date: %%s\\n\" .Version %q %q}}", buildinfo.GitCommit, buildinfo.BuildDate))
 	rootCmd.PersistentFlags().StringP("llm", "l", "glm", "llm selector: glm, codex, copilot, gemini, ollama/<model> or ollama with --llm-model (also accepts gemini-cli)")
 	rootCmd.PersistentFlags().StringP("target", "t", "", "target tmux session name")
+	rootCmd.PersistentFlags().String("locale", i18n.DefaultAppLocale, "UI and prompt locale (en, ko, ja, zh, vi, hi, ru, es, fr)")
 	rootCmd.PersistentFlags().Int("interval-seconds", 4, "watch loop interval in seconds")
 	rootCmd.PersistentFlags().Int("suspect-wait-seconds-1", 4, "first waiting suspicion recheck delay in seconds")
 	rootCmd.PersistentFlags().Int("suspect-wait-seconds-2", 4, "second waiting suspicion recheck delay in seconds")
@@ -207,11 +206,17 @@ func init() {
 	rootCmd.PersistentFlags().Int("duration-seconds", 86400, "maximum watch duration in seconds")
 	rootCmd.PersistentFlags().Int("capture-lines", 25, "number of visible lines to capture from target pane")
 	rootCmd.PersistentFlags().Bool("capture-with-ansi", true, "capture tmux pane with ANSI escapes (-e)")
-	rootCmd.PersistentFlags().StringP("continue-message", "c", "응 계속 이어서 진행해서 포팅 완료까지 진행해보자", "message sent when model waits for user input")
+	rootCmd.PersistentFlags().StringP("continue-message", "c", "", "message sent when model waits for user input")
 	rootCmd.PersistentFlags().String("policy", "default", "watcher policy: default, poc-completion, aggressive-architecture, parity-porting, creative-exploration")
 	rootCmd.PersistentFlags().String("submit-key", "C-m", "tmux key used to submit the message")
 	rootCmd.PersistentFlags().String("submit-key-fallback", "C-m", "fallback submit key for alternative mode")
 	rootCmd.PersistentFlags().String("submit-key-fallback-delay", "0.15", "fallback submit key delay in seconds")
+	rootCmd.PersistentFlags().Bool("disable-auto-update", false, "disable automatic github release self-update before running")
+	rootCmd.PersistentFlags().String("github-token", "", "github token for auto-update API requests")
+	rootCmd.PersistentFlags().String("github-repo", "dh-kam/tmux-llm-yolo", "github repo for auto-update (owner/name)")
+	rootCmd.PersistentFlags().Int("auto-update-retry-count", 2, "number of retry attempts for github update requests")
+	rootCmd.PersistentFlags().String("auto-update-retry-delay", "0.5", "base retry delay in seconds for github update requests")
+	rootCmd.PersistentFlags().Bool("auto-update-require-checksum", false, "require downloaded release artifact checksum verification")
 	rootCmd.PersistentFlags().String("state-dir", "", "directory for watch state files")
 	rootCmd.PersistentFlags().String("log-file", "", "path to log file")
 	rootCmd.PersistentFlags().String("llm-model", "", "llm model override")
@@ -220,6 +225,7 @@ func init() {
 
 	_ = viper.BindPFlag("llm", rootCmd.PersistentFlags().Lookup("llm"))
 	_ = viper.BindPFlag("target", rootCmd.PersistentFlags().Lookup("target"))
+	_ = viper.BindPFlag("locale", rootCmd.PersistentFlags().Lookup("locale"))
 	_ = viper.BindPFlag("interval-seconds", rootCmd.PersistentFlags().Lookup("interval-seconds"))
 	_ = viper.BindPFlag("suspect-wait-seconds-1", rootCmd.PersistentFlags().Lookup("suspect-wait-seconds-1"))
 	_ = viper.BindPFlag("suspect-wait-seconds-2", rootCmd.PersistentFlags().Lookup("suspect-wait-seconds-2"))
@@ -232,6 +238,12 @@ func init() {
 	_ = viper.BindPFlag("submit-key", rootCmd.PersistentFlags().Lookup("submit-key"))
 	_ = viper.BindPFlag("submit-key-fallback", rootCmd.PersistentFlags().Lookup("submit-key-fallback"))
 	_ = viper.BindPFlag("submit-key-fallback-delay", rootCmd.PersistentFlags().Lookup("submit-key-fallback-delay"))
+	_ = viper.BindPFlag("disable-auto-update", rootCmd.PersistentFlags().Lookup("disable-auto-update"))
+	_ = viper.BindPFlag("github-token", rootCmd.PersistentFlags().Lookup("github-token"))
+	_ = viper.BindPFlag("github-repo", rootCmd.PersistentFlags().Lookup("github-repo"))
+	_ = viper.BindPFlag("auto-update-retry-count", rootCmd.PersistentFlags().Lookup("auto-update-retry-count"))
+	_ = viper.BindPFlag("auto-update-retry-delay", rootCmd.PersistentFlags().Lookup("auto-update-retry-delay"))
+	_ = viper.BindPFlag("auto-update-require-checksum", rootCmd.PersistentFlags().Lookup("auto-update-require-checksum"))
 	_ = viper.BindPFlag("state-dir", rootCmd.PersistentFlags().Lookup("state-dir"))
 	_ = viper.BindPFlag("log-file", rootCmd.PersistentFlags().Lookup("log-file"))
 	_ = viper.BindPFlag("llm-model", rootCmd.PersistentFlags().Lookup("llm-model"))
@@ -244,6 +256,7 @@ func init() {
 
 	viper.SetDefault("llm", "glm")
 	viper.SetDefault("target", "")
+	viper.SetDefault("locale", i18n.DefaultAppLocale)
 	viper.SetDefault("interval-seconds", 4)
 	viper.SetDefault("suspect-wait-seconds-1", 4)
 	viper.SetDefault("suspect-wait-seconds-2", 4)
@@ -251,11 +264,17 @@ func init() {
 	viper.SetDefault("duration-seconds", 86400)
 	viper.SetDefault("capture-lines", 25)
 	viper.SetDefault("capture-with-ansi", true)
-	viper.SetDefault("continue-message", "응 계속 이어서 진행해서 포팅 완료까지 진행해보자")
+	viper.SetDefault("continue-message", "")
 	viper.SetDefault("policy", "default")
 	viper.SetDefault("submit-key", "C-m")
 	viper.SetDefault("submit-key-fallback", "C-m")
 	viper.SetDefault("submit-key-fallback-delay", "0.15")
+	viper.SetDefault("disable-auto-update", false)
+	viper.SetDefault("github-token", "")
+	viper.SetDefault("github-repo", "dh-kam/tmux-llm-yolo")
+	viper.SetDefault("auto-update-retry-count", 2)
+	viper.SetDefault("auto-update-retry-delay", "0.5")
+	viper.SetDefault("auto-update-require-checksum", false)
 	viper.SetDefault("state-dir", "")
 	viper.SetDefault("log-file", "")
 	viper.SetDefault("llm-model", "")
@@ -265,6 +284,8 @@ func init() {
 	rootCmd.AddCommand(watchCmd, checkCmd)
 	checkCmd.Flags().String("capture-file", "", "offline mode: classify a saved capture file instead of querying tmux")
 	watchCmd.Flags().Bool("once", false, "run exactly one watch cycle and exit")
+	watchCmd.Flags().Bool("dry-run", false, "preview intended actions without sending any tmux keys")
+	watchCmd.Flags().String("format", "plain", "dry-run output format: plain, json, or yaml")
 }
 
 func runWatch(cmd *cobra.Command, args []string) error {
@@ -277,28 +298,47 @@ func runWatch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	config.once = once
+	dryRun, err := cmd.Flags().GetBool("dry-run")
+	if err != nil {
+		return err
+	}
+	outputFormat, err := cmd.Flags().GetString("format")
+	if err != nil {
+		return err
+	}
+	outputFormat, err = normalizeDryRunOutputFormat(outputFormat)
+	if err != nil {
+		return err
+	}
+	config.dryRun = dryRun
+	config.dryRunOutputFormat = outputFormat
 
 	ctx := cmd.Context()
 
 	logBuffer := tui.NewLogBuffer(0)
 	logger := newLogger(config.logFile, logBuffer)
-	logger("감시 시작: session=%s interval=%ds duration=%ds", config.target, config.interval, config.duration)
-	logger("llm=%s model=%s fallback_llm=%s fallback_model=%s policy=%s capture=%d suspect_waits=%ds/%ds/%ds", config.llm, config.llmModel, config.fallbackLLM, config.fallbackLLMModel, config.policy, config.captureLines, config.suspectWait1, config.suspectWait2, config.suspectWait3)
+	logger(i18n.T(config.locale, "cmd.watch_start", config.target, config.interval, config.duration))
+	logger(i18n.T(config.locale, "cmd.watch_llm_status", config.llm, config.llmModel, config.fallbackLLM, config.fallbackLLMModel, config.policy, config.captureLines, config.suspectWait1, config.suspectWait2, config.suspectWait3))
+	logger(i18n.T(config.locale, "cmd.watch_dryrun", config.dryRun, config.dryRunOutputFormat))
+	logger(i18n.T(config.locale, "cmd.watch_auto_update_flag", config.autoUpdate))
+	if err := applyAutoUpdate(ctx, logger, config); err != nil {
+		logger(i18n.T(config.locale, "cmd.watch_auto_update_error", err))
+	}
 
 	tmuxClient, err := tmux.New()
 	if err != nil {
 		return err
 	}
-	logger("tmux target: %s", config.target)
+	logger(i18n.T(config.locale, "cmd.watch_tmux_target", config.target))
 
 	sessions, err := tmuxClient.ListSessions(ctx)
 	if err != nil {
-		return fmt.Errorf("tmux 세션 목록 조회 실패: %w", err)
+		return fmt.Errorf(i18n.T(config.locale, "cmd.error_tmux_session_list"), err)
 	}
 	if len(sessions) > 0 {
-		logger("현재 tmux 세션:")
+		logger(i18n.T(config.locale, "cmd.watch_current_sessions"))
 		for _, session := range sessions {
-			logger("  - %s", session.Name)
+			logger(i18n.T(config.locale, "cmd.watch_session_item"), session.Name)
 		}
 	}
 	runner := watchruntime.New(
@@ -318,8 +358,11 @@ func runWatch(cmd *cobra.Command, args []string) error {
 			LLMModel:            config.llmModel,
 			FallbackLLMName:     config.fallbackLLM,
 			FallbackLLMModel:    config.fallbackLLMModel,
+			Locale:              config.locale,
 			PolicyName:          config.policy,
 			Once:                config.once,
+			DryRun:              config.dryRun,
+			DryRunOutputFormat:  config.dryRunOutputFormat,
 			LogBuffer:           logBuffer,
 		},
 		tmuxClient,
@@ -334,8 +377,49 @@ func runWatch(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	}
-	logger("감시 종료")
+	logger(i18n.T(config.locale, "cmd.watch_end"))
 	return nil
+}
+
+func applyAutoUpdate(ctx context.Context, logger func(string, ...interface{}), config watchConfig) error {
+	if !config.autoUpdate {
+		return nil
+	}
+
+	if !strings.Contains(config.autoUpdateRepo, "/") {
+		return fmt.Errorf("github-repo format must be owner/repo: %s", config.autoUpdateRepo)
+	}
+
+	variant := strings.TrimSpace(buildinfo.Variant)
+	if variant == "" || strings.EqualFold(variant, "unknown") {
+		variant = "release"
+	}
+
+	newVersion, updated, err := updater.SelfUpdate(ctx, updater.Config{
+		Repo:              config.autoUpdateRepo,
+		AppName:           buildinfo.AppName,
+		Variant:           variant,
+		OS:                runtime.GOOS,
+		Arch:              runtime.GOARCH,
+		CurrentVersion:    buildinfo.Version,
+		AuthToken:         config.autoUpdateToken,
+		MaxRetryCount:     config.autoUpdateRetryCount,
+		RetryDelay:        config.autoUpdateRetryDelay,
+		RequireChecksum:   config.autoUpdateRequireChecksum,
+		Logger:            logger,
+		AllowPrerelease:   false,
+		CurrentExecutable: "",
+	})
+	if err != nil {
+		return err
+	}
+	if !updated {
+		return nil
+	}
+
+	logger(i18n.T(config.locale, "cmd.watch_auto_update_applied", buildinfo.Version, strings.TrimSpace(newVersion)))
+	logger(i18n.T(config.locale, "cmd.watch_auto_update_restart"))
+	return updater.RestartSelf()
 }
 
 func runCheck(cmd *cobra.Command, args []string) error {
@@ -347,8 +431,8 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	logger := newLogger(config.logFile, nil)
-	logger("1회 검사 시작: session=%s capture=%d", config.target, config.captureLines)
-	logger("llm=%s model=%s fallback_llm=%s fallback_model=%s", config.llm, config.llmModel, config.fallbackLLM, config.fallbackLLMModel)
+	logger(i18n.T(config.locale, "cmd.check_start", config.target, config.captureLines))
+	logger(i18n.T(config.locale, "cmd.check_llm_status", config.llm, config.llmModel, config.fallbackLLM, config.fallbackLLMModel))
 	captureFile, err := cmd.Flags().GetString("capture-file")
 	if err != nil {
 		return err
@@ -359,10 +443,10 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	logger("LLM provider selected: %s", providerLabel)
-	logger("tmux target: %s", config.target)
+	logger(i18n.T(config.locale, "cmd.check_provider_selected", providerLabel))
+	logger(i18n.T(config.locale, "cmd.watch_tmux_target", config.target))
 	if captureFile != "" {
-		logger("오프라인 판정 모드: capture file=%s", captureFile)
+		logger(i18n.T(config.locale, "cmd.check_offline_mode", captureFile))
 	}
 
 	timestamp := time.Now().In(seoulLocation).Format("20060102-150405")
@@ -375,22 +459,23 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	if captureFile != "" {
 		rawCapture, err := os.ReadFile(captureFile)
 		if err != nil {
-			return fmt.Errorf("capture 파일 읽기 실패 (%s): %w", captureFile, err)
+			return fmt.Errorf(i18n.T(config.locale, "cmd.error_capture_file_read", captureFile), err)
 		}
 		captureText := string(rawCapture)
-		if err := writeStateTextFile(capturePath, rawCapture, logger); err != nil {
-			logger("경고: 캡처 결과 파일 저장 실패 (%s): %s", capturePath, err)
+		if err := writeStateTextFile(capturePath, rawCapture, config.locale, logger); err != nil {
+			logger(i18n.T(config.locale, "cmd.warn_capture_text_write", capturePath, err))
 		}
 
 		displayText := stripANSICodes(captureText, config.captureWithANSI)
 		emptyCaptureDecision := captureDecision{
 			Action: "SKIP",
 			Status: "EMPTY",
-			Reason: "trimmed capture is empty",
+			Reason: i18n.T(config.locale, "cmd.reason_empty_capture"),
 		}
 		fmt.Printf("SESSION_STATE=OFFLINE\n")
 		if strings.TrimSpace(displayText) == "" {
 			writeCaptureArtifacts(
+				config.locale,
 				logger,
 				config.stateDir,
 				"check",
@@ -412,7 +497,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			fmt.Printf("MULTIPLE_CHOICE=%t\n", emptyCaptureDecision.MultiChoice)
 			fmt.Printf("COMPLETED=%t\n", emptyCaptureDecision.Completed)
 			fmt.Printf("REASON=%s\n", emptyCaptureDecision.Reason)
-			logger("오프라인 체크 완료: 빈 캡처")
+			logger(i18n.T(config.locale, "cmd.check_offline_empty"))
 			return nil
 		}
 
@@ -427,8 +512,10 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			captureFile,
 			config.llm,
 			config.llmModel,
+			config.locale,
 		)
 		writeCaptureArtifacts(
+			config.locale,
 			logger,
 			config.stateDir,
 			"check",
@@ -453,7 +540,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		if decision.RecommendedChoice != "" {
 			fmt.Printf("RECOMMENDED_CHOICE=%s\n", decision.RecommendedChoice)
 		}
-		logger("오프라인 체크 결과: %s / %s", decision.Action, decision.Reason)
+		logger(i18n.T(config.locale, "cmd.check_result", decision.Action, decision.Reason))
 		return nil
 	}
 
@@ -468,30 +555,32 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		tmuxClient,
 		config.target,
 		logger,
+		config.locale,
 		statePromptPath,
 		sessionStatePath,
 	)
 	fmt.Printf("SESSION_STATE=%s\n", sessionState)
 	if sessionState != "EXISTS" {
-		fmt.Printf("결과: 세션이 존재하지 않습니다\n")
+		fmt.Printf("%s\n", i18n.T(config.locale, "cmd.check_session_not_found"))
 		return nil
 	}
 
 	capture, err := tmuxClient.CapturePane(ctx, config.target, config.captureLines, config.captureWithANSI)
 	if err != nil {
-		return fmt.Errorf("tmux 패널 캡처 실패 (session=%s): %w", config.target, err)
+		return fmt.Errorf(i18n.T(config.locale, "cmd.error_tmux_capture_failed", config.target), err)
 	}
 	captureText := stripANSICodes(capture, config.captureWithANSI)
-	if err := writeStateTextFile(capturePath, []byte(capture), logger); err != nil {
-		logger("경고: 캡처 결과 파일 저장 실패 (%s): %s", capturePath, err)
+	if err := writeStateTextFile(capturePath, []byte(capture), config.locale, logger); err != nil {
+		logger(i18n.T(config.locale, "cmd.warn_capture_text_write", capturePath, err))
 	}
 	emptyCaptureDecision := captureDecision{
 		Action: "SKIP",
 		Status: "EMPTY",
-		Reason: "trimmed capture is empty",
+		Reason: i18n.T(config.locale, "cmd.reason_empty_capture"),
 	}
 	if strings.TrimSpace(captureText) == "" {
 		writeCaptureArtifacts(
+			config.locale,
 			logger,
 			config.stateDir,
 			"check",
@@ -522,8 +611,10 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		"",
 		config.llm,
 		config.llmModel,
+		config.locale,
 	)
 	writeCaptureArtifacts(
+		config.locale,
 		logger,
 		config.stateDir,
 		"check",
@@ -548,32 +639,41 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	if decision.RecommendedChoice != "" {
 		fmt.Printf("RECOMMENDED_CHOICE=%s\n", decision.RecommendedChoice)
 	}
-	logger("체크 결과: %s / %s", decision.Action, decision.Reason)
+	logger(i18n.T(config.locale, "cmd.check_result", decision.Action, decision.Reason))
 
 	return nil
 }
 
 type watchConfig struct {
-	llm                 string
-	fallbackLLM         string
-	target              string
-	interval            int
-	suspectWait1        int
-	suspectWait2        int
-	suspectWait3        int
-	duration            int
-	captureLines        int
-	continueMessage     string
-	policy              string
-	submitKey           string
-	submitKeyFallback   string
-	submitFallbackDelay float64
-	stateDir            string
-	logFile             string
-	llmModel            string
-	fallbackLLMModel    string
-	captureWithANSI     bool
-	once                bool
+	locale                    string
+	llm                       string
+	fallbackLLM               string
+	target                    string
+	interval                  int
+	suspectWait1              int
+	suspectWait2              int
+	suspectWait3              int
+	duration                  int
+	captureLines              int
+	continueMessage           string
+	policy                    string
+	submitKey                 string
+	submitKeyFallback         string
+	submitFallbackDelay       float64
+	stateDir                  string
+	logFile                   string
+	llmModel                  string
+	fallbackLLMModel          string
+	captureWithANSI           bool
+	once                      bool
+	dryRun                    bool
+	dryRunOutputFormat        string
+	autoUpdate                bool
+	autoUpdateRepo            string
+	autoUpdateToken           string
+	autoUpdateRetryCount      int
+	autoUpdateRetryDelay      time.Duration
+	autoUpdateRequireChecksum bool
 }
 
 func loadConfig(args []string) (watchConfig, error) {
@@ -588,31 +688,50 @@ func loadConfig(args []string) (watchConfig, error) {
 
 	interval := intFromEnv("INTERVAL_SECONDS", viper.GetInt("interval-seconds"))
 	if interval <= 0 {
-		return watchConfig{}, fmt.Errorf("interval-seconds는 0보다 커야 합니다")
+		return watchConfig{}, errors.New(i18n.T(i18n.DefaultAppLocale, "cmd.error_interval"))
 	}
 	suspectWait1 := intFromEnv("SUSPECT_WAIT_SECONDS_1", viper.GetInt("suspect-wait-seconds-1"))
 	if suspectWait1 <= 0 {
-		return watchConfig{}, fmt.Errorf("suspect-wait-seconds-1은 0보다 커야 합니다")
+		return watchConfig{}, errors.New(i18n.T(i18n.DefaultAppLocale, "cmd.error_suspect_wait_1"))
 	}
 	suspectWait2 := intFromEnv("SUSPECT_WAIT_SECONDS_2", viper.GetInt("suspect-wait-seconds-2"))
 	if suspectWait2 <= 0 {
-		return watchConfig{}, fmt.Errorf("suspect-wait-seconds-2은 0보다 커야 합니다")
+		return watchConfig{}, errors.New(i18n.T(i18n.DefaultAppLocale, "cmd.error_suspect_wait_2"))
 	}
 	suspectWait3 := intFromEnv("SUSPECT_WAIT_SECONDS_3", viper.GetInt("suspect-wait-seconds-3"))
 	if suspectWait3 <= 0 {
-		return watchConfig{}, fmt.Errorf("suspect-wait-seconds-3은 0보다 커야 합니다")
+		return watchConfig{}, errors.New(i18n.T(i18n.DefaultAppLocale, "cmd.error_suspect_wait_3"))
 	}
 
 	duration := intFromEnv("DURATION_SECONDS", viper.GetInt("duration-seconds"))
 	if duration <= 0 {
-		return watchConfig{}, fmt.Errorf("duration-seconds는 0보다 커야 합니다")
+		return watchConfig{}, errors.New(i18n.T(i18n.DefaultAppLocale, "cmd.error_duration"))
 	}
 
 	captureLines := intFromEnv("CAPTURE_LINES", viper.GetInt("capture-lines"))
 	if captureLines <= 0 {
-		return watchConfig{}, fmt.Errorf("capture-lines는 0보다 커야 합니다")
+		return watchConfig{}, errors.New(i18n.T(i18n.DefaultAppLocale, "cmd.error_capture_lines"))
 	}
 	captureWithANSI := boolFromEnv("CAPTURE_WITH_ANSI", viper.GetBool("capture-with-ansi"))
+	autoUpdateDisabled := boolFromEnv("DISABLE_AUTO_UPDATE", viper.GetBool("disable-auto-update"))
+	autoUpdate := !autoUpdateDisabled
+	autoUpdateRepo := strings.TrimSpace(firstNonEmpty(os.Getenv("GITHUB_REPO"), viper.GetString("github-repo")))
+	if autoUpdateRepo == "" {
+		autoUpdateRepo = "dh-kam/tmux-llm-yolo"
+	}
+	autoUpdateToken := firstNonEmpty(os.Getenv("GITHUB_TOKEN"), strings.TrimSpace(viper.GetString("github-token")))
+	autoUpdateRetryCount := intFromEnv("AUTO_UPDATE_RETRY_COUNT", viper.GetInt("auto-update-retry-count"))
+	autoUpdateRetryDelaySeconds := parseFloat(
+		firstNonEmpty(os.Getenv("AUTO_UPDATE_RETRY_DELAY"), viper.GetString("auto-update-retry-delay")),
+		0.5,
+	)
+	autoUpdateRetryDelay := time.Duration(autoUpdateRetryDelaySeconds * float64(time.Second))
+	autoUpdateRequireChecksum := boolFromEnv("AUTO_UPDATE_REQUIRE_CHECKSUM", viper.GetBool("auto-update-require-checksum"))
+	rawLocale := firstNonEmpty(os.Getenv("TMUX_YOLO_LOCALE"), firstNonEmpty(os.Getenv("LOCALE"), viper.GetString("locale")))
+	if !i18n.IsSupportedLocale(rawLocale) {
+		rawLocale = i18n.DefaultAppLocale
+	}
+	locale := i18n.NormalizeLocale(rawLocale)
 
 	continueMessage := firstNonEmpty(os.Getenv("CONTINUE_MESSAGE"), viper.GetString("continue-message"))
 	policyName := policy.Resolve(firstNonEmpty(os.Getenv("POLICY"), viper.GetString("policy"))).Name()
@@ -632,7 +751,7 @@ func loadConfig(args []string) (watchConfig, error) {
 		logFile = filepath.Join(stateDir, "watch.log")
 	}
 	if err := os.MkdirAll(stateDir, 0o755); err != nil {
-		return watchConfig{}, fmt.Errorf("watch state 디렉터리 생성 실패: %w", err)
+		return watchConfig{}, errors.New(i18n.T(i18n.DefaultAppLocale, "cmd.error_watch_state_dir", err))
 	}
 
 	llmName := strings.ToLower(strings.TrimSpace(viper.GetString("llm")))
@@ -656,26 +775,48 @@ func loadConfig(args []string) (watchConfig, error) {
 	}
 
 	return watchConfig{
-		llm:                 parsedLLMName,
-		fallbackLLM:         parsedFallbackLLMName,
-		target:              target,
-		interval:            interval,
-		suspectWait1:        suspectWait1,
-		suspectWait2:        suspectWait2,
-		suspectWait3:        suspectWait3,
-		duration:            duration,
-		captureLines:        captureLines,
-		continueMessage:     continueMessage,
-		policy:              policyName,
-		submitKey:           submitKey,
-		submitKeyFallback:   submitFallback,
-		submitFallbackDelay: submitFallbackDelay,
-		stateDir:            stateDir,
-		logFile:             logFile,
-		llmModel:            llmModel,
-		fallbackLLMModel:    fallbackLLMModel,
-		captureWithANSI:     captureWithANSI,
+		locale:                    locale,
+		llm:                       parsedLLMName,
+		fallbackLLM:               parsedFallbackLLMName,
+		target:                    target,
+		interval:                  interval,
+		suspectWait1:              suspectWait1,
+		suspectWait2:              suspectWait2,
+		suspectWait3:              suspectWait3,
+		duration:                  duration,
+		captureLines:              captureLines,
+		continueMessage:           continueMessage,
+		policy:                    policyName,
+		submitKey:                 submitKey,
+		submitKeyFallback:         submitFallback,
+		submitFallbackDelay:       submitFallbackDelay,
+		stateDir:                  stateDir,
+		logFile:                   logFile,
+		llmModel:                  llmModel,
+		fallbackLLMModel:          fallbackLLMModel,
+		captureWithANSI:           captureWithANSI,
+		dryRun:                    false,
+		dryRunOutputFormat:        "plain",
+		autoUpdate:                autoUpdate,
+		autoUpdateRepo:            autoUpdateRepo,
+		autoUpdateToken:           autoUpdateToken,
+		autoUpdateRetryCount:      autoUpdateRetryCount,
+		autoUpdateRetryDelay:      autoUpdateRetryDelay,
+		autoUpdateRequireChecksum: autoUpdateRequireChecksum,
 	}, nil
+}
+
+func normalizeDryRunOutputFormat(raw string) (string, error) {
+	format := strings.ToLower(strings.TrimSpace(raw))
+	switch format {
+	case "", "plain", "json", "yaml":
+		if format == "" {
+			format = "plain"
+		}
+		return format, nil
+	default:
+		return "", fmt.Errorf("unsupported dry-run format: %s", raw)
+	}
 }
 
 func parseLLMNameAndModel(raw string) (string, string) {
@@ -735,141 +876,31 @@ func initCheckProvider(ctx context.Context, config watchConfig, logger func(stri
 			continue
 		}
 		if usage.HasKnownLimit {
-			logger("LLM 사용량(%s): source=%s, remaining=%d", candidate.label, usage.Source, usage.Remaining)
+			logger(i18n.T(config.locale, "cmd.log_llm_usage", candidate.label, usage.Source, usage.Remaining))
 		} else {
-			logger("LLM 사용량(%s): 공급자가 제공하지 않음 (source=%s)", candidate.label, usage.Source)
+			logger(i18n.T(config.locale, "cmd.log_llm_usage_unknown", candidate.label, usage.Source))
 		}
-		logger("LLM(%s): %s (%s)", candidate.label, candidate.name, binary)
+		logger(i18n.T(config.locale, "cmd.log_llm_selected", candidate.label, candidate.name, binary))
 		return provider, fmt.Sprintf("%s:%s/%s", candidate.label, candidate.name, candidate.model), nil
 	}
 	if len(errs) == 0 {
-		return nil, "", fmt.Errorf("사용 가능한 llm provider가 없습니다")
+		return nil, "", errors.New(i18n.T(config.locale, "cmd.error_no_llm_provider"))
 	}
-	return nil, "", fmt.Errorf("llm provider 초기화 실패: %s", strings.Join(errs, "; "))
+	return nil, "", errors.New(i18n.T(config.locale, "cmd.error_llm_provider_init_failed", strings.Join(errs, "; ")))
 }
 
-func isCompletedCapturePath(path string) bool {
-	name := filepath.Base(strings.TrimSpace(path))
-	if name == "" {
-		return false
-	}
-	return strings.Contains(strings.ToLower(name), ".completed.") || strings.HasSuffix(strings.ToLower(name), ".completed")
-}
+func isCompletedCapturePath(path string) bool { return sessioncheck.IsCompletedCapturePath(path) }
 
-func completedCaptureDecision(path string) captureDecision {
-	return captureDecision{
-		Action:    "INJECT_CONTINUE",
-		Status:    "COMPLETED",
-		Completed: true,
-		Reason:    "capture file name indicates completed fixture: " + filepath.Base(strings.TrimSpace(path)),
-	}
-}
-
-func llmPromptHint(name string, model string) string {
-	normalized := strings.ToLower(strings.TrimSpace(name))
-	switch normalized {
-	case "gemini":
-		return `
-LLM-specific note: For gemini, prioritize WAITING/COMPLETED only when the visible text clearly indicates completion handoff.
-Avoid false positives from progress/status metadata.`
-	case "codex":
-		return `
-LLM-specific note: For codex, return exactly six lines and only from terminal evidence.
-Prefer ACTION=INJECT_CONTINUE with STATUS=COMPLETED/WAITING when a prompt is ready for free input.`
-	case "copilot":
-		return `
-LLM-specific note: For copilot, treat short completion confirmations (yes/no, proceed?, next?) as STATUS=WAITING or COMPLETED.
-Output INJECT_CONTINUE if the screen is not working.`
-	case "glm":
-		return `
-LLM-specific note: For glm, classify only by terminal content and set COMPLETED/WAITING when a handoff prompt is shown.`
-	case "ollama":
-		normalizedModel := strings.TrimSpace(model)
-		if normalizedModel == "" {
-			normalizedModel = "default"
-		}
-		return fmt.Sprintf(`
-LLM-specific note: For ollama/%s, prefer STATUS=COMPLETED and ACTION=INJECT_CONTINUE when ready for next input.
-If screen is fully idle, do not return WORKING/ASKING.`, normalizedModel)
-	default:
-		return ""
-	}
+func completedCaptureDecision(path string, locale string) captureDecision {
+	return sessioncheck.CompletedCaptureDecision(path, locale)
 }
 
 func buildNeedToContinuePrompt(captureForLLM string, llmName string, llmModel string) string {
-	return fmt.Sprintf(`You are a strict classifier.
-Determine the terminal state and classify user intent from the following terminal capture.
-Context assumptions:
-- This output is from an autonomous terminal session; we only know what's on screen.
-- We want to decide whether to inject a new user action now, and if needed which action to inject.
-- "작업중" means a command is still active, progressing, or the screen is showing a non-terminal prompt state.
-- 사용자 요청은 자유 응답, 완료 후 다음 입력 대기, 또는 객관식 선택지 중 하나일 수 있다.
-- For provider %s/%s, prefer WAITING/COMPLETED + INJECT_CONTINUE for short natural language confirmations of readiness.
+	return sessioncheck.BuildNeedToContinuePrompt(captureForLLM, llmName, llmModel)
+}
 
-	Return exactly 6 lines in this format:
-	ACTION: INJECT_CONTINUE, INJECT_SELECT, INJECT_INPUT, or SKIP
-	STATUS: WORKING | ASKING | COMPLETED | WAITING | UNKNOWN
-	WORKING: true or false
-	MULTIPLE_CHOICE: true or false
-	RECOMMENDED_CHOICE: <number or number + option label>
-	REASON: <one short sentence>
-
-	Rules:
-	- ACTION should be INJECT_CONTINUE when it looks like the model is awaiting a free-text response or can safely proceed after completion.
-	- ACTION may be INJECT_INPUT when a specific free-text value should be entered directly (including a short command-like token).
-	- ACTION should be INJECT_SELECT when numbered objectives are shown and one choice number should be typed.
-	- For INJECT_SELECT, RECOMMENDED_CHOICE should include option number and label when possible (e.g. "3) Exit").
-	- STATUS=ASKING when options like "1) ..., 2) ..., 3) ..." are shown and the output asks for exactly one answer.
-	- For ASKING/INJECT_SELECT, MULTIPLE_CHOICE=true and RECOMMENDED_CHOICE should be the highest-priority option number (usually 1 if no stronger signal).
-	- Ignore footer lines like "Use /skills", "Context compacted", "? for shortcuts", and percentage context left.
-	- WORKING signals include long-running commands, spinners, progress bars, running tests/builds, and text like "esc to interrupt", "작업 중", "processing", "press ctrl+c".
-	- If working signals exist, STATUS should be WORKING and ACTION SKIP, even if any choice-like text is also present.
-	- Ignore footer lines like "Use /skills", "Context compacted", "? for shortcuts", and percentage context left.
-	- COMPLETED/WAITING means short completion or handoff prompts such as "next input", "원하면", "그럼 다음", "다음 작업", "Ready for next step", "what would you like me to do next".
-	- If unclear, set STATUS=UNKNOWN and ACTION=SKIP.
-	- REASON must include concrete evidence from the capture in one short sentence.
-	- Do not output anything except those 6 lines.
-
-	Few-shot examples:
-	- Example 1:
-		Terminal:
-		1) Build project
-		2) Run tests
-		3) Exit
-		Which one do you want?
-		ACTION: INJECT_SELECT
-		STATUS: ASKING
-		WORKING: false
-		MULTIPLE_CHOICE: true
-		RECOMMENDED_CHOICE: 1
-		REASON: 번호형 메뉴가 표시되고 하나의 번호 입력이 요구됨.
-
-	- Example 2:
-		Terminal:
-		Tests finished with warnings.
-		다음 작업을 진행할까요? (yes / no)
-		ACTION: INJECT_CONTINUE
-		STATUS: COMPLETED
-		WORKING: false
-		MULTIPLE_CHOICE: false
-		RECOMMENDED_CHOICE: none
-		REASON: 완료 후 다음 입력을 기다리는 완료 상태로 판단됨.
-
-	- Example 3:
-		Terminal:
-		Running lint...
-		████████ 78%% [elapsed: 00:01:12] esc to interrupt
-		ACTION: SKIP
-		STATUS: WORKING
-		WORKING: true
-		MULTIPLE_CHOICE: false
-		RECOMMENDED_CHOICE: none
-		REASON: 진행률/진행중 표기와 인터럽트 안내가 있어 아직 작업이 진행 중임.
-
-[Terminal Output Start]
-%s
-[Terminal Output End]
-%s`, llmName, llmModel, captureForLLM, llmPromptHint(llmName, llmModel))
+func buildNeedToContinuePromptForLocale(captureForLLM string, llmName string, llmModel string, locale string) string {
+	return sessioncheck.BuildNeedToContinuePromptForLocale(captureForLLM, llmName, llmModel, locale)
 }
 
 func checkTmuxSessionState(
@@ -878,86 +909,13 @@ func checkTmuxSessionState(
 	client tmux.API,
 	target string,
 	logger func(string, ...interface{}),
+	locale string,
 	promptFile string,
 	stateFile string,
 ) string {
-	sessions, err := client.ListSessions(ctx)
-	if err != nil {
-		logger("경고: tmux 세션 목록 조회 실패: %s", err)
-		exists, hasErr := client.HasSession(ctx, target)
-		if hasErr != nil {
-			logger("경고: tmux 세션 확인 폴백 실패: %s", hasErr)
-			return "MISSING"
-		}
-		if exists {
-			return "EXISTS"
-		}
-		return "MISSING"
-	}
-
-	var names []string
-	for _, session := range sessions {
-		names = append(names, session.Name)
-	}
-
-	prompt := fmt.Sprintf(`You are a strict binary classifier.
-Decide whether the target tmux session currently exists among the listed sessions.
-
-Return exactly 1 line in this format:
-STATE: EXISTS or MISSING
-
-Rules:
-- Return EXISTS only if the target session name is present.
-- Return MISSING if the target session name is not present.
-- Output only that one line, nothing else.
-
-Target session: %s
-Sessions:
-%s
-`, target, strings.Join(names, "\n"))
-
-	if err := writeStateTextFile(promptFile, []byte(prompt), logger); err != nil {
-		logger("경고: 세션 상태 프롬프트 저장 실패 (%s): %s", promptFile, err)
-	}
-
-	startAt := time.Now()
-	logger("LLM 요청 시작: session-state 판정 (%s, binary=%s, prompt_len=%d)", p.Name(), p.Binary(), len(prompt))
-	out, err := p.RunPrompt(ctx, prompt)
-	elapsed := time.Since(startAt)
-	if err != nil {
-		logger("LLM 응답 완료: session-state 판정 실패 (%s) elapsed=%s", err, elapsed)
-		exists, hasErr := client.HasSession(ctx, target)
-		if hasErr != nil {
-			logger("경고: tmux 세션 확인 폴백 실패: %s", hasErr)
-			return "MISSING"
-		}
-		if exists {
-			return "EXISTS"
-		}
-		return "MISSING"
-	}
-	logger("LLM 응답 완료: session-state 판정 성공 (elapsed=%s)", elapsed)
-	if err := writeStateTextFile(stateFile, []byte(out), logger); err != nil {
-		logger("경고: 세션 상태 결과 저장 실패 (%s): %s", stateFile, err)
-	}
-
-	if strings.Contains(out, "EXISTS") {
-		return "EXISTS"
-	}
-	if strings.Contains(out, "MISSING") {
-		return "MISSING"
-	}
-
-	logger("경고: 세션 판정 파싱 실패: %s", out)
-	exists, hasErr := client.HasSession(ctx, target)
-	if hasErr != nil {
-		logger("경고: tmux 세션 확인 폴백 실패: %s", hasErr)
-		return "MISSING"
-	}
-	if exists {
-		return "EXISTS"
-	}
-	return "MISSING"
+	return sessioncheck.CheckTmuxSessionState(ctx, p, client, target, logger, locale, func(path string, data []byte) error {
+		return writeStateTextFile(path, data, locale, logger)
+	}, promptFile, stateFile)
 }
 
 func classifyNeedToContinue(
@@ -970,18 +928,11 @@ func classifyNeedToContinue(
 	capturePath string,
 	llmName string,
 	llmModel string,
+	locale string,
 ) captureDecision {
-	return classifyNeedToContinueFromReader(
-		ctx,
-		p,
-		strings.NewReader(capture),
-		logger,
-		promptPath,
-		decisionPath,
-		capturePath,
-		llmName,
-		llmModel,
-	)
+	return sessioncheck.ClassifyNeedToContinue(ctx, p, capture, logger, locale, func(path string, data []byte) error {
+		return writeStateTextFile(path, data, locale, logger)
+	}, promptPath, decisionPath, capturePath, llmName, llmModel)
 }
 
 func classifyNeedToContinueFromReader(
@@ -994,222 +945,24 @@ func classifyNeedToContinueFromReader(
 	capturePath string,
 	llmName string,
 	llmModel string,
+	locale string,
 ) captureDecision {
-	providerName := strings.TrimSpace(llmName)
-	if providerName == "" {
-		providerName = p.Name()
-	}
-
-	captureObj, err := llm.NewCaptureFromReader(capture)
-	if err != nil {
-		return captureDecision{
-			Action: "SKIP",
-			Status: "UNKNOWN",
-			Reason: "capture read failed",
-		}
-	}
-	captureText := captureObj.Text
-	captureForLLM := stripANSICodesAll(captureText)
-	captureForLLM = stripCodexFooterNoise(captureForLLM)
-	captureForLLM = trimTailLines(captureForLLM, 25)
-	trimmedCapture := strings.TrimSpace(captureForLLM)
-	if trimmedCapture == "" {
-		return captureDecision{
-			Action:  "SKIP",
-			Status:  "EMPTY",
-			Reason:  "캡처 결과가 비어 있어 판정 보류",
-			Working: false,
-		}
-	}
-
-	if isCompletedCapturePath(capturePath) {
-		return completedCaptureDecision(capturePath)
-	}
-
-	if working, evidence := p.IsProgressingCapture(llm.NewCapture(captureText)); working {
-		if strings.TrimSpace(evidence) == "" {
-			evidence = "프롬프트 위를 기반으로 추정"
-		}
-		return captureDecision{
-			Action:  "SKIP",
-			Status:  "WORKING",
-			Working: true,
-			Reason:  "작업 중으로 판단: " + evidence,
-		}
-	}
-
-	prompt := buildNeedToContinuePrompt(captureForLLM, providerName, llmModel)
-
-	if err := writeStateTextFile(promptPath, []byte(prompt), logger); err != nil {
-		logger("경고: 판정 프롬프트 저장 실패 (%s): %s", promptPath, err)
-	}
-
-	startAt := time.Now()
-	logger("LLM 요청 시작: 판정 NEED_CONTINUE 요청 (%s, binary=%s, prompt_len=%d)", p.Name(), p.Binary(), len(prompt))
-	out, err := p.RunPrompt(ctx, prompt)
-	elapsed := time.Since(startAt)
-	if err != nil {
-		logger("LLM 응답 완료: 판정 NEED_CONTINUE 실패 (%s) elapsed=%s", err, elapsed)
-		_ = writeStateTextFile(decisionPath, []byte(fmt.Sprintf("ERROR: %s", err)), logger)
-		return captureDecision{
-			Action: "SKIP",
-			Status: "UNKNOWN",
-			Reason: fmt.Sprintf("llm execution failed: %s", err),
-		}
-	}
-	logger("LLM 응답 완료: 판정 NEED_CONTINUE 성공 (elapsed=%s)", elapsed)
-	if err := writeStateTextFile(decisionPath, []byte(out), logger); err != nil {
-		logger("경고: 판정 결과 저장 실패 (%s): %s", decisionPath, err)
-	}
-
-	decision := parseCaptureDecision(out)
-	if decision.Status == "WORKING" && isContinuationReadySignal(captureForLLM) {
-		logger("판정 후처리: completion-ready signal 감지로 WORKING->COMPLETED 강제 전환")
-		decision.Status = "COMPLETED"
-		decision.Completed = true
-		decision.Working = false
-		if decision.Action == "SKIP" {
-			decision.Action = "INJECT_CONTINUE"
-		}
-	}
-	if decision.Reason == "" {
-		decision.Reason = "(no reason provided)"
-	}
-	return decision
+	return sessioncheck.ClassifyNeedToContinueFromReader(ctx, p, capture, logger, locale, func(path string, data []byte) error {
+		return writeStateTextFile(path, data, locale, logger)
+	}, promptPath, decisionPath, capturePath, llmName, llmModel)
 }
 
-func parseCaptureDecision(out string) captureDecision {
-	result := captureDecision{
-		Action: "SKIP",
-		Status: "UNKNOWN",
-		Reason: "(no reason provided)",
-	}
-
-	for _, line := range strings.Split(strings.ReplaceAll(out, "\r\n", "\n"), "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			continue
-		}
-		upper := strings.ToUpper(trimmed)
-		switch {
-		case strings.HasPrefix(upper, "ACTION:"):
-			result.Action = strings.TrimSpace(trimmed[len("ACTION:"):])
-		case strings.HasPrefix(upper, "STATUS:"):
-			result.Status = strings.TrimSpace(trimmed[len("STATUS:"):])
-		case strings.HasPrefix(upper, "WORKING:"):
-			result.Working = parseTruthy(strings.TrimSpace(trimmed[len("WORKING:"):]))
-		case strings.HasPrefix(upper, "MULTIPLE_CHOICE:"):
-			result.MultiChoice = parseTruthy(strings.TrimSpace(trimmed[len("MULTIPLE_CHOICE:"):]))
-		case strings.HasPrefix(upper, "RECOMMENDED_CHOICE:"):
-			value := strings.TrimSpace(trimmed[len("RECOMMENDED_CHOICE:"):])
-			if value != "" && !strings.EqualFold(value, "none") {
-				result.RecommendedChoice = value
-			}
-		case strings.HasPrefix(upper, "REASON:"):
-			result.Reason = strings.TrimSpace(trimmed[len("REASON:"):])
-		}
-	}
-
-	status := strings.ToUpper(strings.TrimSpace(result.Status))
-	switch status {
-	case "WORKING":
-		result.Working = true
-	case "ASKING":
-		result.MultiChoice = true
-	case "MULTIPLE_CHOICE":
-		result.MultiChoice = true
-	case "COMPLETED":
-		result.Completed = true
-	}
-	switch strings.ToUpper(strings.TrimSpace(result.Action)) {
-	case "SEND":
-		result.Action = "INJECT_CONTINUE"
-	case "INJECT_CONTINUE":
-		result.Action = "INJECT_CONTINUE"
-	case "INJECT_INPUT":
-		result.Action = "INJECT_INPUT"
-	case "INJECT_SELECT":
-		result.Action = "INJECT_SELECT"
-	case "SKIP":
-		if status == "COMPLETED" || status == "WAITING" {
-			result.Action = "INJECT_CONTINUE"
-		} else {
-			result.Action = "SKIP"
-		}
-	default:
-		result.Action = "SKIP"
-	}
-	if result.MultiChoice && result.RecommendedChoice != "" && !result.Working {
-		result.Action = "INJECT_SELECT"
-	}
-	if result.Status == "WORKING" {
-		result.Working = true
-	}
-	if result.Working {
-		result.Action = "SKIP"
-	}
-
-	if result.Reason == "(no reason provided)" && strings.TrimSpace(out) != "" {
-		result.Reason = strings.Join(strings.Fields(out), " ")
-	}
-	return result
+func parseCaptureDecision(out string, locale string) captureDecision {
+	return sessioncheck.ParseDecision(out, locale)
 }
 
-func normalizeChoiceCandidate(raw string) string {
-	value := strings.TrimSpace(raw)
-	if value == "" {
-		return ""
-	}
-	value = strings.Fields(value)[0]
-	value = strings.TrimSuffix(strings.TrimSuffix(value, "."), ")")
-	if isNumericChoice(value) {
-		return value
-	}
-
-	numPrefix := 0
-	for numPrefix < len(value) {
-		ch := value[numPrefix]
-		if ch < '0' || ch > '9' {
-			break
-		}
-		numPrefix++
-	}
-	if numPrefix > 0 {
-		return value[:numPrefix]
-	}
-	return value
-}
+func normalizeChoiceCandidate(raw string) string { return sessioncheck.NormalizeChoiceCandidate(raw) }
 
 func parseChoiceCandidateAndLabel(raw string) (string, string) {
-	choice := normalizeChoiceCandidate(strings.TrimSpace(raw))
-	if choice == "" || !isNumericChoice(choice) {
-		return "", ""
-	}
-	label := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), strings.TrimSpace(choice)))
-	label = strings.TrimLeft(label, ").:-")
-	label = strings.TrimSpace(label)
-	return choice, label
+	return sessioncheck.ParseChoiceCandidateAndLabel(raw)
 }
 
-func parseTruthy(raw string) bool {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "true", "1", "yes", "on":
-		return true
-	default:
-		return false
-	}
-}
-
-func isNumericChoice(raw string) bool {
-	value := strings.TrimSpace(raw)
-	if value == "" || strings.EqualFold(value, "none") {
-		return false
-	}
-	value = strings.TrimSuffix(value, ".")
-	value = strings.TrimSuffix(value, ")")
-	_, err := strconv.Atoi(value)
-	return err == nil
-}
+func parseTruthy(raw string) bool { return sessioncheck.ParseTruthy(raw) }
 
 func isContinuationReadySignal(raw string) bool {
 	text := strings.TrimSpace(strings.ToLower(raw))
@@ -1249,9 +1002,9 @@ func trimTailLines(value string, maxLines int) string {
 	return strings.TrimRight(strings.Join(lines[start:], "\n"), "\n")
 }
 
-func normalizeCaptureForWorkingCheck(capture string) string {
-	capture = ansiEscapePattern.ReplaceAllString(capture, "")
-	return strings.TrimRight(strings.ReplaceAll(capture, "\r\n", "\n"), "\n")
+func normalizeCaptureForWorkingCheck(raw string) string {
+	raw = capture.StripANSI(raw)
+	return strings.TrimRight(strings.ReplaceAll(raw, "\r\n", "\n"), "\n")
 }
 
 func intFromEnv(key string, fallback int) int {
@@ -1290,10 +1043,8 @@ func parseFloat(raw string, fallback float64) float64 {
 	return parsed
 }
 
-var ansiEscapePattern = regexp.MustCompile(`\x1b\[[0-9;]*m`)
-
 func stripANSICodesAll(value string) string {
-	return ansiEscapePattern.ReplaceAllString(value, "")
+	return capture.StripANSI(value)
 }
 
 var codexFooterLinePattern = []*regexp.Regexp{

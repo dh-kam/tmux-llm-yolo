@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/dh-kam/tmux-llm-yolo/internal/i18n"
 )
 
 type Classification string
@@ -61,18 +63,27 @@ var (
 )
 
 func Analyze(ansiCapture string, plainCapture string) Analysis {
-	return AnalyzeWithHintAndWidth("", ansiCapture, plainCapture, 0)
+	return AnalyzeWithHintAndLocaleAndWidth("", ansiCapture, plainCapture, i18n.DefaultAppLocale, 0)
 }
 
 func AnalyzeWithHint(providerHint string, ansiCapture string, plainCapture string) Analysis {
-	return AnalyzeWithHintAndWidth(providerHint, ansiCapture, plainCapture, 0)
+	return AnalyzeWithHintAndLocaleAndWidth(providerHint, ansiCapture, plainCapture, i18n.DefaultAppLocale, 0)
 }
 
 func AnalyzeWithHintAndWidth(providerHint string, ansiCapture string, plainCapture string, paneWidth int) Analysis {
+	return AnalyzeWithHintAndLocaleAndWidth(providerHint, ansiCapture, plainCapture, i18n.DefaultAppLocale, paneWidth)
+}
+
+func AnalyzeWithHintAndLocale(providerHint string, ansiCapture string, plainCapture string, locale string) Analysis {
+	return AnalyzeWithHintAndLocaleAndWidth(providerHint, ansiCapture, plainCapture, locale, 0)
+}
+
+func AnalyzeWithHintAndLocaleAndWidth(providerHint string, ansiCapture string, plainCapture string, locale string, paneWidth int) Analysis {
 	ctx := analysisContext{
 		providerHint: providerHint,
 		ansiCapture:  ansiCapture,
 		plainCapture: plainCapture,
+		locale:       i18n.NormalizeLocale(locale),
 		paneWidth:    paneWidth,
 		ansiLines:    strings.Split(normalize(ansiCapture), "\n"),
 		plainLines:   strings.Split(normalize(plainCapture), "\n"),
@@ -227,54 +238,58 @@ func extractOutputBlock(lines []string, promptLine int) string {
 }
 
 func classify(analysis Analysis) (Classification, string, string) {
+	return classifyForLocale(analysis, i18n.DefaultAppLocale)
+}
+
+func classifyForLocale(analysis Analysis, locale string) (Classification, string, string) {
 	block := strings.TrimSpace(analysis.OutputBlock)
 	promptText := strings.TrimSpace(analysis.PromptText)
 	combined := strings.TrimSpace(strings.Join([]string{block, promptText}, "\n"))
 	if combined == "" {
-		return ClassUnknownWaiting, "", "프롬프트 주변 텍스트가 충분하지 않음"
+		return ClassUnknownWaiting, "", i18n.T(locale, "prompt.reason_insufficient_text")
 	}
 
 	if approvalPromptPattern.MatchString(combined) && selectedNumberedMenuPattern.MatchString(strings.Join([]string{block, promptText}, "\n")) {
-		return ClassCursorBasedChoice, preferredApprovalChoice(combined), "승인 프롬프트의 커서 선택 메뉴가 감지됨"
+		return ClassCursorBasedChoice, preferredApprovalChoice(combined), i18n.T(locale, "prompt.reason_cursor_menu_approval")
 	}
 
 	if matches := numberedMenuPattern.FindAllStringSubmatch(strings.Join([]string{block, promptText}, "\n"), -1); len(matches) > 0 && selectionContextPattern.MatchString(combined) {
-		return ClassNumberedMultipleChoice, matches[0][1], "번호형 선택지가 감지됨"
+		return ClassNumberedMultipleChoice, matches[0][1], i18n.T(locale, "prompt.reason_numbered_choice")
 	}
 
 	if !analysis.AssistantUI {
-		return ClassUnknownWaiting, "", "assistant UI 시그니처가 없어 자동 입력 대상 화면으로 확신할 수 없음"
+		return ClassUnknownWaiting, "", i18n.T(locale, "prompt.reason_assistant_ui_missing")
 	}
 
 	if cursorMenuPattern.MatchString(block) && (selectionContextPattern.MatchString(combined) || approvalPromptPattern.MatchString(combined)) {
-		return ClassCursorBasedChoice, "", "커서형 선택 메뉴로 보이는 출력이 감지됨"
+		return ClassCursorBasedChoice, "", i18n.T(locale, "prompt.reason_cursor_menu")
 	}
 
 	if analysis.Processing {
-		return ClassUnknownWaiting, "", "진행중 신호가 감지되어 입력 대기 확정으로 보기 어려움"
+		return ClassUnknownWaiting, "", i18n.T(locale, "prompt.reason_processing_signal")
 	}
 
 	if continuePattern.MatchString(combined) && analysis.AssistantUI && analysis.PromptActive {
-		return ClassContinueAfterDone, "", "완료 후 다음 진행 여부를 묻는 문맥으로 해석됨"
+		return ClassContinueAfterDone, "", i18n.T(locale, "prompt.reason_continue_after_done")
 	}
 
 	if completedNoOpPattern.MatchString(combined) {
-		return ClassCompletedNoOp, "", "추가 작업이 없다는 완료 요약으로 해석됨"
+		return ClassCompletedNoOp, "", i18n.T(locale, "prompt.reason_completed_noop")
 	}
 
 	if analysis.PromptActive && promptMarkerPattern.MatchString(promptText) && numberedMenuPattern.MatchString(block) && !selectionContextPattern.MatchString(combined) && !approvalPromptPattern.MatchString(combined) {
-		return ClassFreeTextRequest, "", "번호 목록은 계획 항목이고 하단 prompt는 자유 텍스트 입력창으로 해석됨"
+		return ClassFreeTextRequest, "", i18n.T(locale, "prompt.reason_plan_as_free_text")
 	}
 
 	if isEditablePromptText(promptText) && analysis.PromptActive {
-		return ClassFreeTextRequest, "", "입력 가능한 프롬프트 박스가 감지됨"
+		return ClassFreeTextRequest, "", i18n.T(locale, "prompt.reason_editable_prompt")
 	}
 
 	if analysis.PromptActive && (freeTextPattern.MatchString(combined) || promptPlaceholderPattern.MatchString(promptText)) {
-		return ClassFreeTextRequest, "", "자유 텍스트 입력 요청으로 해석됨"
+		return ClassFreeTextRequest, "", i18n.T(locale, "prompt.reason_free_text_request")
 	}
 
-	return ClassUnknownWaiting, "", "결정적 규칙으로 분류하지 못함"
+	return ClassUnknownWaiting, "", i18n.T(locale, "prompt.reason_unclassified")
 }
 
 func hasInteractivePrompt(analysis Analysis) bool {

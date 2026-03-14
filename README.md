@@ -130,6 +130,46 @@ Show version:
 go run . --version
 ```
 
+## Auto Update
+
+GitHub Release에 등록된 에셋을 현재 실행 바이너리의 플랫폼(`OS/ARCH`)과 빌드 `Variant`(`release`/`debug`)에 맞추어 자동으로 최신 버전으로 교체합니다.
+
+- 동작 순서
+  1. `watch` 시작 직전에 GitHub API(`/releases/latest`)에서 최신 릴리스 태그를 조회합니다.
+  2. 현재 버전보다 최신 태그가 있으면 해당 플랫폼과 매칭되는 에셋을 찾습니다.
+  3. 에셋을 다운로드하고 실행 바이너리를 교체합니다.
+  4. 현재 프로세스를 즉시 재시작합니다.
+- 기본은 자동으로 활성화됩니다. 비활성화하려면 `watch --disable-auto-update`를 사용합니다.
+- 기본 저장소: `dh-kam/tmux-llm-yolo`
+- 지원 포맷
+  - `tar.gz`(현재 `release-artifacts`에서 생성)
+  - `zip`(zip 안에 동일한 바이너리 이름이 있어야 함)
+
+- 플래그:
+  - `--disable-auto-update` : 자동 업데이트를 비활성화
+  - `--github-token` : GitHub API 토큰(= `GITHUB_TOKEN`)
+  - `--auto-update-retry-count` : GitHub 요청 재시도 횟수
+  - `--auto-update-retry-delay` : GitHub 재시도 간격(초)
+  - `--auto-update-require-checksum` : 체크섬 파일이 없거나 불일치 시 업데이트를 중단
+  - `--github-repo owner/name` : 릴리스 조회 대상 저장소 지정
+- 환경변수:
+  - `TMUX_YOLO_DISABLE_AUTO_UPDATE=true|false`
+  - `TMUX_YOLO_GITHUB_REPO=owner/name`
+  - `TMUX_YOLO_AUTO_UPDATE_RETRY_COUNT=0|1|2...`
+  - `TMUX_YOLO_AUTO_UPDATE_RETRY_DELAY=seconds`
+  - `TMUX_YOLO_AUTO_UPDATE_REQUIRE_CHECKSUM=true|false`
+  - `GITHUB_TOKEN`(선택): GitHub API 호출 인증 토큰
+
+예시:
+
+```bash
+tmux-llm-yolo watch
+TMUX_YOLO_DISABLE_AUTO_UPDATE=true tmux-llm-yolo watch -t dev-pdf-codex
+TMUX_YOLO_GITHUB_REPO=dh-kam/tmux-llm-yolo tmux-llm-yolo watch -t dev-pdf-codex
+TMUX_YOLO_AUTO_UPDATE_RETRY_COUNT=4 TMUX_YOLO_AUTO_UPDATE_RETRY_DELAY=1.0 \
+tmux-llm-yolo watch -t dev-pdf-codex
+```
+
 Install local git hooks:
 
 ```bash

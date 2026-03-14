@@ -4,6 +4,7 @@ type analysisContext struct {
 	providerHint string
 	ansiCapture  string
 	plainCapture string
+	locale       string
 	paneWidth    int
 	ansiLines    []string
 	plainLines   []string
@@ -88,7 +89,7 @@ type classificationExpert struct{}
 func (classificationExpert) Name() string { return "classification" }
 
 func (classificationExpert) Apply(ctx *analysisContext, analysis *Analysis) {
-	analysis.Classification, analysis.RecommendedChoice, analysis.Reason = classify(*analysis)
+	analysis.Classification, analysis.RecommendedChoice, analysis.Reason = classifyForLocale(*analysis, ctx.locale)
 }
 
 type interactivePromptExpert struct{}

@@ -50,7 +50,7 @@ func TestViewFillsTerminalHeightAndShowsLatestLogs(t *testing.T) {
 			Mode:        "watch",
 			Capture:     "40 lines",
 			WaitPlan:    "4s>4s>4s>4s",
-			Continue:    "7 sent / audit 93",
+			Continue:    "7 sent / audit 13",
 			Policy:      "default",
 			CurrentTask: "SleepTask",
 			CurrentDesc: "waiting",

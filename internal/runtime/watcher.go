@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/dh-kam/tmux-llm-yolo/internal/capture"
+	"github.com/dh-kam/tmux-llm-yolo/internal/i18n"
 	"github.com/dh-kam/tmux-llm-yolo/internal/llm"
 	"github.com/dh-kam/tmux-llm-yolo/internal/policy"
 	"github.com/dh-kam/tmux-llm-yolo/internal/prompt"
@@ -32,6 +34,7 @@ type Config struct {
 	Target              string
 	CaptureLines        int
 	ContinueMessage     string
+	Locale              string
 	SubmitKey           string
 	SubmitKeyFallback   string
 	SubmitFallbackDelay float64
@@ -46,11 +49,14 @@ type Config struct {
 	FallbackLLMModel    string
 	PolicyName          string
 	Once                bool
+	DryRun              bool
+	DryRunOutputFormat  string
 	LogBuffer           *tui.LogBuffer
 }
 
 type Runner struct {
 	cfg               Config
+	locale            string
 	client            tmux.API
 	fetcher           capture.Fetcher
 	executor          actionExecutor
@@ -110,6 +116,7 @@ type task interface {
 }
 
 func New(cfg Config, client tmux.API, logger func(string, ...interface{})) *Runner {
+	cfg.Locale = i18n.NormalizeLocale(cfg.Locale)
 	if cfg.BaseInterval <= 0 {
 		cfg.BaseInterval = 4 * time.Second
 	}
@@ -125,10 +132,11 @@ func New(cfg Config, client tmux.API, logger func(string, ...interface{})) *Runn
 	activePolicy := policy.Resolve(cfg.PolicyName)
 	return &Runner{
 		cfg:          cfg,
+		locale:       cfg.Locale,
 		client:       client,
 		fetcher:      capture.Fetcher{Client: client},
 		executor:     newActionExecutor(client, cfg, actionProviderHint(cfg)),
-		continuePlan: newContinueStrategyWithPolicy(activePolicy, cfg.ContinueMessage),
+		continuePlan: newContinueStrategyWithPolicy(activePolicy, cfg.ContinueMessage, cfg.Locale),
 		logger:       logger,
 		state:        stateMonitoring,
 		activePolicy: activePolicy,
@@ -141,8 +149,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	r.ui = tui.Start(ctx)
 	defer r.ui.Stop()
 
-	r.enqueue(checkDeadlineTask{})
-	r.enqueue(baseCaptureTask{})
+	r.enqueue(checkDeadlineTask{locale: r.locale}, baseCaptureTask{locale: r.locale})
 
 	for len(r.queue) > 0 {
 		select {
@@ -171,45 +178,49 @@ func (r *Runner) Run(ctx context.Context) error {
 	return nil
 }
 
+func (r *Runner) t(key string, args ...interface{}) string {
+	return i18n.T(r.locale, key, args...)
+}
+
 func (r *Runner) RunOnce(ctx context.Context) error {
 	r.ctx = ctx
 	r.deadline = time.Now().Add(r.watchDuration())
 	r.ui = tui.Start(ctx)
 	defer r.ui.Stop()
 
-	r.setState(stateInterpreting, "once mode: 현재 화면을 즉시 해석")
+	r.setState(stateInterpreting, r.t("watch.state_once_interpret"))
 	snap, err := r.fetcher.CaptureDual(ctx, r.cfg.Target, r.cfg.CaptureLines)
 	if err != nil {
 		return fmt.Errorf("once dual capture failed: %w", err)
 	}
 	r.prevBase = snap
 
-	analysis := prompt.AnalyzeWithHintAndWidth(r.promptProviderHint(), snap.ANSI, snap.Plain, r.paneWidth())
-	r.logger("once prompt analysis: provider=%s assistant_ui=%t processing=%t detected=%t line=%d class=%s reason=%s choice=%s", analysis.Provider, analysis.AssistantUI, analysis.Processing, analysis.PromptDetected, analysis.PromptLine, analysis.Classification, analysis.Reason, analysis.RecommendedChoice)
+	analysis := prompt.AnalyzeWithHintAndLocaleAndWidth(r.promptProviderHint(), snap.ANSI, snap.Plain, r.locale, r.paneWidth())
+	r.logger(r.t("watch.log_once_prompt_analysis"), analysis.Provider, analysis.AssistantUI, analysis.Processing, analysis.PromptDetected, analysis.PromptLine, analysis.Classification, analysis.Reason, analysis.RecommendedChoice)
 	if block := strings.TrimSpace(analysis.OutputBlock); block != "" {
-		r.logger("once latest output block:\n%s", block)
+		r.logger(r.t("watch.log_once_latest_output_block"), block)
 	}
 	if !analysis.AssistantUI {
-		r.setState(stateCompleted, "once mode: assistant UI 시그니처가 없어 추가 입력 없이 종료")
+		r.setState(stateCompleted, r.t("watch.state_once_no_assistant"))
 		return nil
 	}
 	if r.hasCopilotSlashCommandState(analysis) {
-		return r.clearPromptStateOnce("once mode: Copilot slash command 상태를 정리하고 종료")
+		return r.clearPromptStateOnce(r.t("watch.state_once_copilot_clear"))
 	}
 	if analysis.Processing {
-		r.setState(stateCompleted, "once mode: 진행중 신호가 감지되어 추가 입력 없이 종료")
+		r.setState(stateCompleted, r.t("watch.state_once_processing"))
 		return nil
 	}
 	if r.shouldReplacePendingPromptInput(analysis) {
-		return r.injectContinueOnce("once mode: Copilot 입력창의 slash-start 미실행 텍스트를 비우고 새 continue 입력으로 교체")
+		return r.injectContinueOnce(r.t("watch.state_once_replace_copilot"))
 	}
 	if r.hasPendingPromptInput(analysis) {
 		if r.shouldReplacePendingPromptInput(analysis) {
-			return r.injectContinueOnce("once mode: Copilot 입력창의 미실행 텍스트를 비우고 새 continue 입력으로 교체")
+			return r.injectContinueOnce(r.t("watch.state_once_replace_copilot"))
 		}
-		return r.submitPendingInputOnce("once mode: 입력창에 미실행 텍스트가 남아 있어 submit-only 실행")
+		return r.submitPendingInputOnce(r.t("watch.state_once_submit_pending"))
 	}
-	if plan, ok := deterministicActionPlan(analysis, "once mode: 결정적 입력 계획을 적용"); ok {
+	if plan, ok := deterministicActionPlan(analysis, r.t("watch.state_once_plan"), r.cfg.Locale); ok {
 		return r.executeActionPlan(plan, true)
 	}
 
@@ -219,7 +230,7 @@ func (r *Runner) RunOnce(ctx context.Context) error {
 	case prompt.ClassUnknownWaiting:
 		decision, err := r.classifyWithLLM(ctx, analysis, snap.Plain)
 		if err != nil {
-			return r.injectContinueOnce("once mode: LLM 해석 실패로 기본 continue 입력")
+			return r.injectContinueOnce(r.t("watch.state_once_llm_fail"))
 		}
 		r.maybeSetContinueOverride(decision.ContinueMessage, "llm")
 
@@ -235,10 +246,10 @@ func (r *Runner) RunOnce(ctx context.Context) error {
 		case "INJECT_INPUT":
 			return r.injectInputOnce(decision.RecommendedChoice, decision.Reason)
 		default:
-			return r.injectContinueOnce(decision.Reason)
+			return r.injectContinueOnce(r.t("watch.interpret_unknown"))
 		}
 	default:
-		return r.injectContinueOnce("once mode: 미분류 대기 상태로 판단되어 기본 continue 입력")
+		return r.injectContinueOnce(r.t("watch.state_once_unknown"))
 	}
 }
 
@@ -261,111 +272,6 @@ func (r *Runner) setState(state string, event string) {
 func (r *Runner) setStateQuiet(state string) {
 	r.state = state
 	r.updateUI()
-}
-
-func (r *Runner) nextTaskName() string {
-	if len(r.queue) == 0 {
-		return ""
-	}
-	return r.queue[0].Name() + " - " + r.queue[0].Description()
-}
-
-func (r *Runner) updateUI() {
-	if r.ui == nil {
-		return
-	}
-	currentTask := ""
-	currentDesc := ""
-	if r.currentTask != nil {
-		currentTask = r.currentTask.Name()
-		currentDesc = r.currentTask.Description()
-	}
-	r.ui.Update(tui.Snapshot{
-		Target:      strings.TrimSpace(r.cfg.Target),
-		State:       r.state,
-		Mode:        r.modeName(),
-		Capture:     fmt.Sprintf("%d lines", r.cfg.CaptureLines),
-		WaitPlan:    r.waitPlanLine(),
-		Continue:    r.continueLine(),
-		Policy:      r.policyName(),
-		CurrentTask: currentTask,
-		CurrentDesc: currentDesc,
-		NextTask:    r.nextTaskShortName(),
-		NextDesc:    r.nextTaskDescription(),
-		LLMPrimary:  r.providerState(r.cfg.LLMName, r.cfg.LLMModel, r.primaryInitDone, r.primaryInitErr),
-		LLMFallback: r.fallbackProviderLine(),
-		LLMActive:   r.activeLLMLine(),
-		SleepReason: r.sleepReason,
-		SleepStart:  r.sleepStarted,
-		SleepUntil:  r.sleepUntil,
-		Deadline:    r.deadline,
-		LastEvent:   r.lastEvent,
-		LastUpdated: time.Now(),
-		LogLines:    r.cfg.LogBuffer.Lines(),
-	})
-}
-
-func (r *Runner) scopeLine() string {
-	mode := "watch"
-	if r.cfg.Once {
-		mode = "once"
-	}
-	parts := []string{
-		"session=" + displayValue(strings.TrimSpace(r.cfg.Target)),
-		"mode=" + mode,
-		fmt.Sprintf("capture=%d", r.cfg.CaptureLines),
-	}
-	return strings.Join(parts, " | ")
-}
-
-func (r *Runner) modeName() string {
-	if r.cfg.Once {
-		return "once"
-	}
-	return "watch"
-}
-
-func (r *Runner) nextTaskShortName() string {
-	if len(r.queue) == 0 {
-		return ""
-	}
-	return r.queue[0].Name()
-}
-
-func (r *Runner) nextTaskDescription() string {
-	if len(r.queue) == 0 {
-		return ""
-	}
-	return r.queue[0].Description()
-}
-
-func (r *Runner) waitPlanLine() string {
-	return fmt.Sprintf("%s>%s>%s>%s", r.baseInterval().Round(time.Second), r.suspectWait1().Round(time.Second), r.suspectWait2().Round(time.Second), r.suspectWait3().Round(time.Second))
-}
-
-func (r *Runner) continueLine() string {
-	return fmt.Sprintf("%d sent / audit %d", r.continueSentCount, r.continuePlan.nextAuditIn(r.continueSentCount))
-}
-
-func (r *Runner) policyLine() string {
-	parts := []string{
-		"wait=" + r.waitPlanLine(),
-		fmt.Sprintf("continue=%d sent,next-audit=%d", r.continueSentCount, r.continuePlan.nextAuditIn(r.continueSentCount)),
-		"policy=" + r.policyName(),
-	}
-	llmPlan := "llm=primary"
-	if strings.TrimSpace(r.cfg.FallbackLLMName) != "" {
-		llmPlan = "llm=primary->fallback"
-	}
-	parts = append(parts, llmPlan)
-	return strings.Join(parts, " | ")
-}
-
-func (r *Runner) policyName() string {
-	if r.activePolicy != nil && strings.TrimSpace(r.activePolicy.Name()) != "" {
-		return r.activePolicy.Name()
-	}
-	return policy.Default().Name()
 }
 
 func (r *Runner) promptProviderHint() string {
@@ -464,13 +370,6 @@ func (r *Runner) prepareTextInput(input string) string {
 	return input
 }
 
-func displayValue(value string) string {
-	if strings.TrimSpace(value) == "" {
-		return "-"
-	}
-	return value
-}
-
 func (r *Runner) baseInterval() time.Duration {
 	if r.cfg.BaseInterval <= 0 {
 		return 4 * time.Second
@@ -533,59 +432,6 @@ func (r *Runner) suspectState(stage int) string {
 		return stateSuspectWaiting2
 	default:
 		return stateSuspectWaiting3
-	}
-}
-
-func (r *Runner) llmStatusLine() string {
-	parts := []string{
-		fmt.Sprintf("primary=%s", r.providerState(r.cfg.LLMName, r.cfg.LLMModel, r.primaryInitDone, r.primaryInitErr)),
-	}
-	if fallback := r.fallbackProviderLine(); fallback != "" {
-		parts = append(parts, "fallback="+fallback)
-	}
-	if active := r.activeLLMLine(); active != "" {
-		parts = append(parts, "active="+active)
-	}
-	return strings.Join(parts, " | ")
-}
-
-func (r *Runner) fallbackProviderLine() string {
-	if strings.TrimSpace(r.cfg.FallbackLLMName) == "" {
-		return ""
-	}
-	return r.providerState(r.cfg.FallbackLLMName, r.cfg.FallbackLLMModel, r.fallbackInitDone, r.fallbackInitErr)
-}
-
-func (r *Runner) activeLLMLine() string {
-	value := strings.TrimSpace(r.lastLLMProvider)
-	if value == "" {
-		return ""
-	}
-	parts := strings.Split(value, ":")
-	if len(parts) == 0 {
-		return value
-	}
-	if len(parts) >= 2 {
-		return parts[0] + ":" + parts[1]
-	}
-	return parts[0]
-}
-
-func (r *Runner) providerState(name string, model string, initDone bool, initErr error) string {
-	label := strings.TrimSpace(name)
-	if model = strings.TrimSpace(model); model != "" {
-		label += "/" + model
-	}
-	if label == "" {
-		label = "-"
-	}
-	switch {
-	case !initDone:
-		return label + ":pending"
-	case initErr != nil:
-		return label + ":failed"
-	default:
-		return label + ":ready"
 	}
 }
 
@@ -779,26 +625,32 @@ func (r *Runner) hasLongStableANSI(ansi string, now time.Time) bool {
 	return now.Sub(stableSince) >= longStableANSIDuration
 }
 
-type checkDeadlineTask struct{}
-
-func (checkDeadlineTask) Name() string { return "CheckDeadlineTask" }
-func (checkDeadlineTask) Description() string {
-	return "watch deadline exceeded 여부를 확인한다"
+type checkDeadlineTask struct {
+	locale string
 }
-func (checkDeadlineTask) Run(r *Runner) error {
+
+func (t checkDeadlineTask) Name() string { return "CheckDeadlineTask" }
+func (t checkDeadlineTask) Description() string {
+	return i18n.T(t.locale, "watch.task_check_deadline_description")
+}
+func (t checkDeadlineTask) Run(r *Runner) error {
 	if time.Now().After(r.deadline) {
-		r.setState(stateStopped, "watch deadline exceeded")
+		r.setState(stateStopped, r.t("watch.reason_watch_deadline_exceeded"))
 		r.queue = nil
 		return errStop
 	}
 	return nil
 }
 
-type baseCaptureTask struct{}
+type baseCaptureTask struct {
+	locale string
+}
 
-func (baseCaptureTask) Name() string        { return "CaptureTask" }
-func (baseCaptureTask) Description() string { return "기준 주기 dual capture를 수행한다" }
-func (baseCaptureTask) Run(r *Runner) error {
+func (t baseCaptureTask) Name() string { return "CaptureTask" }
+func (t baseCaptureTask) Description() string {
+	return i18n.T(t.locale, "watch.task_base_capture_description")
+}
+func (t baseCaptureTask) Run(r *Runner) error {
 	r.sleepUntil = time.Time{}
 	r.sleepReason = ""
 	r.setStateQuiet(stateMonitoring)
@@ -807,21 +659,25 @@ func (baseCaptureTask) Run(r *Runner) error {
 		return fmt.Errorf("base dual capture failed: %w", err)
 	}
 	r.recordANSISnapshot(snap.ANSI, snap.TakenAt)
-	analysis := prompt.AnalyzeWithHint(r.promptProviderHint(), snap.ANSI, snap.Plain)
+	analysis := prompt.AnalyzeWithHintAndLocale(r.promptProviderHint(), snap.ANSI, snap.Plain, r.locale)
 	summary := r.recordScreenSnapshot(snap, analysis)
 	if strings.TrimSpace(r.prevBase.ANSI) == "" {
 		r.prevBase = snap
 		r.enqueue(
-			sleepTask{duration: r.baseInterval(), reason: fmt.Sprintf("첫 기준 ANSI 캡처 저장 완료, 다음 %s 주기 대기", r.baseInterval().Round(time.Second))},
-			checkDeadlineTask{},
-			baseCaptureTask{},
+			sleepTask{
+				duration: r.baseInterval(),
+				reason:   r.t("watch.reason_capture_capture_init", r.baseInterval().Round(time.Second)),
+			},
+			checkDeadlineTask{locale: r.locale},
+			baseCaptureTask{locale: r.locale},
 		)
 		return nil
 	}
 	if r.shouldBypassWaitingStability(snap, analysis, summary) {
-		r.setState(stateConfidentWaiting, "하단 interactive prompt가 감지되어 ANSI 안정성 대기를 우회하고 해석으로 진입")
+		r.setState(stateConfidentWaiting, r.t("watch.reason_bypass_prompt_wait"))
 		r.prevBase = snap
-		r.enqueue(checkDeadlineTask{}, analyzeWaitingTask{
+		r.enqueue(checkDeadlineTask{locale: r.locale}, analyzeWaitingTask{
+			locale:              r.locale,
 			referenceANSI:       snap.ANSI,
 			referencePromptZone: summary.PromptZoneFingerprint,
 			allowVolatileANSI:   true,
@@ -831,36 +687,54 @@ func (baseCaptureTask) Run(r *Runner) error {
 	if snap.ANSI != r.prevBase.ANSI {
 		r.prevBase = snap
 		r.enqueue(
-			sleepTask{duration: r.baseInterval(), reason: fmt.Sprintf("ANSI 화면이 이전 기준 캡처와 달라짐, 다시 %s 모니터링", r.baseInterval().Round(time.Second))},
-			checkDeadlineTask{},
-			baseCaptureTask{},
+			sleepTask{
+				duration: r.baseInterval(),
+				reason:   r.t("watch.reason_capture_changed", r.baseInterval().Round(time.Second)),
+			},
+			checkDeadlineTask{locale: r.locale},
+			baseCaptureTask{locale: r.locale},
 		)
 		return nil
 	}
 
 	if r.hasLongStableANSI(snap.ANSI, snap.TakenAt) {
-		r.setState(stateConfidentWaiting, fmt.Sprintf("ANSI 화면이 최근 %s 이상 동일하게 유지되어 즉시 입력 대기 상태로 승격", longStableANSIDuration.Round(time.Second)))
-		r.enqueue(checkDeadlineTask{}, analyzeWaitingTask{referenceANSI: snap.ANSI, forceInput: true})
+		r.setState(stateConfidentWaiting, r.t("watch.reason_stable_promote", longStableANSIDuration.Round(time.Second)))
+		r.enqueue(
+			checkDeadlineTask{locale: r.locale},
+			analyzeWaitingTask{
+				locale:        r.locale,
+				referenceANSI: snap.ANSI,
+				forceInput:    true,
+			},
+		)
 		return nil
 	}
 
-	r.setState(stateSuspectWaiting1, fmt.Sprintf("ANSI 화면이 %s 기준 캡처와 동일하여 1차 입력 대기 의심", r.baseInterval().Round(time.Second)))
+	r.setState(stateSuspectWaiting1, r.t("watch.reason_suspect_initial", r.baseInterval().Round(time.Second)))
 	r.enqueue(
-		sleepTask{duration: r.suspectWait1(), reason: fmt.Sprintf("1차 입력 대기 의심, %s 후 ANSI 재확인", r.suspectWait1().Round(time.Second))},
-		checkDeadlineTask{},
-		ansiRecheckTask{stage: 1, referenceANSI: snap.ANSI},
+		sleepTask{
+			duration: r.suspectWait1(),
+			reason:   r.t("watch.reason_suspect_wait", 1, r.suspectWait1().Round(time.Second)),
+		},
+		checkDeadlineTask{locale: r.locale},
+		ansiRecheckTask{
+			locale:        r.locale,
+			stage:         1,
+			referenceANSI: snap.ANSI,
+		},
 	)
 	return nil
 }
 
 type ansiRecheckTask struct {
 	stage         int
+	locale        string
 	referenceANSI string
 }
 
 func (t ansiRecheckTask) Name() string { return "CompareCaptureTask" }
 func (t ansiRecheckTask) Description() string {
-	return fmt.Sprintf("%d차 입력 대기 의심 상태에서 ANSI 재비교를 수행한다", t.stage)
+	return i18n.T(t.locale, "watch.task_ansi_recheck_description", t.stage)
 }
 func (t ansiRecheckTask) Run(r *Runner) error {
 	snap, err := r.fetcher.CaptureDual(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
@@ -868,12 +742,13 @@ func (t ansiRecheckTask) Run(r *Runner) error {
 		return fmt.Errorf("ansi recheck failed: %w", err)
 	}
 	r.recordANSISnapshot(snap.ANSI, snap.TakenAt)
-	analysis := prompt.AnalyzeWithHint(r.promptProviderHint(), snap.ANSI, snap.Plain)
+	analysis := prompt.AnalyzeWithHintAndLocale(r.promptProviderHint(), snap.ANSI, snap.Plain, r.locale)
 	summary := r.recordScreenSnapshot(snap, analysis)
 	if r.shouldBypassWaitingStability(snap, analysis, summary) {
-		r.setState(stateConfidentWaiting, "의심 단계 중 interactive prompt가 감지되어 ANSI 안정성 대기를 우회하고 해석으로 진입")
+		r.setState(stateConfidentWaiting, r.t("watch.reason_bypass_prompt_wait"))
 		r.prevBase = snap
-		r.enqueue(checkDeadlineTask{}, analyzeWaitingTask{
+		r.enqueue(checkDeadlineTask{locale: t.locale}, analyzeWaitingTask{
+			locale:              t.locale,
 			referenceANSI:       snap.ANSI,
 			referencePromptZone: summary.PromptZoneFingerprint,
 			allowVolatileANSI:   true,
@@ -881,19 +756,29 @@ func (t ansiRecheckTask) Run(r *Runner) error {
 		return nil
 	}
 	if snap.ANSI != t.referenceANSI {
-		r.setState(stateMonitoring, fmt.Sprintf("의심 단계 중 ANSI 화면이 바뀌어 %s 모니터링으로 복귀", r.baseInterval().Round(time.Second)))
+		r.setState(stateMonitoring, r.t("watch.reason_capture_changed_wait", r.baseInterval().Round(time.Second)))
 		r.prevBase = snap
 		r.enqueue(
-			sleepTask{duration: r.baseInterval(), reason: fmt.Sprintf("ANSI 변경 감지, 다시 %s 기준 캡처 대기", r.baseInterval().Round(time.Second))},
-			checkDeadlineTask{},
-			baseCaptureTask{},
+			sleepTask{
+				duration: r.baseInterval(),
+				reason:   r.t("watch.sleep_capture_changed"),
+			},
+			checkDeadlineTask{locale: r.locale},
+			baseCaptureTask{locale: r.locale},
 		)
 		return nil
 	}
 
 	if r.hasLongStableANSI(snap.ANSI, snap.TakenAt) {
-		r.setState(stateConfidentWaiting, fmt.Sprintf("ANSI 화면이 최근 %s 이상 동일하게 유지되어 즉시 입력 대기 상태로 승격", longStableANSIDuration.Round(time.Second)))
-		r.enqueue(checkDeadlineTask{}, analyzeWaitingTask{referenceANSI: snap.ANSI, forceInput: true})
+		r.setState(stateConfidentWaiting, r.t("watch.reason_stable_promote", longStableANSIDuration.Round(time.Second)))
+		r.enqueue(
+			checkDeadlineTask{locale: r.locale},
+			analyzeWaitingTask{
+				locale:        t.locale,
+				referenceANSI: snap.ANSI,
+				forceInput:    true,
+			},
+		)
 		return nil
 	}
 
@@ -904,21 +789,35 @@ func (t ansiRecheckTask) Run(r *Runner) error {
 		if remaining := r.minStableWaitingDuration() - elapsed; remaining > 0 && remaining < waitMore {
 			waitMore = remaining
 		}
-		r.setState(r.suspectState(nextStage), fmt.Sprintf("ANSI 화면은 동일하며 최소 안정 시간 %s를 채우기 위해 %d차 입력 대기 의심으로 진행", r.minStableWaitingDuration().Round(time.Second), nextStage))
+		r.setState(r.suspectState(nextStage), r.t("watch.reason_min_stable_time", r.minStableWaitingDuration().Round(time.Second), nextStage))
 		r.enqueue(
-			sleepTask{duration: waitMore, reason: fmt.Sprintf("%d차 입력 대기 의심, %s 후 ANSI 재확인", nextStage, waitMore.Round(time.Second))},
-			checkDeadlineTask{},
-			ansiRecheckTask{stage: nextStage, referenceANSI: snap.ANSI},
+			sleepTask{
+				duration: waitMore,
+				reason:   r.t("watch.reason_suspect_wait", nextStage, waitMore.Round(time.Second)),
+			},
+			checkDeadlineTask{locale: r.locale},
+			ansiRecheckTask{
+				locale:        r.locale,
+				stage:         nextStage,
+				referenceANSI: snap.ANSI,
+			},
 		)
 		return nil
 	}
 
-	r.setState(stateConfidentWaiting, "16초 동안 5회 ANSI 화면이 동일하여 입력 대기 상태를 확신")
-	r.enqueue(checkDeadlineTask{}, analyzeWaitingTask{referenceANSI: snap.ANSI})
+	r.setState(stateConfidentWaiting, r.t("watch.reason_confident_by_repetition"))
+	r.enqueue(
+		checkDeadlineTask{locale: r.locale},
+		analyzeWaitingTask{
+			locale:        t.locale,
+			referenceANSI: snap.ANSI,
+		},
+	)
 	return nil
 }
 
 type analyzeWaitingTask struct {
+	locale              string
 	referenceANSI       string
 	referencePromptZone string
 	allowVolatileANSI   bool
@@ -928,15 +827,15 @@ type analyzeWaitingTask struct {
 func (t analyzeWaitingTask) Name() string { return "InterpretWaitingStateTask" }
 func (t analyzeWaitingTask) Description() string {
 	if t.forceInput {
-		return "장기 정지 ANSI 화면을 강제 입력 대상으로 해석해 다음 동작을 결정한다"
+		return i18n.T(t.locale, "watch.task_interpret_force_input_description")
 	}
 	if t.allowVolatileANSI {
-		return "interactive prompt를 우선시해 변동 ANSI를 허용하고 다음 동작을 결정한다"
+		return i18n.T(t.locale, "watch.task_interpret_interactive_description")
 	}
-	return "prompt 위치와 마지막 출력 블록을 해석해 다음 동작을 결정한다"
+	return i18n.T(t.locale, "watch.task_interpret_default_description")
 }
 func (t analyzeWaitingTask) Run(r *Runner) error {
-	r.setState(stateInterpreting, "waiting 화면 해석 시작")
+	r.setState(stateInterpreting, r.t("watch.interpret_start"))
 	snap, err := r.fetcher.CaptureDual(r.ctx, r.cfg.Target, r.cfg.CaptureLines)
 	if err != nil {
 		return fmt.Errorf("analysis dual capture failed: %w", err)
@@ -949,57 +848,66 @@ func (t analyzeWaitingTask) Run(r *Runner) error {
 			}
 		}
 		r.prevBase = snap
-		r.setState(stateMonitoring, "해석 직전 화면이 바뀌어 모니터링으로 복귀")
+		r.setState(stateMonitoring, r.t("watch.interpret_prompt_changed"))
 		r.enqueue(
-			sleepTask{duration: r.baseInterval(), reason: fmt.Sprintf("해석 직전 ANSI 변경 감지, 다시 %s 모니터링", r.baseInterval().Round(time.Second))},
-			checkDeadlineTask{},
-			baseCaptureTask{},
+			sleepTask{
+				duration: r.baseInterval(),
+				reason:   r.t("watch.interpret_prompt_changed_wait", r.baseInterval().Round(time.Second)),
+			},
+			checkDeadlineTask{locale: r.locale},
+			baseCaptureTask{locale: r.locale},
 		)
 		return nil
 	}
 
 analyze:
-	analysis := prompt.AnalyzeWithHintAndWidth(r.promptProviderHint(), snap.ANSI, snap.Plain, r.paneWidth())
-	r.logger("prompt analysis: provider=%s assistant_ui=%t processing=%t interactive=%t detected=%t line=%d class=%s reason=%s choice=%s", analysis.Provider, analysis.AssistantUI, analysis.Processing, analysis.InteractivePrompt, analysis.PromptDetected, analysis.PromptLine, analysis.Classification, analysis.Reason, analysis.RecommendedChoice)
+	analysis := prompt.AnalyzeWithHintAndLocaleAndWidth(r.promptProviderHint(), snap.ANSI, snap.Plain, r.locale, r.paneWidth())
+	r.logger(r.t("watch.log_prompt_analysis"), analysis.Provider, analysis.AssistantUI, analysis.Processing, analysis.InteractivePrompt, analysis.PromptDetected, analysis.PromptLine, analysis.Classification, analysis.Reason, analysis.RecommendedChoice)
 	if block := strings.TrimSpace(analysis.OutputBlock); block != "" {
-		r.logger("latest output block:\n%s", block)
+		r.logger(r.t("watch.log_latest_output_block"), block)
 	}
 	if !analysis.AssistantUI {
 		if t.forceInput {
-			return r.injectContinue("장시간 동일 ANSI 화면에서 assistant UI 시그니처는 약하지만 강제 continue 입력")
+			return r.injectContinue(r.t("watch.interpret_assistant_signature_weak"))
 		}
 		r.prevBase = snap
-		r.setState(stateMonitoring, fmt.Sprintf("assistant UI 시그니처가 없어 입력하지 않고 %s 모니터링으로 복귀", r.baseInterval().Round(time.Second)))
+		r.setState(stateMonitoring, r.t("watch.interpret_no_assistant_monitor", r.baseInterval().Round(time.Second)))
 		r.enqueue(
-			sleepTask{duration: r.baseInterval(), reason: fmt.Sprintf("assistant UI 미확인, 다시 %s 모니터링", r.baseInterval().Round(time.Second))},
-			checkDeadlineTask{},
-			baseCaptureTask{},
+			sleepTask{
+				duration: r.baseInterval(),
+				reason:   r.t("watch.sleep_no_assistant_monitor", r.baseInterval().Round(time.Second)),
+			},
+			checkDeadlineTask{locale: r.locale},
+			baseCaptureTask{locale: r.locale},
 		)
 		return nil
 	}
 	if r.hasCopilotSlashCommandState(analysis) {
-		return r.clearPromptState("Copilot slash command 상태를 정리하고 모니터링으로 복귀")
+		return r.clearPromptState(r.t("watch.interpret_copilot_clear"))
 	}
 	if analysis.Processing {
 		if t.forceInput {
-			return r.injectContinue("장시간 동일 ANSI 화면이 processing으로 보이지만 정체 상태로 판단되어 강제 continue 입력")
+			return r.injectContinue(r.t("watch.interpret_force_input_override"))
 		}
 		r.prevBase = snap
-		r.setState(stateMonitoring, fmt.Sprintf("진행중 신호가 남아 있어 입력하지 않고 %s 모니터링으로 복귀", r.baseInterval().Round(time.Second)))
+		r.setState(stateMonitoring, r.t("watch.interpret_processing_wait", r.baseInterval().Round(time.Second)))
 		r.enqueue(
-			sleepTask{duration: r.baseInterval(), reason: fmt.Sprintf("진행중 신호 감지, 다시 %s 모니터링", r.baseInterval().Round(time.Second))},
-			checkDeadlineTask{},
-			baseCaptureTask{},
+			sleepTask{
+				duration: r.baseInterval(),
+				reason:   r.t("watch.sleep_processing_wait", r.baseInterval().Round(time.Second)),
+			},
+			checkDeadlineTask{locale: r.locale},
+			baseCaptureTask{locale: r.locale},
 		)
 		return nil
 	}
 	if r.shouldReplacePendingPromptInput(analysis) {
-		return r.injectContinue("Copilot 입력창의 slash-start 미실행 텍스트를 비우고 새 continue 입력으로 교체")
+		return r.injectContinue(r.t("watch.interpret_replace_pending"))
 	}
 	if r.hasPendingPromptInput(analysis) {
-		return r.submitPendingInput("입력창에 미실행 텍스트가 남아 있어 submit-only 실행")
+		return r.submitPendingInput(r.t("watch.interpret_submit_pending"))
 	}
-	if plan, ok := deterministicActionPlan(analysis, "결정적 입력 계획을 적용"); ok {
+	if plan, ok := deterministicActionPlan(analysis, r.t("watch.interpret_plan"), r.cfg.Locale); ok {
 		return r.executeActionPlan(plan, false)
 	}
 
@@ -1009,17 +917,17 @@ analyze:
 	case prompt.ClassUnknownWaiting:
 		decision, err := r.classifyWithLLM(r.ctx, analysis, snap.Plain)
 		if err != nil {
-			return r.injectContinue("LLM 해석 실패로 기본 continue 입력")
+			return r.injectContinue(r.t("watch.interpret_llm_fail"))
 		}
 		if t.forceInput && strings.EqualFold(strings.TrimSpace(decision.Action), "SKIP") {
 			decision.Action = "INJECT_CONTINUE"
 			if strings.TrimSpace(decision.Reason) == "" {
-				decision.Reason = "장시간 동일 ANSI 화면에서 강제 continue 입력"
+				decision.Reason = r.t("watch.interpret_force_input_override")
 			}
 		}
 		return r.applyLLMDecision(decision)
 	default:
-		return r.injectContinue("미분류 대기 상태로 판단되어 기본 continue 입력")
+		return r.injectContinue(r.t("watch.interpret_unknown"))
 	}
 }
 
@@ -1055,16 +963,19 @@ func (r *Runner) injectContinue(reason string) error {
 	nextCount := r.continueSentCount + 1
 	message := r.prepareTextInput(r.nextContinueMessage(nextCount))
 	r.setState(stateActing, reason)
-	r.logger("continue prompt selected: count=%d message=%q", nextCount, message)
+	r.logger(r.t("watch.log_continue_prompt_selected"), nextCount, message)
 	if err := r.getExecutor().SendContinue(r.ctx, continueRequest{Message: message}); err != nil {
 		return err
 	}
 	r.continueSentCount = nextCount
 	r.prevBase = capture.Snapshot{}
 	r.enqueue(
-		sleepTask{duration: r.baseInterval(), reason: fmt.Sprintf("입력 전송 후 다음 %s 모니터링 대기", r.baseInterval().Round(time.Second))},
-		checkDeadlineTask{},
-		baseCaptureTask{},
+		sleepTask{
+			duration: r.baseInterval(),
+			reason:   r.t("watch.sleep_after_send", r.baseInterval().Round(time.Second)),
+		},
+		checkDeadlineTask{locale: r.locale},
+		baseCaptureTask{locale: r.locale},
 	)
 	return nil
 }
@@ -1073,12 +984,12 @@ func (r *Runner) injectContinueOnce(reason string) error {
 	nextCount := r.continueSentCount + 1
 	message := r.prepareTextInput(r.nextContinueMessage(nextCount))
 	r.setState(stateActing, reason)
-	r.logger("continue prompt selected: count=%d message=%q", nextCount, message)
+	r.logger(r.t("watch.log_continue_prompt_selected"), nextCount, message)
 	if err := r.getExecutor().SendContinue(r.ctx, continueRequest{Message: message}); err != nil {
 		return err
 	}
 	r.continueSentCount = nextCount
-	r.setState(stateStopped, "once mode: continue 입력 후 종료")
+	r.setState(stateStopped, r.t("watch.once_after_input"))
 	return nil
 }
 
@@ -1089,9 +1000,12 @@ func (r *Runner) injectChoice(choice string, reason string) error {
 	}
 	r.prevBase = capture.Snapshot{}
 	r.enqueue(
-		sleepTask{duration: r.baseInterval(), reason: fmt.Sprintf("선택지 입력 후 다음 %s 모니터링 대기", r.baseInterval().Round(time.Second))},
-		checkDeadlineTask{},
-		baseCaptureTask{},
+		sleepTask{
+			duration: r.baseInterval(),
+			reason:   r.t("watch.sleep_after_choice", r.baseInterval().Round(time.Second)),
+		},
+		checkDeadlineTask{locale: r.locale},
+		baseCaptureTask{locale: r.locale},
 	)
 	return nil
 }
@@ -1101,7 +1015,7 @@ func (r *Runner) injectChoiceOnce(choice string, reason string) error {
 	if err := r.getExecutor().SendChoice(r.ctx, choiceRequest{Choice: choice}); err != nil {
 		return err
 	}
-	r.setState(stateStopped, "once mode: 선택 입력 후 종료")
+	r.setState(stateStopped, r.t("watch.once_after_choice"))
 	return nil
 }
 
@@ -1116,9 +1030,12 @@ func (r *Runner) injectCursorChoice(choice string, reason string) error {
 	}
 	r.prevBase = capture.Snapshot{}
 	r.enqueue(
-		sleepTask{duration: r.baseInterval(), reason: fmt.Sprintf("커서형 선택 확정 후 다음 %s 모니터링 대기", r.baseInterval().Round(time.Second))},
-		checkDeadlineTask{},
-		baseCaptureTask{},
+		sleepTask{
+			duration: r.baseInterval(),
+			reason:   r.t("watch.sleep_after_cursor", r.baseInterval().Round(time.Second)),
+		},
+		checkDeadlineTask{locale: r.locale},
+		baseCaptureTask{locale: r.locale},
 	)
 	return nil
 }
@@ -1132,32 +1049,50 @@ func (r *Runner) injectCursorChoiceOnce(choice string, reason string) error {
 	if err := r.getExecutor().SendCursorChoice(r.ctx, cursorChoiceRequest{Choice: choice}); err != nil {
 		return r.cursorChoiceFallbackOnce(reason, err)
 	}
-	r.setState(stateStopped, "once mode: 커서형 선택 확정 후 종료")
+	r.setState(stateStopped, r.t("watch.once_after_cursor"))
 	return nil
 }
 
 func (r *Runner) cursorChoiceFallback(reason string, cause error) error {
-	r.logger("cursor choice failed; falling back to continue: %v", cause)
-	return r.injectContinue(reason + " 방향키 선택이 확인되지 않아 continue 입력으로 폴백")
+	r.logger(r.t("watch.log_cursor_choice_failed"), cause)
+	fallback := strings.TrimSpace(i18n.T(r.cfg.Locale, "watch.fallback_cursor"))
+	if strings.Contains(fallback, "%s") {
+		if strings.TrimSpace(reason) == "" {
+			reason = r.t("watch.fallback_cursor_subject")
+		}
+		fallback = fmt.Sprintf(fallback, strings.TrimSpace(reason))
+	} else if reason != "" {
+		fallback = reason + " " + fallback
+	}
+	return r.injectContinue(fallback)
 }
 
 func (r *Runner) cursorChoiceFallbackOnce(reason string, cause error) error {
-	r.logger("cursor choice failed in once mode; falling back to continue: %v", cause)
-	return r.injectContinueOnce(reason + " 방향키 선택이 확인되지 않아 continue 입력으로 폴백")
+	r.logger(r.t("watch.log_cursor_choice_failed_once"), cause)
+	fallback := strings.TrimSpace(i18n.T(r.cfg.Locale, "watch.fallback_cursor"))
+	if strings.Contains(fallback, "%s") {
+		if strings.TrimSpace(reason) == "" {
+			reason = r.t("watch.fallback_cursor_subject")
+		}
+		fallback = fmt.Sprintf(fallback, strings.TrimSpace(reason))
+	} else if reason != "" {
+		fallback = reason + " " + fallback
+	}
+	return r.injectContinueOnce(fallback)
 }
 
 func (r *Runner) injectInputOnce(input string, reason string) error {
 	input = r.prepareTextInput(input)
 	if input == "" {
 		fallbackReason := r.emptyInputFallbackReason(reason)
-		r.logger("empty recommended input in once mode; falling back to continue: reason=%q", reason)
+		r.logger(r.t("watch.log_empty_recommended_input_once"), reason)
 		return r.injectContinueOnce(fallbackReason)
 	}
 	r.setState(stateActing, reason)
 	if err := r.getExecutor().SendInput(r.ctx, inputRequest{Input: input}); err != nil {
 		return err
 	}
-	r.setState(stateStopped, "once mode: 입력값 전송 후 종료")
+	r.setState(stateStopped, r.t("watch.once_after_input_submit"))
 	return nil
 }
 
@@ -1168,9 +1103,12 @@ func (r *Runner) submitPendingInput(reason string) error {
 	}
 	r.prevBase = capture.Snapshot{}
 	r.enqueue(
-		sleepTask{duration: r.baseInterval(), reason: fmt.Sprintf("submit-only 실행 후 다음 %s 모니터링 대기", r.baseInterval().Round(time.Second))},
-		checkDeadlineTask{},
-		baseCaptureTask{},
+		sleepTask{
+			duration: r.baseInterval(),
+			reason:   r.t("watch.sleep_after_submit", r.baseInterval().Round(time.Second)),
+		},
+		checkDeadlineTask{locale: r.locale},
+		baseCaptureTask{locale: r.locale},
 	)
 	return nil
 }
@@ -1180,7 +1118,7 @@ func (r *Runner) submitPendingInputOnce(reason string) error {
 	if err := r.getExecutor().SubmitPending(r.ctx, submitRequest{}); err != nil {
 		return err
 	}
-	r.setState(stateStopped, "once mode: submit-only 실행 후 종료")
+	r.setState(stateStopped, r.t("watch.once_after_submit"))
 	return nil
 }
 
@@ -1191,9 +1129,12 @@ func (r *Runner) clearPromptState(reason string) error {
 	}
 	r.prevBase = capture.Snapshot{}
 	r.enqueue(
-		sleepTask{duration: r.baseInterval(), reason: fmt.Sprintf("입력창 정리 후 다음 %s 모니터링 대기", r.baseInterval().Round(time.Second))},
-		checkDeadlineTask{},
-		baseCaptureTask{},
+		sleepTask{
+			duration: r.baseInterval(),
+			reason:   r.t("watch.sleep_after_clear", r.baseInterval().Round(time.Second)),
+		},
+		checkDeadlineTask{locale: r.locale},
+		baseCaptureTask{locale: r.locale},
 	)
 	return nil
 }
@@ -1203,30 +1144,30 @@ func (r *Runner) clearPromptStateOnce(reason string) error {
 	if err := r.getExecutor().ClearPrompt(r.ctx, clearPromptRequest{}); err != nil {
 		return err
 	}
-	r.setState(stateStopped, "once mode: 입력창 정리 후 종료")
+	r.setState(stateStopped, r.t("watch.once_after_clear"))
 	return nil
 }
 
 func (r *Runner) emptyInputFallbackReason(reason string) string {
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
-		return "빈 free-text 입력 추천이 반환되어 기본 continue 입력으로 폴백"
+		return strings.TrimSpace(i18n.T(r.cfg.Locale, "watch.fallback_empty_input"))
 	}
-	return reason + " 빈 free-text 입력 추천이 반환되어 기본 continue 입력으로 폴백"
+	return reason + " " + strings.TrimSpace(i18n.T(r.cfg.Locale, "watch.fallback_empty_input"))
 }
 
 func (r *Runner) skipFallbackReason(reason string, once bool) string {
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
 		if once {
-			return "once mode: SKIP 결정이 반환되어 continue 입력으로 폴백"
+			return strings.TrimSpace(i18n.T(r.cfg.Locale, "watch.fallback_skip_once"))
 		}
-		return "LLM이 SKIP 결정을 반환해도 continue 입력으로 폴백"
+		return strings.TrimSpace(i18n.T(r.cfg.Locale, "watch.fallback_skip_watch"))
 	}
-	return reason + " SKIP 대신 continue 입력으로 폴백"
+	return reason + " " + strings.TrimSpace(i18n.T(r.cfg.Locale, "watch.fallback_skip"))
 }
 
-func continueMessageFromPlannedItems(analysis prompt.Analysis) string {
+func continueMessageFromPlannedItems(analysis prompt.Analysis, locale string) string {
 	if analysis.Classification != prompt.ClassFreeTextRequest {
 		return ""
 	}
@@ -1247,7 +1188,7 @@ func continueMessageFromPlannedItems(analysis prompt.Analysis) string {
 		return ""
 	}
 	firstText = truncatePlaintextSentence(firstText, 96)
-	return fmt.Sprintf("남은 항목 %s번(%s)부터 진행하고, 검증까지 마친 뒤 다음 항목으로 이어서 진행해보자.", firstNumber, firstText)
+	return i18n.T(locale, "watch.plan_input_plan", firstNumber, firstText)
 }
 
 func truncatePlaintextSentence(value string, limit int) string {
@@ -1283,7 +1224,7 @@ func (r *Runner) applyLLMDecision(decision llmDecision) error {
 	case "INJECT_INPUT":
 		input := r.prepareTextInput(decision.RecommendedChoice)
 		if input == "" {
-			r.logger("empty recommended input from LLM; falling back to continue: action=%s reason=%q", decision.Action, decision.Reason)
+			r.logger(r.t("watch.log_empty_recommended_input"), decision.Action, decision.Reason)
 			return r.injectContinue(r.emptyInputFallbackReason(decision.Reason))
 		}
 		r.setState(stateActing, decision.Reason)
@@ -1292,9 +1233,12 @@ func (r *Runner) applyLLMDecision(decision llmDecision) error {
 		}
 		r.prevBase = capture.Snapshot{}
 		r.enqueue(
-			sleepTask{duration: r.baseInterval(), reason: fmt.Sprintf("입력값 전송 후 다음 %s 모니터링 대기", r.baseInterval().Round(time.Second))},
-			checkDeadlineTask{},
-			baseCaptureTask{},
+			sleepTask{
+				duration: r.baseInterval(),
+				reason:   r.t("watch.sleep_after_input_value", r.baseInterval().Round(time.Second)),
+			},
+			checkDeadlineTask{locale: r.locale},
+			baseCaptureTask{locale: r.locale},
 		)
 		return nil
 	default:
@@ -1345,21 +1289,21 @@ func (r *Runner) classifyWithLLM(ctx context.Context, analysis prompt.Analysis, 
 			r.updateUI()
 			continue
 		}
-		decision, err := classifyWithLLMFallback(ctx, provider, candidate.llmName, candidate.llmModel, analysis, plainCapture)
+		decision, err := classifyWithLLMFallbackForLocale(ctx, provider, candidate.llmName, candidate.llmModel, analysis, plainCapture, r.locale)
 		if err == nil {
 			r.lastLLMProvider = candidate.label + ":" + candidate.llmName
 			r.updateUI()
 			return decision, nil
 		}
-		r.logger("LLM fallback classification failed via %s llm=%s model=%s: %v", candidate.label, candidate.llmName, candidate.llmModel, err)
+		r.logger(r.t("watch.log_llm_fallback_failed"), candidate.label, candidate.llmName, candidate.llmModel, err)
 		errs = append(errs, fmt.Sprintf("%s=%v", candidate.label, err))
 		r.lastLLMProvider = candidate.label + ":" + candidate.llmName + ":failed"
 		r.updateUI()
 	}
 	if len(errs) == 0 {
-		return llmDecision{}, fmt.Errorf("no llm provider configured")
+		return llmDecision{}, errors.New(r.t("watch.error_no_llm_provider"))
 	}
-	return llmDecision{}, fmt.Errorf("all llm providers failed: %s", strings.Join(errs, "; "))
+	return llmDecision{}, errors.New(r.t("watch.error_all_llm_providers_failed", strings.Join(errs, "; ")))
 }
 
 func (r *Runner) getPrimaryProvider(ctx context.Context) (llm.Provider, error) {
@@ -1367,7 +1311,7 @@ func (r *Runner) getPrimaryProvider(ctx context.Context) (llm.Provider, error) {
 		return r.primaryProvider, r.primaryInitErr
 	}
 	r.primaryInitDone = true
-	r.primaryProvider, r.primaryInitErr = initializeProvider(ctx, r.cfg.LLMName, r.cfg.LLMModel, r.logger, "primary")
+	r.primaryProvider, r.primaryInitErr = initializeProvider(ctx, r.cfg.LLMName, r.cfg.LLMModel, r.locale, r.logger, "primary")
 	return r.primaryProvider, r.primaryInitErr
 }
 
@@ -1379,30 +1323,30 @@ func (r *Runner) getFallbackProvider(ctx context.Context) (llm.Provider, error) 
 		return r.fallbackProvider, r.fallbackInitErr
 	}
 	r.fallbackInitDone = true
-	r.fallbackProvider, r.fallbackInitErr = initializeProvider(ctx, r.cfg.FallbackLLMName, r.cfg.FallbackLLMModel, r.logger, "fallback")
+	r.fallbackProvider, r.fallbackInitErr = initializeProvider(ctx, r.cfg.FallbackLLMName, r.cfg.FallbackLLMModel, r.locale, r.logger, "fallback")
 	return r.fallbackProvider, r.fallbackInitErr
 }
 
-func initializeProvider(ctx context.Context, name string, model string, logger func(string, ...interface{}), role string) (llm.Provider, error) {
+func initializeProvider(ctx context.Context, name string, model string, locale string, logger func(string, ...interface{}), role string) (llm.Provider, error) {
 	provider, err := llm.New(name, model)
 	if err != nil {
 		return nil, err
 	}
 	binary, err := provider.ValidateBinary()
 	if err != nil {
-		return nil, fmt.Errorf("llm 바이너리 검증 실패: %w", err)
+		return nil, errors.New(i18n.T(locale, "watch.error_llm_binary_validate", err))
 	}
 	usage, err := provider.CheckUsage(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if usage.HasKnownLimit && usage.Remaining <= 0 {
-		return nil, fmt.Errorf("llm %s의 잔여 사용량이 0 이하입니다 (source=%s)", name, usage.Source)
+		return nil, errors.New(i18n.T(locale, "watch.error_llm_quota_exhausted", name, usage.Source))
 	}
 	if usage.HasKnownLimit {
-		logger("LLM lazy init (%s): llm=%s model=%s binary=%s usage_source=%s remaining=%d", role, name, model, binary, usage.Source, usage.Remaining)
+		logger(i18n.T(locale, "watch.log_llm_lazy_init_usage"), role, name, model, binary, usage.Source, usage.Remaining)
 	} else {
-		logger("LLM lazy init (%s): llm=%s model=%s binary=%s usage_source=%s", role, name, model, binary, usage.Source)
+		logger(i18n.T(locale, "watch.log_llm_lazy_init"), role, name, model, binary, usage.Source)
 	}
 	return provider, nil
 }
@@ -1425,13 +1369,17 @@ func (r *Runner) maybeSetContinueOverride(message string, source string) {
 	}
 	r.continueOverride = message
 	if strings.TrimSpace(source) == "" {
-		r.logger("continue override prepared: %q", message)
+		r.logger(r.t("watch.log_continue_override"), message)
 		return
 	}
-	r.logger("continue override prepared from %s: %q", source, message)
+	r.logger(r.t("watch.log_continue_override_from"), source, message)
 }
 
 func classifyWithLLMFallback(ctx context.Context, provider llm.Provider, llmName string, llmModel string, analysis prompt.Analysis, plainCapture string) (llmDecision, error) {
+	return classifyWithLLMFallbackForLocale(ctx, provider, llmName, llmModel, analysis, plainCapture, i18n.DefaultAppLocale)
+}
+
+func classifyWithLLMFallbackForLocale(ctx context.Context, provider llm.Provider, llmName string, llmModel string, analysis prompt.Analysis, plainCapture string, locale string) (llmDecision, error) {
 	if provider == nil {
 		return llmDecision{}, fmt.Errorf("provider not configured")
 	}
@@ -1444,6 +1392,7 @@ func classifyWithLLMFallback(ctx context.Context, provider llm.Provider, llmName
 The watcher is already confident the terminal is waiting for user input because ANSI screen content stayed unchanged through multiple timed checks.
 
 Classify the required action from the final output block and prompt line.
+Write CONTINUE_MESSAGE and REASON in %s.
 
 Return exactly 4 lines:
 ACTION: INJECT_CONTINUE | INJECT_SELECT | INJECT_INPUT | SKIP
@@ -1489,19 +1438,23 @@ Last output block:
 
 Full plain capture tail:
 %s
-`, promptText, outputBlock, trimTailLines(plainCapture, 20))
+`, waitingClassifierResponseLanguage(locale), promptText, outputBlock, trimTailLines(plainCapture, 20))
 
 	out, err := provider.RunPrompt(ctx, rawPrompt)
 	if err != nil {
 		return llmDecision{}, err
 	}
-	return parseLLMDecision(out), nil
+	return parseLLMDecisionForLocale(out, locale), nil
 }
 
 func parseLLMDecision(raw string) llmDecision {
+	return parseLLMDecisionForLocale(raw, i18n.DefaultAppLocale)
+}
+
+func parseLLMDecisionForLocale(raw string, locale string) llmDecision {
 	decision := llmDecision{
 		Action: "INJECT_CONTINUE",
-		Reason: "LLM fallback default continue",
+		Reason: i18n.T(locale, "watch.reason_llm_fallback_default_continue"),
 	}
 	for _, line := range strings.Split(strings.ReplaceAll(raw, "\r\n", "\n"), "\n") {
 		line = strings.TrimSpace(line)
@@ -1524,6 +1477,29 @@ func parseLLMDecision(raw string) llmDecision {
 		decision.ContinueMessage = ""
 	}
 	return decision
+}
+
+func waitingClassifierResponseLanguage(locale string) string {
+	switch i18n.NormalizeLocale(locale) {
+	case "ko":
+		return "Korean"
+	case "ja":
+		return "Japanese"
+	case "zh":
+		return "Chinese"
+	case "vi":
+		return "Vietnamese"
+	case "hi":
+		return "Hindi"
+	case "ru":
+		return "Russian"
+	case "es":
+		return "Spanish"
+	case "fr":
+		return "French"
+	default:
+		return "English"
+	}
 }
 
 func trimTailLines(value string, maxLines int) string {
@@ -1600,7 +1576,7 @@ func RunOfflineAnalysis(ctx context.Context, provider llm.Provider, llmName stri
 	}
 	ansi := string(data)
 	plain := capture.StripANSI(ansi)
-	analysis := prompt.AnalyzeWithHint(provider.Name(), ansi, plain)
+	analysis := prompt.AnalyzeWithHintAndLocale(provider.Name(), ansi, plain, i18n.DefaultAppLocale)
 	decision, err := classifyWithLLMFallback(ctx, provider, llmName, llmModel, analysis, plain)
 	return analysis, decision, err
 }

@@ -158,7 +158,7 @@ func TestPolicyLineIncludesWaitContinueAndFallbackPlan(t *testing.T) {
 	got := r.policyLine()
 	wantParts := []string{
 		"wait=1m0s>4s>4s>4s",
-		"continue=7 sent,next-audit=93",
+		"continue=7 sent,next-audit=13",
 		"policy=default",
 		"llm=primary->fallback",
 	}
@@ -294,7 +294,7 @@ func TestContinueMessageFromPlannedItemsBuildsPrompt(t *testing.T) {
 		}, "\n"),
 	}
 
-	got := continueMessageFromPlannedItems(analysis)
+	got := continueMessageFromPlannedItems(analysis, "")
 	if !strings.Contains(got, "남은 항목 1번") {
 		t.Fatalf("message=%q missing first item index", got)
 	}

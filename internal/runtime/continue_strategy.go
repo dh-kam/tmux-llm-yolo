@@ -1,8 +1,10 @@
 package runtime
 
 import (
+	"strconv"
 	"strings"
 
+	"github.com/dh-kam/tmux-llm-yolo/internal/i18n"
 	"github.com/dh-kam/tmux-llm-yolo/internal/policy"
 )
 
@@ -19,17 +21,29 @@ type continueStrategy struct {
 }
 
 func newContinueStrategy(baseFallback string) continueStrategy {
-	return newContinueStrategyWithPolicy(policy.Default(), baseFallback)
+	return newContinueStrategyWithPolicy(policy.Default(), baseFallback, i18n.DefaultAppLocale)
 }
 
-func newContinueStrategyWithPolicy(active policy.Policy, baseFallback string) continueStrategy {
+func newContinueStrategyWithPolicy(active policy.Policy, baseFallback string, locale string) continueStrategy {
 	baseFallback = strings.TrimSpace(baseFallback)
 	if active == nil {
 		active = policy.Default()
 	}
 	spec := active.Continuation()
+	loc := i18n.NormalizeLocale(locale)
+	if basePrompts := localizedPromptList(loc, "policy.base."+strings.TrimSpace(active.Name())); len(basePrompts) > 0 {
+		spec.BasePrompts = basePrompts
+	}
+	if auditPrompts := localizedPromptList(loc, "policy.audit."+strings.TrimSpace(active.Name())); len(auditPrompts) > 0 {
+		spec.AuditPrompts = auditPrompts
+	}
+	fallbackKey := "policy.fallback." + strings.TrimSpace(active.Name())
+	overrideFallback := strings.TrimSpace(i18n.T(loc, fallbackKey))
+	if overrideFallback != "" && overrideFallback != fallbackKey {
+		spec.FallbackMessage = overrideFallback
+	}
 	if strings.TrimSpace(spec.FallbackMessage) == "" {
-		spec.FallbackMessage = "계속 진행하되 완료까지 이어서 처리해보자."
+		spec.FallbackMessage = i18n.T(loc, "policy.fallback.default")
 	}
 	if spec.AuditEvery <= 0 {
 		spec.AuditEvery = auditPromptEvery
@@ -43,6 +57,19 @@ func newContinueStrategyWithPolicy(active policy.Policy, baseFallback string) co
 		baseFallback: baseFallback,
 		auditEvery:   spec.AuditEvery,
 	}
+}
+
+func localizedPromptList(locale string, keyPrefix string) []string {
+	result := make([]string, 0, 8)
+	for i := 1; i <= 32; i++ {
+		key := keyPrefix + "." + strconv.Itoa(i)
+		value := strings.TrimSpace(i18n.T(locale, key))
+		if value == "" || value == key {
+			break
+		}
+		result = append(result, value)
+	}
+	return result
 }
 
 func (s continueStrategy) messageFor(continueSentCount int) string {

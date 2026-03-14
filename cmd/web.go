@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dh-kam/tmux-llm-yolo/internal/i18n"
 	"github.com/dh-kam/tmux-llm-yolo/internal/webui"
 	"github.com/spf13/cobra"
 )
@@ -40,6 +41,10 @@ func runWeb(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	locale, err := cmd.Flags().GetString("locale")
+	if err != nil {
+		return err
+	}
 
 	sessionTTL := parseDurationFromEnv("WEB_SESSION_TTL_SECONDS", 24*time.Hour)
 	if sessionTTL <= 0 {
@@ -57,6 +62,7 @@ func runWeb(cmd *cobra.Command, args []string) error {
 		ListenAddr:         listen,
 		PollInterval:       pollInterval,
 		MaxTerminals:       maxTerminals,
+		Locale:             i18n.NormalizeLocale(locale),
 		OAuthBaseURL:       strings.TrimSpace(os.Getenv("WEB_OAUTH_BASE_URL")),
 		GoogleClientID:     strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_ID")),
 		GoogleClientSecret: strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_SECRET")),
@@ -75,7 +81,7 @@ func runWeb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("tmux web UI listening on %s\n", cfg.ListenAddr)
+	fmt.Printf("%s\n", i18n.T(cfg.Locale, "web.server_listening", cfg.ListenAddr))
 	return server.Run()
 }
 

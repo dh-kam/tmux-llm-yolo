@@ -7,7 +7,7 @@ import (
 	"github.com/dh-kam/tmux-llm-yolo/internal/prompt"
 )
 
-func deterministicRequirementFromAnalysis(analysis prompt.Analysis) (interaction.Requirement, bool) {
+func deterministicRequirementFromAnalysis(analysis prompt.Analysis, locale string) (interaction.Requirement, bool) {
 	requirement := interaction.Requirement{
 		Prompt:         strings.TrimSpace(analysis.PromptText),
 		SuggestedValue: strings.TrimSpace(analysis.RecommendedChoice),
@@ -32,7 +32,7 @@ func deterministicRequirementFromAnalysis(analysis prompt.Analysis) (interaction
 		requirement.Context = strings.TrimSpace(analysis.OutputBlock)
 		return requirement, true
 	case prompt.ClassFreeTextRequest:
-		message := continueMessageFromPlannedItems(analysis)
+		message := continueMessageFromPlannedItems(analysis, locale)
 		if strings.TrimSpace(message) != "" {
 			requirement.Kind = interaction.KindPlannedText
 			requirement.SuggestedValue = message
@@ -45,8 +45,8 @@ func deterministicRequirementFromAnalysis(analysis prompt.Analysis) (interaction
 	}
 }
 
-func deterministicActionPlan(analysis prompt.Analysis, fallbackReason string) (interaction.ActionPlan, bool) {
-	requirement, ok := deterministicRequirementFromAnalysis(analysis)
+func deterministicActionPlan(analysis prompt.Analysis, fallbackReason string, locale string) (interaction.ActionPlan, bool) {
+	requirement, ok := deterministicRequirementFromAnalysis(analysis, locale)
 	if !ok {
 		return interaction.ActionPlan{}, false
 	}

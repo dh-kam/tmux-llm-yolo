@@ -2,7 +2,7 @@ package policy
 
 import "strings"
 
-const DefaultAuditEvery = 100
+const DefaultAuditEvery = 20
 
 type ContinuationSpec struct {
 	BasePrompts     []string

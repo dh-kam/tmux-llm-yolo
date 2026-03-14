@@ -69,9 +69,12 @@ func TestCompletedCapturePathDetection(t *testing.T) {
 	}{
 		{path: "location-gemini.completed.capture", want: true},
 		{path: "/tmp/location-gemini.completed.ansi.capture", want: true},
+		{path: "/tmp/location-gemini.completed.capture.txt", want: true},
 		{path: "r8-codex.completed", want: true},
 		{path: "location-gemini.working.capture", want: false},
 		{path: "some/other/output.txt", want: false},
+		{path: "/tmp/location-gemini.completed.backup.capture", want: false},
+		{path: ".completed", want: false},
 	}
 
 	for _, tc := range cases {
@@ -94,6 +97,7 @@ func TestCompletedCaptureDecisionOverridesLLM(t *testing.T) {
 		"/tmp/location-gemini.completed.capture",
 		"gemini",
 		"",
+		"en",
 	)
 
 	if spy.runCalled {
@@ -128,6 +132,7 @@ func TestCompletedFixtureConsistentAcrossProviders(t *testing.T) {
 			"/tmp/location-gemini.completed.capture",
 			name,
 			"glm4:9b",
+			"en",
 		)
 		if spy.runCalled {
 			t.Fatalf("%s: expected RunPrompt to be skipped", name)
@@ -169,7 +174,7 @@ func TestParseCaptureDecisionSupportsInjectInput(t *testing.T) {
 		"RECOMMENDED_CHOICE: confirm",
 		"REASON: 사용자 입력을 요구하는 선택지로 판단됨",
 	}, "\n")
-	decision := parseCaptureDecision(out)
+	decision := parseCaptureDecision(out, "en")
 
 	if decision.Action != "INJECT_INPUT" {
 		t.Fatalf("Action=%s, want INJECT_INPUT", decision.Action)
@@ -187,7 +192,7 @@ func TestParseCaptureDecisionSelectFallbackFromMultiChoice(t *testing.T) {
 		"RECOMMENDED_CHOICE: 3)",
 		"REASON: 멀티초이스로 보임",
 	}, "\n")
-	decision := parseCaptureDecision(out)
+	decision := parseCaptureDecision(out, "en")
 
 	if decision.Action != "INJECT_SELECT" {
 		t.Fatalf("Action=%s, want INJECT_SELECT", decision.Action)

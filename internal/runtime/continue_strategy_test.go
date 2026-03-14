@@ -1,22 +1,25 @@
 package runtime
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/dh-kam/tmux-llm-yolo/internal/i18n"
 	"github.com/dh-kam/tmux-llm-yolo/internal/policy"
 )
 
 func TestContinueStrategyUsesAuditPromptAtConfiguredInterval(t *testing.T) {
 	strategy := newContinueStrategy("fallback")
+	expected := i18n.T(i18n.DefaultAppLocale, "policy.audit.default.1")
 
 	if got := strategy.messageFor(1); got == "fallback" {
 		t.Fatalf("count 1 should use rotating continue prompt, got fallback")
 	}
-	if got := strategy.messageFor(auditPromptEvery); got != auditContinuePrompts[0] {
-		t.Fatalf("count %d = %q, want %q", auditPromptEvery, got, auditContinuePrompts[0])
+	if got := strategy.messageFor(auditPromptEvery); got != expected {
+		t.Fatalf("count %d = %q, want %q", auditPromptEvery, got, expected)
 	}
-	if got := strategy.messageFor(auditPromptEvery * 2); got != auditContinuePrompts[1] {
-		t.Fatalf("count %d = %q, want %q", auditPromptEvery*2, got, auditContinuePrompts[1])
+	if got := strategy.messageFor(auditPromptEvery * 2); got != strings.TrimSpace(i18n.T(i18n.DefaultAppLocale, "policy.audit.default.2")) {
+		t.Fatalf("count %d = %q, want %q", auditPromptEvery*2, got, strings.TrimSpace(i18n.T(i18n.DefaultAppLocale, "policy.audit.default.2")))
 	}
 }
 
@@ -45,12 +48,13 @@ func TestContinueStrategyNextAuditIn(t *testing.T) {
 }
 
 func TestContinueStrategyUsesConfiguredPolicyContinuation(t *testing.T) {
-	strategy := newContinueStrategyWithPolicy(policy.Resolve("poc-completion"), "")
+	strategy := newContinueStrategyWithPolicy(policy.Resolve("poc-completion"), "", i18n.DefaultAppLocale)
+	expectedFallback := i18n.T(i18n.DefaultAppLocale, "policy.fallback.poc-completion")
 
 	if got := strategy.messageFor(1); got == "" {
 		t.Fatal("messageFor(1) returned empty message")
 	}
-	if got := strategy.baseFallback; got != policy.Resolve("poc-completion").Continuation().FallbackMessage {
-		t.Fatalf("baseFallback=%q want policy fallback %q", got, policy.Resolve("poc-completion").Continuation().FallbackMessage)
+	if got := strategy.baseFallback; got != expectedFallback {
+		t.Fatalf("baseFallback=%q want policy fallback %q", got, expectedFallback)
 	}
 }

@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dh-kam/tmux-llm-yolo/internal/i18n"
 )
 
 type promptBuilder func(string, string) [][]string
@@ -48,7 +50,7 @@ func (p provider) ValidateBinary() (string, error) {
 }
 
 func (p provider) IsProgressingCapture(capture Capture) (bool, string) {
-	return isProgressCapture(capture, p.progressRegex)
+	return isProgressCaptureForLocale(capture, p.progressRegex, i18n.DefaultAppLocale)
 }
 
 func (p provider) CheckUsage(ctx context.Context) (Usage, error) {
@@ -438,7 +440,18 @@ func parseRemaining(raw string) (int, error) {
 	return 0, fmt.Errorf("no numeric quota found in %q", raw)
 }
 
+func IsProgressingCaptureForLocale(p Provider, capture Capture, locale string) (bool, string) {
+	if concrete, ok := p.(provider); ok {
+		return isProgressCaptureForLocale(capture, concrete.progressRegex, locale)
+	}
+	return p.IsProgressingCapture(capture)
+}
+
 func isProgressCapture(capture Capture, progressPatterns []*regexp.Regexp) (bool, string) {
+	return isProgressCaptureForLocale(capture, progressPatterns, i18n.DefaultAppLocale)
+}
+
+func isProgressCaptureForLocale(capture Capture, progressPatterns []*regexp.Regexp, locale string) (bool, string) {
 	if len(progressPatterns) == 0 {
 		progressPatterns = defaultProgressPatterns()
 	}
@@ -446,7 +459,7 @@ func isProgressCapture(capture Capture, progressPatterns []*regexp.Regexp) (bool
 	lines := strings.Split(strings.ReplaceAll(capture.Text, "\r\n", "\n"), "\n")
 	promptLine := findPromptLine(lines)
 	if promptLine < 0 {
-		return false, "프롬프트 입력 줄을 찾지 못해 휴리스틱 판정을 건너뜀"
+		return false, i18n.T(locale, "llm.progress.reason_prompt_line_missing")
 	}
 	if isPromptPlaceholderLine(lines[promptLine]) {
 		if replacement := findPromptLineBefore(lines, promptLine); replacement >= 0 {
@@ -454,18 +467,18 @@ func isProgressCapture(capture Capture, progressPatterns []*regexp.Regexp) (bool
 		} else if fallback := findContentLineBefore(lines, promptLine); fallback >= 0 {
 			promptLine = fallback
 		} else {
-			return false, "프롬프트 플레이스홀더 라인 감지: " + strings.TrimSpace(stripANSI(lines[promptLine]))
+			return false, i18n.T(locale, "llm.progress.reason_prompt_placeholder", strings.TrimSpace(stripANSI(lines[promptLine])))
 		}
 	}
 
 	lastLLMLine := strings.TrimSpace(stripANSI(lastVisibleLineBefore(lines, promptLine)))
 	if lastLLMLine == "" {
-		return false, "프롬프트 위쪽에 유효한 출력 라인이 없어 휴리스틱 판정을 건너뜀"
+		return false, i18n.T(locale, "llm.progress.reason_no_output_before_prompt")
 	}
 
 	for _, linePattern := range promptWorkingPatterns() {
 		if linePattern.MatchString(lastLLMLine) {
-			return true, fmt.Sprintf("작업 중 신호 감지: 프롬프트 위 출력 라인=%q (패턴=%q)", lastLLMLine, linePattern.String())
+			return true, i18n.T(locale, "llm.progress.reason_working_above_prompt", lastLLMLine, linePattern.String())
 		}
 	}
 
@@ -480,11 +493,11 @@ func isProgressCapture(capture Capture, progressPatterns []*regexp.Regexp) (bool
 
 	promptWindow := lines[windowStart:windowEnd]
 	if matchLine, linePattern := firstMatchingLine(promptWindow, progressPatterns); matchLine != "" {
-		return true, fmt.Sprintf("진행성 텍스트 감지: %q (패턴=%q) [%s 주변 영역]", matchLine, linePattern.String(), promptLineHint(promptLine))
+		return true, i18n.T(locale, "llm.progress.reason_progress_text", matchLine, linePattern.String(), promptLineHint(promptLine))
 	}
 
 	if matchLine, linePattern := firstMatchingLine(promptWindow, promptWorkingPatterns()); matchLine != "" {
-		return true, fmt.Sprintf("작업 중 신호 감지: %q (패턴=%q) [%s 주변 영역]", matchLine, linePattern.String(), promptLineHint(promptLine))
+		return true, i18n.T(locale, "llm.progress.reason_working_near_prompt", matchLine, linePattern.String(), promptLineHint(promptLine))
 	}
 
 	return false, ""

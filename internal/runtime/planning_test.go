@@ -18,7 +18,7 @@ func TestDeterministicRequirementFromAnalysisBuildsCursorChoice(t *testing.T) {
 		Reason:            "승인 프롬프트의 커서 선택 메뉴가 감지됨",
 	}
 
-	requirement, ok := deterministicRequirementFromAnalysis(analysis)
+	requirement, ok := deterministicRequirementFromAnalysis(analysis, "")
 	if !ok {
 		t.Fatal("deterministicRequirementFromAnalysis returned ok=false")
 	}
@@ -41,7 +41,7 @@ func TestDeterministicActionPlanBuildsPlannedTextInput(t *testing.T) {
 		}, "\n"),
 	}
 
-	plan, ok := deterministicActionPlan(analysis, "fallback")
+	plan, ok := deterministicActionPlan(analysis, "fallback", "")
 	if !ok {
 		t.Fatal("deterministicActionPlan returned ok=false")
 	}

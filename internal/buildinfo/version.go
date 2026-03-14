@@ -3,7 +3,8 @@ package buildinfo
 const AppName = "tmux-llm-yolo"
 
 var (
-	Version   = "v0.9.0-202603.6"
+	Version   = "v0.9.0-202603.7"
 	GitCommit = "dev"
 	BuildDate = "unknown"
+	Variant   = "release"
 )
