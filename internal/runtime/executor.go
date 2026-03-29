@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/dh-kam/tmux-llm-yolo/internal/capture"
 	"github.com/dh-kam/tmux-llm-yolo/internal/i18n"
 	"github.com/dh-kam/tmux-llm-yolo/internal/tmux"
 	"gopkg.in/yaml.v3"
@@ -156,7 +158,27 @@ func (e providerActionExecutor) SendContinue(ctx context.Context, req continueRe
 }
 
 func (e providerActionExecutor) SendChoice(ctx context.Context, req choiceRequest) error {
-	return sendChoiceMessage(ctx, e.client, e.profile.target, req.Choice, e.profile.submitKey, e.profile.fallbackSubmitKey, e.profile.fallbackDelay, e.profile.clearBeforeTyping)
+	beforeANSI, err := e.client.CapturePane(ctx, e.profile.target, e.profile.captureLines, true)
+	if err != nil {
+		return fmt.Errorf("choice pre-capture failed: %w", err)
+	}
+	if err := sendChoiceMessage(ctx, e.client, e.profile.target, req.Choice, e.profile.submitKey, e.profile.fallbackSubmitKey, e.profile.fallbackDelay, e.profile.clearBeforeTyping); err != nil {
+		return err
+	}
+	afterANSI, err := e.client.CapturePane(ctx, e.profile.target, e.profile.captureLines, true)
+	if err != nil {
+		return fmt.Errorf("choice post-capture failed: %w", err)
+	}
+	// Conservative safety guard:
+	// if sending a numeric choice only grows blank prompt lines while meaningful
+	// content stays the same, treat it as a misclassified menu interaction.
+	if isPromptLineGrowth(beforeANSI, afterANSI) {
+		return fmt.Errorf("choice submission detected prompt-line growth without menu transition (provider: %s, choice: %s)", e.profile.provider, promptNumericChoice(req.Choice))
+	}
+	if e.profile.provider == "codex" && isPromptClearedWithoutMenuTransition(beforeANSI, afterANSI) {
+		return fmt.Errorf("choice submission cleared prompt text without menu transition (provider: %s, choice: %s)", e.profile.provider, promptNumericChoice(req.Choice))
+	}
+	return nil
 }
 
 func (e providerActionExecutor) SendCursorChoice(ctx context.Context, req cursorChoiceRequest) error {
@@ -185,6 +207,12 @@ func (e providerActionExecutor) SendCursorChoice(ctx context.Context, req cursor
 	if err != nil {
 		return fmt.Errorf("cursor probe capture after move failed: %w", err)
 	}
+	// Detect prompt-growing: if cursor keys only added blank lines instead of
+	// navigating a menu, the provider doesn't support cursor-based selection.
+	// Fall through to the continue-message fallback via cursorChoiceFallback.
+	if isPromptGrowth(beforeANSI, afterANSI) {
+		return fmt.Errorf("cursor probe detected prompt growth instead of menu navigation for choice %d (provider: %s)", targetIndex, e.profile.provider)
+	}
 	if targetIndex > 1 && afterANSI == beforeANSI {
 		return fmt.Errorf("cursor probe produced no ANSI change for choice %d", targetIndex)
 	}
@@ -198,6 +226,9 @@ func (e providerActionExecutor) SendCursorChoice(ctx context.Context, req cursor
 		probeANSI, err := e.client.CapturePane(ctx, e.profile.target, e.profile.captureLines, true)
 		if err != nil {
 			return fmt.Errorf("cursor probe capture after move failed: %w", err)
+		}
+		if isPromptGrowth(beforeANSI, probeANSI) {
+			return fmt.Errorf("cursor probe detected prompt growth instead of menu navigation for choice %d (provider: %s)", targetIndex, e.profile.provider)
 		}
 		if probeANSI == beforeANSI {
 			return fmt.Errorf("cursor probe produced no ANSI change for choice %d", targetIndex)
@@ -455,6 +486,134 @@ func promptNumericChoice(value string) string {
 		}
 	}
 	return value
+}
+
+// isPromptGrowth detects when cursor key presses only added blank lines to
+// the terminal instead of navigating a menu. This happens with providers like
+// codex where arrow keys create newlines in the input area rather than moving
+// a selection cursor. Returns true if the only difference between before and
+// after is additional blank/whitespace lines.
+func isPromptGrowth(beforeANSI, afterANSI string) bool {
+	if beforeANSI == afterANSI {
+		return false
+	}
+	beforePlain := capture.StripANSI(beforeANSI)
+	afterPlain := capture.StripANSI(afterANSI)
+	return compactNonBlank(beforePlain) == compactNonBlank(afterPlain)
+}
+
+func isPromptLineGrowth(beforeANSI, afterANSI string) bool {
+	if beforeANSI == afterANSI {
+		return false
+	}
+	beforePlain := normalizeChoiceCapture(capture.StripANSI(beforeANSI))
+	afterPlain := normalizeChoiceCapture(capture.StripANSI(afterANSI))
+	if compactNonBlank(beforePlain) != compactNonBlank(afterPlain) {
+		return false
+	}
+	return lineCount(afterPlain) > lineCount(beforePlain)
+}
+
+func normalizeChoiceCapture(value string) string {
+	return strings.ReplaceAll(value, "\r\n", "\n")
+}
+
+func lineCount(value string) int {
+	if value == "" {
+		return 0
+	}
+	return len(strings.Split(value, "\n"))
+}
+
+var numberedMenuLinePattern = regexp.MustCompile(`(?m)^[[:space:]]*(?:[›❯>]\s*)?\d+[\).]\s+.+$`)
+
+func isPromptClearedWithoutMenuTransition(beforeANSI, afterANSI string) bool {
+	if beforeANSI == afterANSI {
+		return false
+	}
+	beforePlain := normalizeChoiceCapture(capture.StripANSI(beforeANSI))
+	afterPlain := normalizeChoiceCapture(capture.StripANSI(afterANSI))
+	if hasStrongMenuContext(beforePlain) {
+		return false
+	}
+	beforePrompt, beforeActive := lastPromptLine(beforePlain)
+	afterPrompt, afterActive := lastPromptLine(afterPlain)
+	if !beforeActive || !afterActive {
+		return false
+	}
+	if !hasTypedPromptText(beforePrompt) {
+		return false
+	}
+	if hasTypedPromptText(afterPrompt) {
+		return false
+	}
+	if compactNonBlank(removePromptLines(beforePlain)) != compactNonBlank(removePromptLines(afterPlain)) {
+		return false
+	}
+	return true
+}
+
+func hasStrongMenuContext(text string) bool {
+	return len(numberedMenuLinePattern.FindAllString(text, -1)) >= 2
+}
+
+func lastPromptLine(text string) (string, bool) {
+	lines := strings.Split(text, "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if line == "" {
+			continue
+		}
+		if isPromptMarkerLine(line) {
+			return line, true
+		}
+	}
+	return "", false
+}
+
+func isPromptMarkerLine(line string) bool {
+	return strings.HasPrefix(line, "›") ||
+		strings.HasPrefix(line, "❯") ||
+		strings.HasPrefix(line, ">")
+}
+
+func hasTypedPromptText(line string) bool {
+	line = strings.TrimSpace(line)
+	switch {
+	case strings.HasPrefix(line, "›"):
+		return strings.TrimSpace(strings.TrimPrefix(line, "›")) != ""
+	case strings.HasPrefix(line, "❯"):
+		return strings.TrimSpace(strings.TrimPrefix(line, "❯")) != ""
+	case strings.HasPrefix(line, ">"):
+		return strings.TrimSpace(strings.TrimPrefix(line, ">")) != ""
+	default:
+		return false
+	}
+}
+
+func removePromptLines(text string) string {
+	lines := strings.Split(text, "\n")
+	kept := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if isPromptMarkerLine(strings.TrimSpace(line)) {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	return strings.Join(kept, "\n")
+}
+
+// compactNonBlank removes blank lines and trims whitespace, returning a
+// string suitable for comparing whether two captures have the same
+// meaningful content.
+func compactNonBlank(text string) string {
+	var parts []string
+	for _, line := range strings.Split(text, "\n") {
+		if strings.TrimSpace(line) != "" {
+			parts = append(parts, strings.TrimSpace(line))
+		}
+	}
+	return strings.Join(parts, "\n")
 }
 
 func normalizeRuntimeProvider(provider string) string {

@@ -996,7 +996,7 @@ func (r *Runner) injectContinueOnce(reason string) error {
 func (r *Runner) injectChoice(choice string, reason string) error {
 	r.setState(stateActing, reason)
 	if err := r.getExecutor().SendChoice(r.ctx, choiceRequest{Choice: choice}); err != nil {
-		return err
+		return r.choiceFallback(reason, err)
 	}
 	r.prevBase = capture.Snapshot{}
 	r.enqueue(
@@ -1013,10 +1013,34 @@ func (r *Runner) injectChoice(choice string, reason string) error {
 func (r *Runner) injectChoiceOnce(choice string, reason string) error {
 	r.setState(stateActing, reason)
 	if err := r.getExecutor().SendChoice(r.ctx, choiceRequest{Choice: choice}); err != nil {
-		return err
+		return r.choiceFallbackOnce(reason, err)
 	}
 	r.setState(stateStopped, r.t("watch.once_after_choice"))
 	return nil
+}
+
+func (r *Runner) choiceFallback(reason string, cause error) error {
+	r.logger(r.t("watch.log_cursor_choice_failed"), cause)
+	fallback := strings.TrimSpace(i18n.T(r.cfg.Locale, "watch.fallback_cursor"))
+	subject := "numbered-choice"
+	if strings.Contains(fallback, "%s") {
+		fallback = fmt.Sprintf(fallback, subject)
+	} else if reason != "" {
+		fallback = reason + " " + fallback
+	}
+	return r.injectContinue(fallback)
+}
+
+func (r *Runner) choiceFallbackOnce(reason string, cause error) error {
+	r.logger(r.t("watch.log_cursor_choice_failed_once"), cause)
+	fallback := strings.TrimSpace(i18n.T(r.cfg.Locale, "watch.fallback_cursor"))
+	subject := "numbered-choice"
+	if strings.Contains(fallback, "%s") {
+		fallback = fmt.Sprintf(fallback, subject)
+	} else if reason != "" {
+		fallback = reason + " " + fallback
+	}
+	return r.injectContinueOnce(fallback)
 }
 
 func (r *Runner) injectCursorConfirm(reason string) error {

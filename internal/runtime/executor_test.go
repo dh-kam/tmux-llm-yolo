@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -89,5 +90,85 @@ func TestProviderActionExecutorSendCursorChoiceMovesAndSubmits(t *testing.T) {
 	last := client.sendKeys[len(client.sendKeys)-1]
 	if len(last) != 1 || last[0] != "C-m" {
 		t.Fatalf("last sendKeys = %v, want [C-m]", last)
+	}
+}
+
+func TestIsPromptLineGrowthDetectsBlankPromptExpansion(t *testing.T) {
+	before := strings.Join([]string{
+		"review summary line",
+		"› Run /review on my current changes",
+		"",
+	}, "\n")
+	after := strings.Join([]string{
+		"review summary line",
+		"› Run /review on my current changes",
+		"",
+		"",
+	}, "\n")
+	if !isPromptLineGrowth(before, after) {
+		t.Fatalf("isPromptLineGrowth=false want true")
+	}
+}
+
+func TestProviderActionExecutorSendChoiceFailsOnPromptLineGrowth(t *testing.T) {
+	client := &fakeTmuxClient{
+		ansi: strings.Join([]string{
+			"review summary line",
+			"› Run /review on my current changes",
+		}, "\n"),
+	}
+	client.onSend = func(f *fakeTmuxClient, keys []string) {
+		if len(keys) == 1 && keys[0] == "C-m" {
+			f.ansi = f.ansi + "\n"
+		}
+	}
+
+	exec := newActionExecutor(client, Config{
+		Target:            "tmp-codex",
+		SubmitKey:         "C-m",
+		SubmitKeyFallback: "",
+		CaptureLines:      80,
+	}, "codex")
+
+	err := exec.SendChoice(context.Background(), choiceRequest{Choice: "3"})
+	if err == nil {
+		t.Fatal("SendChoice error=nil want prompt growth failure")
+	}
+	if !strings.Contains(err.Error(), "prompt-line growth") {
+		t.Fatalf("error=%q want prompt-line growth marker", err)
+	}
+}
+
+func TestIsPromptClearedWithoutMenuTransitionDetectsClearedPrompt(t *testing.T) {
+	before := strings.Join([]string{
+		"3. Low: ignored filesystem error in test setup",
+		"details line",
+		"› Run /review on my current changes",
+	}, "\n")
+	after := strings.Join([]string{
+		"3. Low: ignored filesystem error in test setup",
+		"details line",
+		"›",
+	}, "\n")
+	if !isPromptClearedWithoutMenuTransition(before, after) {
+		t.Fatalf("isPromptClearedWithoutMenuTransition=false want true")
+	}
+}
+
+func TestIsPromptClearedWithoutMenuTransitionIgnoresRealMenuContext(t *testing.T) {
+	before := strings.Join([]string{
+		"Do you want to proceed?",
+		"1. Yes",
+		"2. No",
+		"› 1. Yes",
+	}, "\n")
+	after := strings.Join([]string{
+		"Do you want to proceed?",
+		"1. Yes",
+		"2. No",
+		"›",
+	}, "\n")
+	if isPromptClearedWithoutMenuTransition(before, after) {
+		t.Fatalf("isPromptClearedWithoutMenuTransition=true want false")
 	}
 }
