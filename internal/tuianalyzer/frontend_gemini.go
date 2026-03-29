@@ -6,13 +6,13 @@ import (
 
 // Gemini CLI frontend patterns.
 var (
-	geminiSignaturePattern    = regexp.MustCompile(`(?i)(gemini code assist|type your message or @path|gemini 3)`)
-	geminiASCIIArtPattern     = regexp.MustCompile(`[█░▀▄]`)
-	geminiBorderPattern       = regexp.MustCompile(`^[▀▄]+$`)
-	geminiPromptPattern       = regexp.MustCompile(`^[[:space:]]*\*[[:space:]]`)
-	geminiPlaceholderPattern  = regexp.MustCompile(`(?i)(type your message|type @ to mention)`)
-	geminiFooterPattern       = regexp.MustCompile(`(?i)(/workspace.*sandbox|/model\s+auto|/auth|/help|yojo\s+ctrl\+y|\?\s*for\s*shortcuts)`)
-	geminiSeparatorPattern    = regexp.MustCompile(`^[▀▄─]+$`)
+	geminiSignaturePattern   = regexp.MustCompile(`(?i)(gemini code assist|type your message or @path|gemini 3)`)
+	geminiASCIIArtPattern    = regexp.MustCompile(`[█░▀▄]`)
+	geminiBorderPattern      = regexp.MustCompile(`^[▀▄]+$`)
+	geminiPromptPattern      = regexp.MustCompile(`^[[:space:]]*\*[[:space:]]`)
+	geminiPlaceholderPattern = regexp.MustCompile(`(?i)(type your message|type @ to mention)`)
+	geminiFooterPattern      = regexp.MustCompile(`(?i)(/workspace.*sandbox|/model\s+auto|/auth|/help|yojo\s+ctrl\+y|\?\s*for\s*shortcuts)`)
+	geminiSeparatorPattern   = regexp.MustCompile(`^[▀▄─]+$`)
 )
 
 // GeminiFrontEndAnalyzer detects and classifies Gemini CLI terminal layouts.

@@ -429,14 +429,19 @@ func TestAnalyzeWaitingTaskAllowsVolatileANSIWhenPromptZoneMatches(t *testing.T)
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
-	if len(client.sendKeys) != 2 {
-		t.Fatalf("sendKeys calls = %d, want 2", len(client.sendKeys))
+	// Codex approval prompts use text-based choice (not cursor navigation):
+	// C-u (clear), -l 2 (type choice "2" for "don't ask again"), C-m (submit)
+	if len(client.sendKeys) != 3 {
+		t.Fatalf("sendKeys calls = %d, want 3", len(client.sendKeys))
 	}
-	if got := client.sendKeys[0]; len(got) != 1 || got[0] != "Down" {
-		t.Fatalf("first sendKeys = %v, want [Down]", got)
+	if got := client.sendKeys[0]; len(got) != 1 || got[0] != "C-u" {
+		t.Fatalf("first sendKeys = %v, want [C-u]", got)
 	}
-	if got := client.sendKeys[1]; len(got) != 1 || got[0] != "C-m" {
-		t.Fatalf("second sendKeys = %v, want [C-m]", got)
+	if got := client.sendKeys[1]; len(got) != 2 || got[0] != "-l" || got[1] != "2" {
+		t.Fatalf("second sendKeys = %v, want [-l 2]", got)
+	}
+	if got := client.sendKeys[2]; len(got) != 1 || got[0] != "C-m" {
+		t.Fatalf("third sendKeys = %v, want [C-m]", got)
 	}
 }
 
@@ -812,6 +817,45 @@ func TestInjectContinueAdvancesCountAfterSuccessfulSend(t *testing.T) {
 	}
 	if r.continueSentCount != 1 {
 		t.Fatalf("continueSentCount = %d, want 1", r.continueSentCount)
+	}
+}
+
+func TestInjectChoiceFallsBackToContinueOnPromptLineGrowth(t *testing.T) {
+	client := &fakeTmuxClient{
+		ansi: strings.Join([]string{
+			"review summary line",
+			"› Run /review on my current changes",
+		}, "\n"),
+	}
+	client.onSend = func(f *fakeTmuxClient, keys []string) {
+		if len(keys) == 1 && keys[0] == "C-m" {
+			f.ansi = f.ansi + "\n"
+		}
+	}
+
+	r := &Runner{
+		cfg: Config{
+			Target:            "tmp-codex",
+			SubmitKey:         "C-m",
+			SubmitKeyFallback: "",
+			ContinueMessage:   "continue",
+			CaptureLines:      80,
+		},
+		client:       client,
+		executor:     newActionExecutor(client, Config{Target: "tmp-codex", SubmitKey: "C-m", SubmitKeyFallback: "", ContinueMessage: "continue", CaptureLines: 80}, "codex"),
+		continuePlan: newContinueStrategy("continue"),
+		logger:       func(string, ...interface{}) {},
+		ctx:          context.Background(),
+	}
+
+	if err := r.injectChoice("3", "numbered choice"); err != nil {
+		t.Fatalf("injectChoice error = %v", err)
+	}
+	if r.continueSentCount != 1 {
+		t.Fatalf("continueSentCount=%d want 1", r.continueSentCount)
+	}
+	if len(r.queue) != 3 {
+		t.Fatalf("queue length=%d want 3", len(r.queue))
 	}
 }
 

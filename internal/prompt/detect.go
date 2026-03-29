@@ -250,6 +250,11 @@ func classifyForLocale(analysis Analysis, locale string) (Classification, string
 	}
 
 	if approvalPromptPattern.MatchString(combined) && selectedNumberedMenuPattern.MatchString(strings.Join([]string{block, promptText}, "\n")) {
+		// Codex uses text-based number input for approval prompts, not cursor navigation.
+		// Sending arrow keys to codex adds newlines to the input area instead of navigating.
+		if analysis.Provider == "codex" {
+			return ClassNumberedMultipleChoice, preferredApprovalChoice(combined), i18n.T(locale, "prompt.reason_numbered_choice")
+		}
 		return ClassCursorBasedChoice, preferredApprovalChoice(combined), i18n.T(locale, "prompt.reason_cursor_menu_approval")
 	}
 

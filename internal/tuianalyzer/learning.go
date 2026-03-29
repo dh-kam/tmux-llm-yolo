@@ -8,9 +8,9 @@ import (
 
 // StableLine represents a line fingerprint that appeared consistently across captures.
 type StableLine struct {
-	Fingerprint string // Normalized content for matching
-	FromBottom  int    // Position from the last line (0 = last line)
-	Count       int    // Times seen at this position
+	Fingerprint string      // Normalized content for matching
+	FromBottom  int         // Position from the last line (0 = last line)
+	Count       int         // Times seen at this position
 	TypeHint    SectionType // Most common section type at this position
 }
 
@@ -88,8 +88,8 @@ func (h *CaptureHistory) AnalyzeWithLearning(ansiCapture string, plainCapture st
 
 const (
 	minObservationsForStable = 2
-	maxFooterScanLines      = 6
-	maxHeaderScanLines      = 8
+	maxFooterScanLines       = 6
+	maxHeaderScanLines       = 8
 )
 
 func (h *CaptureHistory) recompute() {

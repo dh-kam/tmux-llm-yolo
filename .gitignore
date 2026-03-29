@@ -9,3 +9,8 @@ captured/
 build/
 dist/
 .tmp_probe.go
+
+# local runtime artifacts
+.claude/
+tmux-llm-yolo
+testdata/live-approval/

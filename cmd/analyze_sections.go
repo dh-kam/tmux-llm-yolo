@@ -276,11 +276,11 @@ func runManifestAnalysis(manifestPath string, format string) error {
 
 	if format == "json" {
 		type manifestResult struct {
-			Frontend          string                    `json:"frontend"`
-			TotalFiles        int                       `json:"total_files"`
-			TotalSections     int                       `json:"total_sections"`
-			StableFooterLines []tuianalyzer.StableLine  `json:"stable_footer_lines"`
-			StableHeaderLines []tuianalyzer.StableLine  `json:"stable_header_lines"`
+			Frontend          string                   `json:"frontend"`
+			TotalFiles        int                      `json:"total_files"`
+			TotalSections     int                      `json:"total_sections"`
+			StableFooterLines []tuianalyzer.StableLine `json:"stable_footer_lines"`
+			StableHeaderLines []tuianalyzer.StableLine `json:"stable_header_lines"`
 		}
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")

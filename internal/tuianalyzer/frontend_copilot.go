@@ -7,12 +7,12 @@ import (
 
 // Copilot CLI frontend patterns.
 var (
-	copilotSignaturePattern   = regexp.MustCompile(`(?i)(github copilot|describe a task to get started|remaining reqs|copilot instructions|↑↓ to navigate|shift\+tab switch mode|ctrl\+q enqueue)`)
-	copilotBoxTopPattern      = regexp.MustCompile(`^[[:space:]]*╭`)
-	copilotBoxBottomPattern   = regexp.MustCompile(`^[[:space:]]*╰`)
-	copilotPromptPattern      = regexp.MustCompile(`^[[:space:]]*❯[[:space:]]?`)
-	copilotFooterPattern      = regexp.MustCompile(`(?i)(remaining reqs|shift\+tab|ctrl\+q|v\d+\.\d+\.\d+\s+available|run\s+/update)`)
-	copilotProcessingPattern  = regexp.MustCompile(`(?i)(thinking|processing|◐|◉)`)
+	copilotSignaturePattern  = regexp.MustCompile(`(?i)(github copilot|describe a task to get started|remaining reqs|copilot instructions|↑↓ to navigate|shift\+tab switch mode|ctrl\+q enqueue)`)
+	copilotBoxTopPattern     = regexp.MustCompile(`^[[:space:]]*╭`)
+	copilotBoxBottomPattern  = regexp.MustCompile(`^[[:space:]]*╰`)
+	copilotPromptPattern     = regexp.MustCompile(`^[[:space:]]*❯[[:space:]]?`)
+	copilotFooterPattern     = regexp.MustCompile(`(?i)(remaining reqs|shift\+tab|ctrl\+q|v\d+\.\d+\.\d+\s+available|run\s+/update)`)
+	copilotProcessingPattern = regexp.MustCompile(`(?i)(thinking|processing|◐|◉)`)
 )
 
 // CopilotFrontEndAnalyzer detects and classifies GitHub Copilot CLI terminal layouts.

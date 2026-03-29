@@ -447,13 +447,14 @@ func renderCard(spec cardSpec, width int, contentHeight int, showTitle bool) str
 	innerWidth := maxInt(1, width-2)
 	cardStyle := lipgloss.NewStyle().
 		Width(width).
-		Background(lipgloss.Color("236")).
+		Background(lipgloss.Color(cardBgColor)).
 		Padding(0, 1)
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("16")).
 		Background(spec.Tone).
-		Padding(0, 1)
+		Padding(0, 1).
+		Width(innerWidth)
 
 	lines := make([]string, 0, len(spec.Items)+1)
 	if showTitle {
@@ -464,7 +465,7 @@ func renderCard(spec cardSpec, width int, contentHeight int, showTitle bool) str
 		const colGap = 1
 		colWidth := (innerWidth - colGap) / 2
 		// Style for padding and gap - resets to card background
-		cardBgStyle := lipgloss.NewStyle().Background(lipgloss.Color("236"))
+		cardBgStyle := lipgloss.NewStyle().Background(lipgloss.Color(cardBgColor))
 		for i := 0; i < len(spec.Items); i += 2 {
 			leftLines := renderCardItemLines(spec.Items[i], colWidth)
 			var rightLines []string
@@ -539,10 +540,13 @@ func cardContentHeight(spec cardSpec, width int, showTitle bool) int {
 	return lines
 }
 
+const cardBgColor = "236"
+
 func renderCardItemLines(item cardItem, width int) []string {
-	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
-	valueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
-	emphasisStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("221"))
+	cardBg := lipgloss.Color(cardBgColor)
+	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("110")).Background(cardBg)
+	valueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252")).Background(cardBg)
+	emphasisStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("221")).Background(cardBg)
 
 	labelCell := paddedCardLabel(item.Label)
 
@@ -674,7 +678,7 @@ func renderLogPanel(logLines []string, width int, height int, updatedText string
 	logStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("248"))
 	innerHeight := maxInt(1, height)
 
-	titleLine := joinWithSpacer(titleStyle.Render("Activity Log"), updatedText, innerWidth)
+	titleLine := joinWithSpacerBg(titleStyle.Render("Activity Log"), updatedText, innerWidth, lipgloss.NewStyle().Background(lipgloss.Color("246")))
 	contentLines := []string{titleLine}
 	logSlots := innerHeight - 1
 	if logSlots < 0 {
@@ -746,6 +750,17 @@ func joinWithSpacer(left string, right string, width int) string {
 		return left + "\n" + right
 	}
 	return left + strings.Repeat(" ", width-leftWidth-rightWidth) + right
+}
+
+// joinWithSpacerBg is like joinWithSpacer but renders the spacer with the given background style.
+func joinWithSpacerBg(left string, right string, width int, bgStyle lipgloss.Style) string {
+	leftWidth := lipgloss.Width(left)
+	rightWidth := lipgloss.Width(right)
+	if leftWidth+rightWidth >= width {
+		return left + "\n" + right
+	}
+	spacer := bgStyle.Render(strings.Repeat(" ", width-leftWidth-rightWidth))
+	return left + spacer + right
 }
 
 func fitViewHeight(view string, width int, height int) string {

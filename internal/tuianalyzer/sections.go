@@ -8,14 +8,14 @@ import (
 type SectionType int
 
 const (
-	SectionUnknown          SectionType = iota
-	SectionHeader                      // Welcome/branding box, ASCII art logo
-	SectionAssistantOutput             // The assistant's text/code/tool response
-	SectionSeparator                   // Horizontal rules: ───, ▀▀▀/▄▄▄, box borders
-	SectionSpinner                     // Processing indicators: ◐, ✻, Running…, Thinking
-	SectionAssistantQuestion           // Approval prompts, numbered menus, confirmation requests
-	SectionUserPrompt                  // The input line: ❯, ›, *, >
-	SectionFooter                      // Status bars, hints, model info, context percentages
+	SectionUnknown           SectionType = iota
+	SectionHeader                        // Welcome/branding box, ASCII art logo
+	SectionAssistantOutput               // The assistant's text/code/tool response
+	SectionSeparator                     // Horizontal rules: ───, ▀▀▀/▄▄▄, box borders
+	SectionSpinner                       // Processing indicators: ◐, ✻, Running…, Thinking
+	SectionAssistantQuestion             // Approval prompts, numbered menus, confirmation requests
+	SectionUserPrompt                    // The input line: ❯, ›, *, >
+	SectionFooter                        // Status bars, hints, model info, context percentages
 )
 
 func (t SectionType) String() string {

@@ -15,9 +15,10 @@ type FrontEndLayoutAnalyzer interface {
 }
 
 // Registry holds all registered frontend analyzers, checked in order.
-// More specific signatures (gemini, copilot, codex) are checked before
-// broader signatures (claude-code) to avoid false matches.
+// More specific signatures are checked before broader ones to avoid false matches.
+// Grok is checked early because it shares ❯ prompt with Claude Code and Copilot.
 var Registry = []FrontEndLayoutAnalyzer{
+	&GrokFrontEndAnalyzer{},
 	&CopilotFrontEndAnalyzer{},
 	&GeminiFrontEndAnalyzer{},
 	&CodexFrontEndAnalyzer{},

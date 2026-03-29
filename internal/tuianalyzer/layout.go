@@ -2,7 +2,7 @@ package tuianalyzer
 
 // FrontEndLayout represents the parsed semantic layout of a CLI frontend's terminal output.
 type FrontEndLayout struct {
-	FrontEnd   string    // "claude-code", "codex", "gemini", "copilot"
+	FrontEnd   string // "claude-code", "codex", "gemini", "copilot"
 	Sections   []Section
 	PlainLines []string // All plain lines (for reference)
 	ANSILines  []string // All ANSI lines (for reference)
