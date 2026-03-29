@@ -7,7 +7,7 @@ import (
 
 // Claude Code CLI frontend patterns (also used by GLM and other Claude-based services).
 var (
-	claudeCodeSignaturePattern = regexp.MustCompile(`(?i)(claude code|fermenting|opus 4\.6|api usage billing|cogitated|brewed for|symbioting|whatchamacalliting|⏵⏵|shift\+tab to cycle|ctrl\+b ctrl\+b)`)
+	claudeCodeSignaturePattern = regexp.MustCompile(`(?i)(claude code|fermenting|opus 4\.6|api usage billing|cogitated|brewed for|symbioting|whatchamacalliting|crunched|cultivating|cogitating|polishing|⏵⏵|shift\+tab to cycle|ctrl\+b ctrl\+b)`)
 	claudeCodeBoxTopPattern    = regexp.MustCompile(`^[[:space:]]*╭`)
 	claudeCodeBoxBottomPattern = regexp.MustCompile(`^[[:space:]]*╰`)
 	claudeCodeWelcomePattern   = regexp.MustCompile(`(?i)(welcome back|claude code)`)
