@@ -1,14 +1,18 @@
 package runtime
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/dh-kam/tmux-llm-yolo/internal/agentprefs"
 	"github.com/dh-kam/tmux-llm-yolo/internal/capture"
 	"github.com/dh-kam/tmux-llm-yolo/internal/i18n"
 	"github.com/dh-kam/tmux-llm-yolo/internal/llm"
@@ -52,6 +56,7 @@ type Config struct {
 	DryRun              bool
 	DryRunOutputFormat  string
 	LogBuffer           *tui.LogBuffer
+	PromptReader        io.Reader
 }
 
 type Runner struct {
@@ -85,6 +90,9 @@ type Runner struct {
 	screenHistory     []screenSnapshot
 	continueOverride  string
 	activePolicy      policy.Policy
+	taskPlanner       *sessionTaskPlanner
+	agentsContext     string
+	agentsLoaded      bool
 }
 
 const minimumStableWaitingDuration = 16 * time.Second
@@ -96,6 +104,8 @@ const lowActivityChangedLineThreshold = 0.08
 const interactivePromptMinimumMatches = 2
 
 var numberedPlanLinePattern = regexp.MustCompile(`(?m)^[[:space:]]*(\d+)[\).]\s+(.+)$`)
+var promptMenuChoicePattern = regexp.MustCompile(`^[[:space:]]*[›❯>]\s*\d+[\).]\s+`)
+var promptInputLinePattern = regexp.MustCompile(`^[[:space:]]*[›❯>]\s+\S+`)
 
 type ansiSnapshot struct {
 	ANSI    string
@@ -130,6 +140,16 @@ func New(cfg Config, client tmux.API, logger func(string, ...interface{})) *Runn
 		cfg.SuspectWait3 = 4 * time.Second
 	}
 	activePolicy := policy.Resolve(cfg.PolicyName)
+	planner := newSessionTaskPlanner(cfg.Target, cfg.Locale, cfg.LLMName, cfg.LLMModel, logger)
+	if planner == nil && logger != nil {
+		logger("task planner disabled: target=%q", strings.TrimSpace(cfg.Target))
+	}
+	if planner != nil && logger != nil {
+		logger("task planner enabled: %s", planner.path)
+	}
+	if cfg.PromptReader == nil {
+		cfg.PromptReader = os.Stdin
+	}
 	return &Runner{
 		cfg:          cfg,
 		locale:       cfg.Locale,
@@ -140,6 +160,7 @@ func New(cfg Config, client tmux.API, logger func(string, ...interface{})) *Runn
 		logger:       logger,
 		state:        stateMonitoring,
 		activePolicy: activePolicy,
+		taskPlanner:  planner,
 	}
 }
 
@@ -148,6 +169,8 @@ func (r *Runner) Run(ctx context.Context) error {
 	r.deadline = time.Now().Add(r.watchDuration())
 	r.ui = tui.Start(ctx)
 	defer r.ui.Stop()
+	_ = r.agentsPolicyContext(ctx)
+	r.startPromptIntake(ctx)
 
 	r.enqueue(checkDeadlineTask{locale: r.locale}, baseCaptureTask{locale: r.locale})
 
@@ -178,6 +201,30 @@ func (r *Runner) Run(ctx context.Context) error {
 	return nil
 }
 
+func (r *Runner) startPromptIntake(ctx context.Context) {
+	if r.taskPlanner == nil || r.cfg.PromptReader == nil {
+		return
+	}
+	go func() {
+		scanner := bufio.NewScanner(r.cfg.PromptReader)
+		for scanner.Scan() {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+			promptText := strings.TrimSpace(scanner.Text())
+			if promptText == "" {
+				continue
+			}
+			r.logger("user prompt received: %q", promptText)
+			if err := r.taskPlanner.AddUserPrompt(ctx, promptText, r.getPrimaryProvider); err != nil {
+				r.logger("user prompt task update failed: %v", err)
+			}
+		}
+	}()
+}
+
 func (r *Runner) t(key string, args ...interface{}) string {
 	return i18n.T(r.locale, key, args...)
 }
@@ -187,6 +234,7 @@ func (r *Runner) RunOnce(ctx context.Context) error {
 	r.deadline = time.Now().Add(r.watchDuration())
 	r.ui = tui.Start(ctx)
 	defer r.ui.Stop()
+	_ = r.agentsPolicyContext(ctx)
 
 	r.setState(stateInterpreting, r.t("watch.state_once_interpret"))
 	snap, err := r.fetcher.CaptureDual(ctx, r.cfg.Target, r.cfg.CaptureLines)
@@ -196,6 +244,7 @@ func (r *Runner) RunOnce(ctx context.Context) error {
 	r.prevBase = snap
 
 	analysis := prompt.AnalyzeWithHintAndLocaleAndWidth(r.promptProviderHint(), snap.ANSI, snap.Plain, r.locale, r.paneWidth())
+	r.capturePromptForPlanning(analysis, snap.Plain)
 	r.logger(r.t("watch.log_once_prompt_analysis"), analysis.Provider, analysis.AssistantUI, analysis.Processing, analysis.PromptDetected, analysis.PromptLine, analysis.Classification, analysis.Reason, analysis.RecommendedChoice)
 	if block := strings.TrimSpace(analysis.OutputBlock); block != "" {
 		r.logger(r.t("watch.log_once_latest_output_block"), block)
@@ -359,6 +408,42 @@ func (r *Runner) hasCopilotSlashCommandState(analysis prompt.Analysis) bool {
 		strings.Contains(block, "/add-dir") ||
 		strings.Contains(block, "/allow-all") ||
 		strings.Contains(block, "/agent")
+}
+
+func (r *Runner) capturePromptForPlanning(analysis prompt.Analysis, plainCapture string) {
+	if r.taskPlanner == nil || r.ctx == nil {
+		return
+	}
+	if analysis.PromptPlaceholder {
+		return
+	}
+	text := strings.TrimSpace(analysis.PromptText)
+	if text == "" || text == "›" || text == "❯" || text == ">" || text == "* " {
+		text = findRecentPromptInputLine(plainCapture)
+	}
+	if text == "" {
+		return
+	}
+	if promptMenuChoicePattern.MatchString(text) {
+		return
+	}
+	if err := r.taskPlanner.AddUserPrompt(r.ctx, text, r.getPrimaryProvider); err != nil {
+		r.logger("prompt capture task update failed: %v", err)
+	}
+}
+
+func findRecentPromptInputLine(plainCapture string) string {
+	lines := strings.Split(strings.ReplaceAll(plainCapture, "\r\n", "\n"), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if line == "" {
+			continue
+		}
+		if promptInputLinePattern.MatchString(line) && !promptMenuChoicePattern.MatchString(line) {
+			return line
+		}
+	}
+	return ""
 }
 
 func (r *Runner) prepareTextInput(input string) string {
@@ -862,6 +947,7 @@ func (t analyzeWaitingTask) Run(r *Runner) error {
 
 analyze:
 	analysis := prompt.AnalyzeWithHintAndLocaleAndWidth(r.promptProviderHint(), snap.ANSI, snap.Plain, r.locale, r.paneWidth())
+	r.capturePromptForPlanning(analysis, snap.Plain)
 	r.logger(r.t("watch.log_prompt_analysis"), analysis.Provider, analysis.AssistantUI, analysis.Processing, analysis.InteractivePrompt, analysis.PromptDetected, analysis.PromptLine, analysis.Classification, analysis.Reason, analysis.RecommendedChoice)
 	if block := strings.TrimSpace(analysis.OutputBlock); block != "" {
 		r.logger(r.t("watch.log_latest_output_block"), block)
@@ -1278,6 +1364,7 @@ func (r *Runner) getExecutor() actionExecutor {
 }
 
 func (r *Runner) classifyWithLLM(ctx context.Context, analysis prompt.Analysis, plainCapture string) (llmDecision, error) {
+	guidance := r.agentsPolicyContext(ctx)
 	providers := []struct {
 		label    string
 		getter   func(context.Context) (llm.Provider, error)
@@ -1313,7 +1400,7 @@ func (r *Runner) classifyWithLLM(ctx context.Context, analysis prompt.Analysis, 
 			r.updateUI()
 			continue
 		}
-		decision, err := classifyWithLLMFallbackForLocale(ctx, provider, candidate.llmName, candidate.llmModel, analysis, plainCapture, r.locale)
+		decision, err := classifyWithLLMFallbackForLocaleWithGuidance(ctx, provider, candidate.llmName, candidate.llmModel, guidance, analysis, plainCapture, r.locale)
 		if err == nil {
 			r.lastLLMProvider = candidate.label + ":" + candidate.llmName
 			r.updateUI()
@@ -1380,6 +1467,12 @@ func (r *Runner) nextContinueMessage(nextCount int) string {
 		r.continueOverride = ""
 		return override
 	}
+	if r.taskPlanner != nil {
+		r.taskPlanner.SetGuidance(r.agentsPolicyContext(r.ctx))
+		if taskMessage, ok := r.taskPlanner.NextTaskMessage(r.ctx, r.getPrimaryProvider); ok {
+			return taskMessage
+		}
+	}
 	if nextCount <= 0 {
 		nextCount = r.continueSentCount + 1
 	}
@@ -1400,10 +1493,14 @@ func (r *Runner) maybeSetContinueOverride(message string, source string) {
 }
 
 func classifyWithLLMFallback(ctx context.Context, provider llm.Provider, llmName string, llmModel string, analysis prompt.Analysis, plainCapture string) (llmDecision, error) {
-	return classifyWithLLMFallbackForLocale(ctx, provider, llmName, llmModel, analysis, plainCapture, i18n.DefaultAppLocale)
+	return classifyWithLLMFallbackForLocaleWithGuidance(ctx, provider, llmName, llmModel, "", analysis, plainCapture, i18n.DefaultAppLocale)
 }
 
 func classifyWithLLMFallbackForLocale(ctx context.Context, provider llm.Provider, llmName string, llmModel string, analysis prompt.Analysis, plainCapture string, locale string) (llmDecision, error) {
+	return classifyWithLLMFallbackForLocaleWithGuidance(ctx, provider, llmName, llmModel, "", analysis, plainCapture, locale)
+}
+
+func classifyWithLLMFallbackForLocaleWithGuidance(ctx context.Context, provider llm.Provider, llmName string, llmModel string, guidance string, analysis prompt.Analysis, plainCapture string, locale string) (llmDecision, error) {
 	if provider == nil {
 		return llmDecision{}, fmt.Errorf("provider not configured")
 	}
@@ -1412,10 +1509,15 @@ func classifyWithLLMFallbackForLocale(ctx context.Context, provider llm.Provider
 		outputBlock = strings.TrimSpace(plainCapture)
 	}
 	promptText := strings.TrimSpace(analysis.PromptText)
+	guidance = strings.TrimSpace(guidance)
+	guidanceBlock := ""
+	if guidance != "" {
+		guidanceBlock = fmt.Sprintf("AGENTS policy context:\n%s\n\n", guidance)
+	}
 	rawPrompt := fmt.Sprintf(`You are a strict terminal waiting-state classifier.
 The watcher is already confident the terminal is waiting for user input because ANSI screen content stayed unchanged through multiple timed checks.
 
-Classify the required action from the final output block and prompt line.
+%sClassify the required action from the final output block and prompt line.
 Write CONTINUE_MESSAGE and REASON in %s.
 
 Return exactly 4 lines:
@@ -1462,13 +1564,39 @@ Last output block:
 
 Full plain capture tail:
 %s
-`, waitingClassifierResponseLanguage(locale), promptText, outputBlock, trimTailLines(plainCapture, 20))
+`, guidanceBlock, waitingClassifierResponseLanguage(locale), promptText, outputBlock, trimTailLines(plainCapture, 20))
 
 	out, err := provider.RunPrompt(ctx, rawPrompt)
 	if err != nil {
 		return llmDecision{}, err
 	}
 	return parseLLMDecisionForLocale(out, locale), nil
+}
+
+func (r *Runner) agentsPolicyContext(ctx context.Context) string {
+	if r.agentsLoaded {
+		return r.agentsContext
+	}
+	r.agentsLoaded = true
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	path, content, err := agentprefs.EnsureAgentsDocument(ctx, cwd, r.getPrimaryProvider)
+	if err != nil {
+		if r.logger != nil {
+			r.logger("agents policy load failed: %v", err)
+		}
+		return ""
+	}
+	r.agentsContext = strings.TrimSpace(content)
+	if r.taskPlanner != nil {
+		r.taskPlanner.SetGuidance(r.agentsContext)
+	}
+	if r.logger != nil {
+		r.logger("agents policy ready: %s", filepath.Clean(path))
+	}
+	return r.agentsContext
 }
 
 func parseLLMDecision(raw string) llmDecision {

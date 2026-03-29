@@ -364,6 +364,7 @@ func runWatch(cmd *cobra.Command, args []string) error {
 			DryRun:              config.dryRun,
 			DryRunOutputFormat:  config.dryRunOutputFormat,
 			LogBuffer:           logBuffer,
+			PromptReader:        os.Stdin,
 		},
 		tmuxClient,
 		logger,
