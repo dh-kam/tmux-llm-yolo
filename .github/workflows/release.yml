@@ -46,9 +46,15 @@ jobs:
 
       - name: Resolve version
         id: version
-        run: echo "value=$(make print-version)" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=$(make print-version)" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Ensure tag does not exist
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         env:
           VERSION: ${{ steps.version.outputs.value }}
         run: |
@@ -70,6 +76,7 @@ jobs:
         run: make clean release-artifacts VERSION="${VERSION}"
 
       - name: Create and push tag
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         env:
           VERSION: ${{ steps.version.outputs.value }}
         run: |
