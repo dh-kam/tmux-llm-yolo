@@ -455,6 +455,17 @@ func (r *Runner) prepareTextInput(input string) string {
 	return input
 }
 
+func (r *Runner) prepareContinueMessage(input string) string {
+	input = r.prepareTextInput(input)
+	if input == "" {
+		return ""
+	}
+	if strings.HasPrefix(input, "/") || strings.HasPrefix(input, "-") {
+		return `\` + input
+	}
+	return input
+}
+
 func (r *Runner) baseInterval() time.Duration {
 	if r.cfg.BaseInterval <= 0 {
 		return 4 * time.Second
@@ -1047,7 +1058,7 @@ func (t sleepTask) Run(r *Runner) error {
 
 func (r *Runner) injectContinue(reason string) error {
 	nextCount := r.continueSentCount + 1
-	message := r.prepareTextInput(r.nextContinueMessage(nextCount))
+	message := r.prepareContinueMessage(r.nextContinueMessage(nextCount))
 	r.setState(stateActing, reason)
 	r.logger(r.t("watch.log_continue_prompt_selected"), nextCount, message)
 	if err := r.getExecutor().SendContinue(r.ctx, continueRequest{Message: message}); err != nil {
@@ -1068,7 +1079,7 @@ func (r *Runner) injectContinue(reason string) error {
 
 func (r *Runner) injectContinueOnce(reason string) error {
 	nextCount := r.continueSentCount + 1
-	message := r.prepareTextInput(r.nextContinueMessage(nextCount))
+	message := r.prepareContinueMessage(r.nextContinueMessage(nextCount))
 	r.setState(stateActing, reason)
 	r.logger(r.t("watch.log_continue_prompt_selected"), nextCount, message)
 	if err := r.getExecutor().SendContinue(r.ctx, continueRequest{Message: message}); err != nil {
@@ -1480,7 +1491,7 @@ func (r *Runner) nextContinueMessage(nextCount int) string {
 }
 
 func (r *Runner) maybeSetContinueOverride(message string, source string) {
-	message = r.prepareTextInput(message)
+	message = r.prepareContinueMessage(message)
 	if message == "" {
 		return
 	}
@@ -1554,6 +1565,7 @@ Rules:
   and easier testing/extensibility.
 - A strong CONTINUE_MESSAGE should be specific, action-oriented, and should push the agent to keep improving the code even after a completion summary.
 - CONTINUE_MESSAGE is optional, but when useful it should be a single actionable sentence in the operator's language.
+- CONTINUE_MESSAGE must not start with "/" or "-" (avoid slash commands and option-like text at input start).
 - Do not mention anything outside the visible terminal text.
 
 Prompt line:

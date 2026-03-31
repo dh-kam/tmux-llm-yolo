@@ -83,7 +83,11 @@ func TestExecuteActionPlanUsesContinueOverrideForInputText(t *testing.T) {
 	if err != nil {
 		t.Fatalf("executeActionPlan error = %v", err)
 	}
-	if got := client.sendKeys[1][1]; got != "남은 항목 1번부터 진행해보자." {
+	value, ok := literalTypedValue(client.sendKeys[1])
+	if !ok {
+		t.Fatalf("typed sendKeys=%v want literal text", client.sendKeys[1])
+	}
+	if got := value; got != "남은 항목 1번부터 진행해보자." {
 		t.Fatalf("typed message=%q want override text", got)
 	}
 }

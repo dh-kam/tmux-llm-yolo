@@ -30,7 +30,7 @@ func SendContinueMessage(
 			return err
 		}
 	}
-	if err := client.SendKeys(ctx, target, "-l", message); err != nil {
+	if err := sendLiteralText(ctx, client, target, message); err != nil {
 		return err
 	}
 	if err := client.SendKeys(ctx, target, submitKey); err != nil {
@@ -80,7 +80,7 @@ func SendChoiceMessage(
 			return err
 		}
 	}
-	if err := client.SendKeys(ctx, target, "-l", choice); err != nil {
+	if err := sendLiteralText(ctx, client, target, choice); err != nil {
 		return err
 	}
 	if err := client.SendKeys(ctx, target, submitKey); err != nil {
@@ -121,7 +121,7 @@ func SendInputMessage(
 			return err
 		}
 	}
-	if err := client.SendKeys(ctx, target, "-l", input); err != nil {
+	if err := sendLiteralText(ctx, client, target, input); err != nil {
 		return err
 	}
 	if err := client.SendKeys(ctx, target, submitKey); err != nil {
@@ -210,4 +210,9 @@ func waitForDuration(ctx context.Context, d time.Duration) error {
 	case <-timer.C:
 		return nil
 	}
+}
+
+func sendLiteralText(ctx context.Context, client tmux.API, target string, value string) error {
+	// Use `--` so a user/LLM message starting with '-' is never parsed as a tmux option.
+	return client.SendKeys(ctx, target, "-l", "--", value)
 }
