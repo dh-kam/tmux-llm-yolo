@@ -545,15 +545,19 @@ func TestAnalyzeWaitingTaskInjectsContinueForNumberedPlanWithPrompt(t *testing.T
 	if r.continueSentCount != 1 {
 		t.Fatalf("continueSentCount = %d, want 1", r.continueSentCount)
 	}
-	if len(client.sendKeys) < 3 {
-		t.Fatalf("sendKeys calls = %d, want at least 3", len(client.sendKeys))
+	// clearBeforeTyping (codex) sends Escape, C-u, then typed text, then submit
+	if len(client.sendKeys) < 4 {
+		t.Fatalf("sendKeys calls = %d, want at least 4", len(client.sendKeys))
 	}
-	if got := client.sendKeys[0]; len(got) != 1 || got[0] != "C-u" {
-		t.Fatalf("first sendKeys = %v, want [C-u]", got)
+	if got := client.sendKeys[0]; len(got) != 1 || got[0] != "Escape" {
+		t.Fatalf("first sendKeys = %v, want [Escape]", got)
 	}
-	value, ok := literalTypedValue(client.sendKeys[1])
+	if got := client.sendKeys[1]; len(got) != 1 || got[0] != "C-u" {
+		t.Fatalf("second sendKeys = %v, want [C-u]", got)
+	}
+	value, ok := literalTypedValue(client.sendKeys[2])
 	if !ok {
-		t.Fatalf("second sendKeys = %v, want typed continue message", client.sendKeys[1])
+		t.Fatalf("third sendKeys = %v, want typed continue message", client.sendKeys[2])
 	}
 	if !strings.Contains(value, "남은 항목 1번") {
 		t.Fatalf("typed continue message=%q missing first item reference", value)
@@ -561,8 +565,8 @@ func TestAnalyzeWaitingTaskInjectsContinueForNumberedPlanWithPrompt(t *testing.T
 	if strings.TrimSpace(value) == "1" {
 		t.Fatalf("typed continue message=%q should not be raw numeric choice", value)
 	}
-	if got := client.sendKeys[2]; len(got) != 1 || got[0] != "C-m" {
-		t.Fatalf("third sendKeys = %v, want [C-m]", got)
+	if got := client.sendKeys[3]; len(got) != 1 || got[0] != "C-m" {
+		t.Fatalf("fourth sendKeys = %v, want [C-m]", got)
 	}
 }
 
@@ -598,17 +602,21 @@ func TestAnalyzeWaitingTaskForceInputInjectsContinueOnCompletedNoOp(t *testing.T
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
-	if len(client.sendKeys) < 3 {
-		t.Fatalf("sendKeys calls = %d, want at least 3: %v", len(client.sendKeys), client.sendKeys)
+	// clearBeforeTyping (codex) sends Escape, C-u, then typed text, then submit
+	if len(client.sendKeys) < 4 {
+		t.Fatalf("sendKeys calls = %d, want at least 4: %v", len(client.sendKeys), client.sendKeys)
 	}
-	if got := client.sendKeys[0]; len(got) != 1 || got[0] != "C-u" {
-		t.Fatalf("first sendKeys = %v, want [C-u]", got)
+	if got := client.sendKeys[0]; len(got) != 1 || got[0] != "Escape" {
+		t.Fatalf("first sendKeys = %v, want [Escape]", got)
 	}
-	if value, ok := literalTypedValue(client.sendKeys[1]); !ok || strings.TrimSpace(value) == "" {
-		t.Fatalf("second sendKeys = %v, want typed continue message", client.sendKeys[1])
+	if got := client.sendKeys[1]; len(got) != 1 || got[0] != "C-u" {
+		t.Fatalf("second sendKeys = %v, want [C-u]", got)
 	}
-	if got := client.sendKeys[2]; len(got) != 1 || got[0] != "C-m" {
-		t.Fatalf("third sendKeys = %v, want [C-m]", got)
+	if value, ok := literalTypedValue(client.sendKeys[2]); !ok || strings.TrimSpace(value) == "" {
+		t.Fatalf("third sendKeys = %v, want typed continue message", client.sendKeys[2])
+	}
+	if got := client.sendKeys[3]; len(got) != 1 || got[0] != "C-m" {
+		t.Fatalf("fourth sendKeys = %v, want [C-m]", got)
 	}
 }
 
@@ -651,17 +659,21 @@ func TestAnalyzeWaitingTaskFallsBackToContinueOnCompletedNoOp(t *testing.T) {
 	if len(r.queue) != 3 {
 		t.Fatalf("queue length = %d, want 3", len(r.queue))
 	}
-	if len(client.sendKeys) < 3 {
-		t.Fatalf("sendKeys calls = %d, want at least 3: %v", len(client.sendKeys), client.sendKeys)
+	// clearBeforeTyping (codex) sends Escape, C-u, then typed text, then submit
+	if len(client.sendKeys) < 4 {
+		t.Fatalf("sendKeys calls = %d, want at least 4: %v", len(client.sendKeys), client.sendKeys)
 	}
-	if got := client.sendKeys[0]; len(got) != 1 || got[0] != "C-u" {
-		t.Fatalf("first sendKeys = %v, want [C-u]", got)
+	if got := client.sendKeys[0]; len(got) != 1 || got[0] != "Escape" {
+		t.Fatalf("first sendKeys = %v, want [Escape]", got)
 	}
-	if value, ok := literalTypedValue(client.sendKeys[1]); !ok || strings.TrimSpace(value) == "" {
-		t.Fatalf("second sendKeys = %v, want typed continue message", client.sendKeys[1])
+	if got := client.sendKeys[1]; len(got) != 1 || got[0] != "C-u" {
+		t.Fatalf("second sendKeys = %v, want [C-u]", got)
 	}
-	if got := client.sendKeys[2]; len(got) != 1 || got[0] != "C-m" {
-		t.Fatalf("third sendKeys = %v, want [C-m]", got)
+	if value, ok := literalTypedValue(client.sendKeys[2]); !ok || strings.TrimSpace(value) == "" {
+		t.Fatalf("third sendKeys = %v, want typed continue message", client.sendKeys[2])
+	}
+	if got := client.sendKeys[3]; len(got) != 1 || got[0] != "C-m" {
+		t.Fatalf("fourth sendKeys = %v, want [C-m]", got)
 	}
 }
 
@@ -695,21 +707,25 @@ func TestApplyLLMDecisionSkipFallsBackToContinue(t *testing.T) {
 	if len(r.queue) != 3 {
 		t.Fatalf("queue length = %d, want 3", len(r.queue))
 	}
-	if len(client.sendKeys) < 3 {
-		t.Fatalf("sendKeys calls = %d, want at least 3: %v", len(client.sendKeys), client.sendKeys)
+	// clearBeforeTyping (codex) sends Escape, C-u, then typed text, then submit
+	if len(client.sendKeys) < 4 {
+		t.Fatalf("sendKeys calls = %d, want at least 4: %v", len(client.sendKeys), client.sendKeys)
 	}
-	if got := client.sendKeys[0]; len(got) != 1 || got[0] != "C-u" {
-		t.Fatalf("first sendKeys = %v, want [C-u]", got)
+	if got := client.sendKeys[0]; len(got) != 1 || got[0] != "Escape" {
+		t.Fatalf("first sendKeys = %v, want [Escape]", got)
 	}
-	value, ok := literalTypedValue(client.sendKeys[1])
+	if got := client.sendKeys[1]; len(got) != 1 || got[0] != "C-u" {
+		t.Fatalf("second sendKeys = %v, want [C-u]", got)
+	}
+	value, ok := literalTypedValue(client.sendKeys[2])
 	if !ok || strings.TrimSpace(value) == "" {
-		t.Fatalf("second sendKeys = %v, want typed continue message", client.sendKeys[1])
+		t.Fatalf("third sendKeys = %v, want typed continue message", client.sendKeys[2])
 	}
 	if got := value; got != "parity를 100%에 가깝게 만들 차이를 우선순위대로 정리하고 하나씩 수정하면서 계속 진행해보자." {
 		t.Fatalf("typed continue message = %q, want llm override", got)
 	}
-	if got := client.sendKeys[2]; len(got) != 1 || got[0] != "C-m" {
-		t.Fatalf("third sendKeys = %v, want [C-m]", got)
+	if got := client.sendKeys[3]; len(got) != 1 || got[0] != "C-m" {
+		t.Fatalf("fourth sendKeys = %v, want [C-m]", got)
 	}
 }
 
@@ -734,19 +750,20 @@ func TestInjectContinueConsumesOverrideOnce(t *testing.T) {
 	if err := r.injectContinue("send continue after override"); err != nil {
 		t.Fatalf("second injectContinue error = %v", err)
 	}
-	if len(client.sendKeys) < 6 {
-		t.Fatalf("sendKeys calls = %d, want at least 6", len(client.sendKeys))
+	// clearBeforeTyping (codex): each injectContinue sends Escape, C-u, text, C-m (4 keys)
+	if len(client.sendKeys) < 8 {
+		t.Fatalf("sendKeys calls = %d, want at least 8", len(client.sendKeys))
 	}
-	value1, ok := literalTypedValue(client.sendKeys[1])
+	value1, ok := literalTypedValue(client.sendKeys[2])
 	if !ok {
-		t.Fatalf("first typed sendKeys = %v, want literal text", client.sendKeys[1])
+		t.Fatalf("first typed sendKeys = %v, want literal text", client.sendKeys[2])
 	}
 	if got := value1; got != "llm override continue" {
 		t.Fatalf("first typed continue message = %q, want override", got)
 	}
-	value2, ok := literalTypedValue(client.sendKeys[4])
+	value2, ok := literalTypedValue(client.sendKeys[6])
 	if !ok {
-		t.Fatalf("second typed sendKeys = %v, want literal text", client.sendKeys[4])
+		t.Fatalf("second typed sendKeys = %v, want literal text", client.sendKeys[6])
 	}
 	if got := value2; got == "llm override continue" {
 		t.Fatalf("second typed continue message reused override: %q", got)
@@ -812,14 +829,14 @@ func TestClassifyWithLLMFallbackPromptIncludesCompletionAuditGuidance(t *testing
 		t.Fatalf("classifyWithLLMFallback error = %v", err)
 	}
 	for _, needle := range []string{
-		"run the relevant build/test/unit/integration checks",
-		"scan the code for TODO, FIXME, not implemented, stub, placeholder, or missing branches",
-		"profile CPU and memory usage",
-		"reduce memory footprint where practical",
-		"Clean Architecture boundaries",
-		"Single Responsibility Principle",
-		"interface-driven design",
-		"modularity, readability, maintainability, performance, and testability",
+		"strict terminal waiting-state classifier",
+		"CONTINUE_MESSAGE generation rules",
+		"INJECT_CONTINUE",
+		"INJECT_SELECT",
+		"INJECT_INPUT",
+		"SKIP",
+		"MUST use ~하자/~해봐/~보자 endings",
+		"Base CONTINUE_MESSAGE on the visible terminal text",
 	} {
 		if !strings.Contains(provider.prompt, needle) {
 			t.Fatalf("prompt missing %q\n%s", needle, provider.prompt)
@@ -935,17 +952,21 @@ func TestApplyLLMDecisionInjectInputWithEmptyChoiceFallsBackToContinue(t *testin
 	if r.continueSentCount != 1 {
 		t.Fatalf("continueSentCount = %d, want 1", r.continueSentCount)
 	}
-	if len(client.sendKeys) < 3 {
-		t.Fatalf("sendKeys calls = %d, want at least 3", len(client.sendKeys))
+	// clearBeforeTyping sends Escape then C-u before typing
+	if len(client.sendKeys) < 4 {
+		t.Fatalf("sendKeys calls = %d, want at least 4", len(client.sendKeys))
 	}
-	if got := client.sendKeys[0]; len(got) != 1 || got[0] != "C-u" {
-		t.Fatalf("first sendKeys = %v, want [C-u]", got)
+	if got := client.sendKeys[0]; len(got) != 1 || got[0] != "Escape" {
+		t.Fatalf("first sendKeys = %v, want [Escape]", got)
 	}
-	if value, ok := literalTypedValue(client.sendKeys[1]); !ok || strings.TrimSpace(value) == "" {
-		t.Fatalf("second sendKeys = %v, want typed continue message", client.sendKeys[1])
+	if got := client.sendKeys[1]; len(got) != 1 || got[0] != "C-u" {
+		t.Fatalf("second sendKeys = %v, want [C-u]", got)
 	}
-	if got := client.sendKeys[2]; len(got) != 1 || got[0] != "C-m" {
-		t.Fatalf("third sendKeys = %v, want [C-m]", got)
+	if value, ok := literalTypedValue(client.sendKeys[2]); !ok || strings.TrimSpace(value) == "" {
+		t.Fatalf("third sendKeys = %v, want typed continue message", client.sendKeys[2])
+	}
+	if got := client.sendKeys[3]; len(got) != 1 || got[0] != "C-m" {
+		t.Fatalf("fourth sendKeys = %v, want [C-m]", got)
 	}
 	if len(r.queue) != 3 {
 		t.Fatalf("queue length = %d, want 3", len(r.queue))
@@ -975,17 +996,21 @@ func TestInjectInputOnceWithEmptyChoiceFallsBackToContinue(t *testing.T) {
 	if r.state != stateStopped {
 		t.Fatalf("state = %q, want %q", r.state, stateStopped)
 	}
-	if len(client.sendKeys) < 3 {
-		t.Fatalf("sendKeys calls = %d, want at least 3", len(client.sendKeys))
+	// clearBeforeTyping sends Escape then C-u before typing
+	if len(client.sendKeys) < 4 {
+		t.Fatalf("sendKeys calls = %d, want at least 4", len(client.sendKeys))
 	}
-	if got := client.sendKeys[0]; len(got) != 1 || got[0] != "C-u" {
-		t.Fatalf("first sendKeys = %v, want [C-u]", got)
+	if got := client.sendKeys[0]; len(got) != 1 || got[0] != "Escape" {
+		t.Fatalf("first sendKeys = %v, want [Escape]", got)
 	}
-	if value, ok := literalTypedValue(client.sendKeys[1]); !ok || strings.TrimSpace(value) == "" {
-		t.Fatalf("second sendKeys = %v, want typed continue message", client.sendKeys[1])
+	if got := client.sendKeys[1]; len(got) != 1 || got[0] != "C-u" {
+		t.Fatalf("second sendKeys = %v, want [C-u]", got)
 	}
-	if got := client.sendKeys[2]; len(got) != 1 || got[0] != "C-m" {
-		t.Fatalf("third sendKeys = %v, want [C-m]", got)
+	if value, ok := literalTypedValue(client.sendKeys[2]); !ok || strings.TrimSpace(value) == "" {
+		t.Fatalf("third sendKeys = %v, want typed continue message", client.sendKeys[2])
+	}
+	if got := client.sendKeys[3]; len(got) != 1 || got[0] != "C-m" {
+		t.Fatalf("fourth sendKeys = %v, want [C-m]", got)
 	}
 }
 
@@ -1014,20 +1039,24 @@ func TestInjectCursorConfirmFallsBackToContinueWhenANSIUnchanged(t *testing.T) {
 	if r.continueSentCount != 1 {
 		t.Fatalf("continueSentCount = %d, want 1", r.continueSentCount)
 	}
-	if len(client.sendKeys) < 4 {
-		t.Fatalf("sendKeys calls = %d, want at least 4", len(client.sendKeys))
+	// After Down (cursor probe), clearBeforeTyping sends Escape then C-u before typing
+	if len(client.sendKeys) < 5 {
+		t.Fatalf("sendKeys calls = %d, want at least 5", len(client.sendKeys))
 	}
 	if got := client.sendKeys[0]; len(got) != 1 || got[0] != "Down" {
 		t.Fatalf("first sendKeys = %v, want [Down]", got)
 	}
-	if got := client.sendKeys[1]; len(got) != 1 || got[0] != "C-u" {
-		t.Fatalf("second sendKeys = %v, want [C-u]", got)
+	if got := client.sendKeys[1]; len(got) != 1 || got[0] != "Escape" {
+		t.Fatalf("second sendKeys = %v, want [Escape]", got)
 	}
-	if value, ok := literalTypedValue(client.sendKeys[2]); !ok || strings.TrimSpace(value) == "" {
-		t.Fatalf("third sendKeys = %v, want typed continue message", client.sendKeys[2])
+	if got := client.sendKeys[2]; len(got) != 1 || got[0] != "C-u" {
+		t.Fatalf("third sendKeys = %v, want [C-u]", got)
 	}
-	if got := client.sendKeys[3]; len(got) != 1 || got[0] != "C-m" {
-		t.Fatalf("fourth sendKeys = %v, want [C-m]", got)
+	if value, ok := literalTypedValue(client.sendKeys[3]); !ok || strings.TrimSpace(value) == "" {
+		t.Fatalf("fourth sendKeys = %v, want typed continue message", client.sendKeys[3])
+	}
+	if got := client.sendKeys[4]; len(got) != 1 || got[0] != "C-m" {
+		t.Fatalf("fifth sendKeys = %v, want [C-m]", got)
 	}
 }
 
@@ -1085,14 +1114,13 @@ func TestSendContinueMessageStopsBeforeFallbackWhenContextCanceled(t *testing.T)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v, want context canceled", err)
 	}
-	if len(client.sendKeys) != 2 {
-		t.Fatalf("sendKeys calls = %d, want 2", len(client.sendKeys))
+	// With pre-canceled context: text is typed, then the 200ms post-type wait
+	// returns context.Canceled before the submit key is sent.
+	if len(client.sendKeys) != 1 {
+		t.Fatalf("sendKeys calls = %d, want 1", len(client.sendKeys))
 	}
 	if value, ok := literalTypedValue(client.sendKeys[0]); !ok || value != "continue" {
 		t.Fatalf("first sendKeys = %v, want typed message", client.sendKeys[0])
-	}
-	if got := client.sendKeys[1]; len(got) != 1 || got[0] != "C-m" {
-		t.Fatalf("second sendKeys = %v, want primary submit only", got)
 	}
 }
 

@@ -1547,37 +1547,13 @@ Rules:
 - Use INJECT_INPUT for specific free-text input requests.
 - Use INJECT_CONTINUE for completion handoff or safe generic continuation.
 - Use SKIP only if the screen clearly says there is nothing left to do.
-- If the visible text mentions parity, match rate, pass rate, or percentage progress, propose a concrete CONTINUE_MESSAGE that pushes parity toward 100%% through planned execution and verification.
-- If the visible text sounds like the work is done or nearly done, prefer a CONTINUE_MESSAGE that pushes the agent to verify completion instead of stopping early:
-  run the relevant build/test/unit/integration checks,
-  confirm the original goal is fully satisfied,
-  scan the code for TODO, FIXME, not implemented, stub, placeholder, or missing branches,
-  review whether all functional requirements are actually implemented in code,
-  and only then move on to non-functional improvement work.
-- When the work appears functionally complete, the preferred next steps are:
-  verify correctness with tests,
-  inspect for unfinished code paths,
-  profile CPU and memory usage,
-  identify and improve bottlenecks,
-  reduce memory footprint where practical,
-  and propose code-level refactors that improve modularity, readability, maintainability, performance, and testability.
-- Push the agent toward architecture and design cleanup when appropriate:
-  Clean Architecture boundaries,
-  Single Responsibility Principle,
-  interface-driven design,
-  lower coupling,
-  clearer module boundaries,
-  and easier testing/extensibility.
-- A strong CONTINUE_MESSAGE should be specific, action-oriented, and should push the agent to keep improving the code even after a completion summary.
-- CONTINUE_MESSAGE is optional, but when useful it should be a single actionable sentence in the operator's language.
 - CONTINUE_MESSAGE must not start with "/" or "-" (avoid slash commands and option-like text at input start).
-- When the assistant has clearly finished a task and is showing a completion summary,
-  write CONTINUE_MESSAGE as if YOU are the developer giving the next command.
-  Use the developer's natural speaking style from the preference profile.
-  Good examples: "좋아. clean architecture 관점에서 현재 코드 구조 분석하고 결합도, 책임 분리, 테스트 용이성 측면 개선 포인트 찾아서 하나씩 적용하자."
-  or "테스트 커버리지 확인해보고 부족한 부분 보강하자. edge case 위주로."
-  Do NOT generate generic messages like "continue" or "proceed". Be specific about WHAT to do next.
-- Base CONTINUE_MESSAGE on the visible terminal text and the developer preference profile.
+
+CONTINUE_MESSAGE generation rules (this is the most important part):
+You are generating the next command prompt as if YOU are this specific developer.
+%s
+
+Base CONTINUE_MESSAGE on the visible terminal text and the developer preference profile above.
 
 Prompt line:
 %s
@@ -1587,13 +1563,46 @@ Last output block:
 
 Full plain capture tail:
 %s
-`, guidanceBlock, waitingClassifierResponseLanguage(locale), promptText, outputBlock, trimTailLines(plainCapture, 20))
+`, guidanceBlock, waitingClassifierResponseLanguage(locale), loadMetaPrompt(), promptText, outputBlock, trimTailLines(plainCapture, 20))
 
 	out, err := provider.RunPrompt(ctx, rawPrompt)
 	if err != nil {
 		return llmDecision{}, err
 	}
 	return parseLLMDecisionForLocale(out, locale), nil
+}
+
+// loadMetaPrompt reads the user prompt preference meta-prompt from docs/
+// and returns it for injection into the LLM classifier prompt.
+// Falls back to a minimal default if the file is not found.
+func loadMetaPrompt() string {
+	// Try project-local docs/ first, then CWD
+	for _, path := range []string{
+		"docs/user-prompts-pref-20260404.md",
+		filepath.Join(os.Getenv("HOME"), ".yollo", "meta-prompt.md"),
+	} {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		content := string(data)
+		// Extract the meta prompt block between ```text and ```
+		start := strings.Index(content, "```text\n")
+		if start < 0 {
+			continue
+		}
+		start += len("```text\n")
+		end := strings.Index(content[start:], "\n```")
+		if end < 0 {
+			continue
+		}
+		return strings.TrimSpace(content[start : start+end])
+	}
+	// Fallback: minimal style guide
+	return `Write CONTINUE_MESSAGE in casual Korean with ~하자/~해봐/~보자 endings.
+Be specific about WHAT to do next based on the completed work.
+Include quality criteria: test coverage, clean architecture, SRP, interface-driven design.
+Do NOT generate vague messages like "계속해" or "진행해". Always include actionable criteria.`
 }
 
 func (r *Runner) loadProfileSummary() string {

@@ -314,7 +314,9 @@ func TestSendContinueMessageStopsBeforeFallbackWhenContextCanceled(t *testing.T)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v, want context canceled", err)
 	}
-	if len(client.sendKeys) != 2 {
-		t.Fatalf("sendKeys calls = %d, want 2", len(client.sendKeys))
+	// With pre-canceled context: text is typed, then the 200ms post-type wait
+	// returns context.Canceled before the submit key is sent.
+	if len(client.sendKeys) != 1 {
+		t.Fatalf("sendKeys calls = %d, want 1", len(client.sendKeys))
 	}
 }
