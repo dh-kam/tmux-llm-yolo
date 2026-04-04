@@ -38,6 +38,7 @@ type Config struct {
 	Target              string
 	CaptureLines        int
 	ContinueMessage     string
+	ContinueMetaPrompt  string
 	Locale              string
 	SubmitKey           string
 	SubmitKeyFallback   string
@@ -1416,7 +1417,7 @@ func (r *Runner) classifyWithLLM(ctx context.Context, analysis prompt.Analysis, 
 			r.updateUI()
 			continue
 		}
-		decision, err := classifyWithLLMFallbackForLocaleWithGuidance(ctx, provider, candidate.llmName, candidate.llmModel, guidance, analysis, plainCapture, r.locale)
+		decision, err := classifyWithLLMFallbackForLocaleWithGuidance(ctx, provider, candidate.llmName, candidate.llmModel, guidance, analysis, plainCapture, r.locale, r.cfg.ContinueMetaPrompt)
 		if err == nil {
 			r.lastLLMProvider = candidate.label + ":" + candidate.llmName
 			r.updateUI()
@@ -1509,14 +1510,14 @@ func (r *Runner) maybeSetContinueOverride(message string, source string) {
 }
 
 func classifyWithLLMFallback(ctx context.Context, provider llm.Provider, llmName string, llmModel string, analysis prompt.Analysis, plainCapture string) (llmDecision, error) {
-	return classifyWithLLMFallbackForLocaleWithGuidance(ctx, provider, llmName, llmModel, "", analysis, plainCapture, i18n.DefaultAppLocale)
+	return classifyWithLLMFallbackForLocaleWithGuidance(ctx, provider, llmName, llmModel, "", analysis, plainCapture, i18n.DefaultAppLocale, "")
 }
 
 func classifyWithLLMFallbackForLocale(ctx context.Context, provider llm.Provider, llmName string, llmModel string, analysis prompt.Analysis, plainCapture string, locale string) (llmDecision, error) {
-	return classifyWithLLMFallbackForLocaleWithGuidance(ctx, provider, llmName, llmModel, "", analysis, plainCapture, locale)
+	return classifyWithLLMFallbackForLocaleWithGuidance(ctx, provider, llmName, llmModel, "", analysis, plainCapture, locale, "")
 }
 
-func classifyWithLLMFallbackForLocaleWithGuidance(ctx context.Context, provider llm.Provider, llmName string, llmModel string, guidance string, analysis prompt.Analysis, plainCapture string, locale string) (llmDecision, error) {
+func classifyWithLLMFallbackForLocaleWithGuidance(ctx context.Context, provider llm.Provider, llmName string, llmModel string, guidance string, analysis prompt.Analysis, plainCapture string, locale string, metaPromptPath string) (llmDecision, error) {
 	if provider == nil {
 		return llmDecision{}, fmt.Errorf("provider not configured")
 	}
@@ -1563,7 +1564,7 @@ Last output block:
 
 Full plain capture tail:
 %s
-`, guidanceBlock, waitingClassifierResponseLanguage(locale), loadMetaPrompt(), promptText, outputBlock, trimTailLines(plainCapture, 20))
+`, guidanceBlock, waitingClassifierResponseLanguage(locale), loadMetaPrompt(metaPromptPath), promptText, outputBlock, trimTailLines(plainCapture, 20))
 
 	out, err := provider.RunPrompt(ctx, rawPrompt)
 	if err != nil {
@@ -1575,12 +1576,16 @@ Full plain capture tail:
 // loadMetaPrompt reads the user prompt preference meta-prompt from docs/
 // and returns it for injection into the LLM classifier prompt.
 // Falls back to a minimal default if the file is not found.
-func loadMetaPrompt() string {
-	// Try project-local docs/ first, then CWD
-	for _, path := range []string{
+func loadMetaPrompt(customPath string) string {
+	// Try custom path first, then project-local docs/, then ~/.yollo/
+	paths := []string{
 		"docs/user-prompts-pref-20260404.md",
 		filepath.Join(os.Getenv("HOME"), ".yollo", "meta-prompt.md"),
-	} {
+	}
+	if customPath != "" {
+		paths = append([]string{customPath}, paths...)
+	}
+	for _, path := range paths {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			continue

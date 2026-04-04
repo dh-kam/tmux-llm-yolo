@@ -207,6 +207,7 @@ func init() {
 	rootCmd.PersistentFlags().Int("capture-lines", 25, "number of visible lines to capture from target pane")
 	rootCmd.PersistentFlags().Bool("capture-with-ansi", true, "capture tmux pane with ANSI escapes (-e)")
 	rootCmd.PersistentFlags().StringP("continue-message", "c", "", "message sent when model waits for user input")
+	rootCmd.PersistentFlags().String("continue-meta-prompt", "", "path to meta-prompt file for generating continue messages")
 	rootCmd.PersistentFlags().String("policy", "default", "watcher policy: default, poc-completion, aggressive-architecture, parity-porting, creative-exploration")
 	rootCmd.PersistentFlags().String("submit-key", "C-m", "tmux key used to submit the message")
 	rootCmd.PersistentFlags().String("submit-key-fallback", "C-m", "fallback submit key for alternative mode")
@@ -234,6 +235,7 @@ func init() {
 	_ = viper.BindPFlag("capture-lines", rootCmd.PersistentFlags().Lookup("capture-lines"))
 	_ = viper.BindPFlag("capture-with-ansi", rootCmd.PersistentFlags().Lookup("capture-with-ansi"))
 	_ = viper.BindPFlag("continue-message", rootCmd.PersistentFlags().Lookup("continue-message"))
+	_ = viper.BindPFlag("continue-meta-prompt", rootCmd.PersistentFlags().Lookup("continue-meta-prompt"))
 	_ = viper.BindPFlag("policy", rootCmd.PersistentFlags().Lookup("policy"))
 	_ = viper.BindPFlag("submit-key", rootCmd.PersistentFlags().Lookup("submit-key"))
 	_ = viper.BindPFlag("submit-key-fallback", rootCmd.PersistentFlags().Lookup("submit-key-fallback"))
@@ -346,6 +348,7 @@ func runWatch(cmd *cobra.Command, args []string) error {
 			Target:              config.target,
 			CaptureLines:        config.captureLines,
 			ContinueMessage:     config.continueMessage,
+			ContinueMetaPrompt:  config.continueMetaPrompt,
 			SubmitKey:           config.submitKey,
 			SubmitKeyFallback:   config.submitKeyFallback,
 			SubmitFallbackDelay: config.submitFallbackDelay,
@@ -657,6 +660,7 @@ type watchConfig struct {
 	duration                  int
 	captureLines              int
 	continueMessage           string
+	continueMetaPrompt        string
 	policy                    string
 	submitKey                 string
 	submitKeyFallback         string
@@ -735,6 +739,7 @@ func loadConfig(args []string) (watchConfig, error) {
 	locale := i18n.NormalizeLocale(rawLocale)
 
 	continueMessage := firstNonEmpty(os.Getenv("CONTINUE_MESSAGE"), viper.GetString("continue-message"))
+	continueMetaPrompt := firstNonEmpty(os.Getenv("CONTINUE_META_PROMPT"), viper.GetString("continue-meta-prompt"))
 	policyName := policy.Resolve(firstNonEmpty(os.Getenv("POLICY"), viper.GetString("policy"))).Name()
 	submitKey := firstNonEmpty(os.Getenv("SUBMIT_KEY"), viper.GetString("submit-key"))
 	submitFallback := firstNonEmpty(os.Getenv("SUBMIT_KEY_FALLBACK"), viper.GetString("submit-key-fallback"))
@@ -787,6 +792,7 @@ func loadConfig(args []string) (watchConfig, error) {
 		duration:                  duration,
 		captureLines:              captureLines,
 		continueMessage:           continueMessage,
+		continueMetaPrompt:        continueMetaPrompt,
 		policy:                    policyName,
 		submitKey:                 submitKey,
 		submitKeyFallback:         submitFallback,

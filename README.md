@@ -126,6 +126,14 @@ Run continuous watch:
 go run . watch -t tmp-glm --llm glm --fallback-llm codex
 ```
 
+Run with a custom meta-prompt for continue message generation:
+
+```bash
+go run . watch -t tmp-glm --llm glm --continue-meta-prompt docs/user-prompts-pref-20260404.md
+```
+
+The `--continue-meta-prompt` flag specifies a file containing a meta-prompt that controls how the watcher generates continuation messages. The file should contain a `` ```text `` fenced block with the prompt template. Without this flag, the watcher searches `docs/user-prompts-pref-20260404.md` and `~/.yollo/meta-prompt.md` in order, falling back to a built-in style guide. You can also set this via the `CONTINUE_META_PROMPT` environment variable.
+
 Show version:
 
 ```bash
