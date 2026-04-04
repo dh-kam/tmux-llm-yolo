@@ -14,10 +14,10 @@ jobs:
         include:
           - artifact_name: linux-amd64-release
             make_target: linux-amd64-release
-            artifact_path: build/linux-amd64/release/tmux-llm-yolo
+            artifact_path: build/linux-amd64/release/yollo
           - artifact_name: linux-arm64-release
             make_target: linux-arm64-release
-            artifact_path: build/linux-arm64/release/tmux-llm-yolo
+            artifact_path: build/linux-arm64/release/yollo
 
     steps:
       - name: Checkout

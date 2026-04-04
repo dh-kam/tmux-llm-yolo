@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/policy"
-	"github.com/dh-kam/tmux-llm-yolo/internal/tui"
+	"github.com/dh-kam/yollo/internal/policy"
+	"github.com/dh-kam/yollo/internal/tui"
 )
 
 func (r *Runner) nextTaskName() string {

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/llm"
+	"github.com/dh-kam/yollo/internal/llm"
 )
 
 const agentsFilename = "AGENTS.md"

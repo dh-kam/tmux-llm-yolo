@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/capture"
-	"github.com/dh-kam/tmux-llm-yolo/internal/i18n"
-	"github.com/dh-kam/tmux-llm-yolo/internal/tmux"
+	"github.com/dh-kam/yollo/internal/capture"
+	"github.com/dh-kam/yollo/internal/i18n"
+	"github.com/dh-kam/yollo/internal/tmux"
 	"gopkg.in/yaml.v3"
 )
 
@@ -62,6 +62,7 @@ type executorProfile struct {
 	captureLines       int
 	cursorProbeDelay   time.Duration
 	dryRunOutputFormat string
+	footerKeyHints     map[string]string // Dynamic key hints from footer parsing (candidates only)
 }
 
 type providerActionExecutor struct {
@@ -138,8 +139,9 @@ func resolveExecutorProfile(cfg Config, provider string) executorProfile {
 		profile.clearBeforeTyping = true
 	case "copilot":
 		profile.clearBeforeTyping = true
-		if strings.EqualFold(profile.submitKey, "C-m") {
-			profile.submitKey = "C-s"
+		// Copilot uses Enter (C-m) to submit; C-s opens the command palette.
+		if strings.EqualFold(profile.submitKey, "C-s") {
+			profile.submitKey = "C-m"
 		}
 		profile.fallbackSubmitKey = ""
 	}
@@ -614,6 +616,53 @@ func compactNonBlank(text string) string {
 		}
 	}
 	return strings.Join(parts, "\n")
+}
+
+// footerKeyToTmux translates a footer key hint (e.g. "ctrl+s") to tmux key
+// notation (e.g. "C-s"). Returns empty string if the format is unrecognized.
+func footerKeyToTmux(key string) string {
+	key = strings.ToLower(strings.TrimSpace(key))
+	parts := strings.SplitN(key, "+", 2)
+	if len(parts) != 2 {
+		return ""
+	}
+	modifier, char := parts[0], parts[1]
+	switch modifier {
+	case "ctrl":
+		return "C-" + char
+	case "shift":
+		// shift+tab -> special, most shift combos not directly usable
+		return ""
+	case "alt":
+		return "M-" + char
+	default:
+		return ""
+	}
+}
+
+// ApplyFooterKeyHints applies dynamic key hints from footer parsing to an
+// executor profile. This is used as a candidate suggestion only -- the caller
+// decides whether to use it based on testing/validation.
+func (p *executorProfile) ApplyFooterKeyHints(hints map[string]string) {
+	if len(hints) == 0 {
+		return
+	}
+	p.footerKeyHints = hints
+}
+
+// FooterSubmitKeyCandidate returns the tmux key notation for the footer's
+// "run command" or "enqueue" action, if available. Returns empty string if
+// no suitable key hint was found.
+func (p *executorProfile) FooterSubmitKeyCandidate() string {
+	for key, action := range p.footerKeyHints {
+		lower := strings.ToLower(action)
+		if strings.Contains(lower, "run command") || strings.Contains(lower, "enqueue") || strings.Contains(lower, "submit") {
+			if tmuxKey := footerKeyToTmux(key); tmuxKey != "" {
+				return tmuxKey
+			}
+		}
+	}
+	return ""
 }
 
 func normalizeRuntimeProvider(provider string) string {

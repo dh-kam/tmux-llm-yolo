@@ -107,11 +107,11 @@ func normalizeConfig(cfg Config) Config {
 	}
 	cfg.Repo = strings.TrimSpace(cfg.Repo)
 	if cfg.Repo == "" {
-		cfg.Repo = "dh-kam/tmux-llm-yolo"
+		cfg.Repo = "dh-kam/yollo"
 	}
 	cfg.AppName = strings.TrimSpace(cfg.AppName)
 	if cfg.AppName == "" {
-		cfg.AppName = "tmux-llm-yolo"
+		cfg.AppName = "yollo"
 	}
 	cfg.Variant = strings.TrimSpace(cfg.Variant)
 	if cfg.Variant == "" {

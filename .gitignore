@@ -12,5 +12,5 @@ dist/
 
 # local runtime artifacts
 .claude/
-tmux-llm-yolo
+yollo
 testdata/live-approval/

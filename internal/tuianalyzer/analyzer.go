@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/capture"
+	"github.com/dh-kam/yollo/internal/capture"
 )
 
 // Analyze parses a terminal capture into semantic sections.
@@ -251,11 +251,21 @@ func refineSections(sections []Section, provider string, plainLines []string, an
 
 // mergeBoxRanges detects ╭...╰ box-drawing ranges and merges all sections
 // within each range into a single section. Boxes in the top third become HEADER,
+// boxes containing approval prompts become ASST_QUESTION,
 // boxes elsewhere become ASST_OUTPUT (e.g. code tables in assistant responses).
 func mergeBoxRanges(sections []Section, plainLines []string) []Section {
 	boxRanges := findAllBoxRanges(plainLines)
 	if len(boxRanges) == 0 {
 		return sections
+	}
+
+	// Pre-classify each box range as approval or not
+	approvalBoxes := make(map[int]bool)
+	for idx, r := range boxRanges {
+		boxContent := strings.Join(sliceLines(plainLines, r[0], r[1]+1), "\n")
+		if isApprovalBoxContent(boxContent) {
+			approvalBoxes[idx] = true
+		}
 	}
 
 	total := len(plainLines)
@@ -267,16 +277,23 @@ func mergeBoxRanges(sections []Section, plainLines []string) []Section {
 		s := sections[i]
 
 		// Check if this section overlaps with any box range
-		if overlapsBoxRange(s, boxRanges) {
-			// Determine type based on position: top → HEADER, else → ASST_OUTPUT
+		overlapIdx := overlappingBoxIndex(s, boxRanges)
+		if overlapIdx >= 0 {
+			isApproval := approvalBoxes[overlapIdx]
+
+			// Determine type
 			sectionType := SectionAssistantOutput
 			confidence := 0.85
-			if s.StartLine < headerThreshold {
+			if isApproval {
+				sectionType = SectionAssistantQuestion
+				confidence = 0.95
+			} else if s.StartLine < headerThreshold {
 				sectionType = SectionHeader
 				confidence = 0.9
 			}
 
-			// Expand forward to absorb all sections within the same box range
+			// Expand forward to absorb subsequent sections in the SAME box range
+			// but stop if we hit an approval box boundary (so approval boxes stay separate)
 			merged := Section{
 				Type:       sectionType,
 				StartLine:  s.StartLine,
@@ -288,21 +305,28 @@ func mergeBoxRanges(sections []Section, plainLines []string) []Section {
 			copy(merged.ANSILines, s.ANSILines)
 			copy(merged.PlainLines, s.PlainLines)
 
-			// Absorb subsequent sections that are also in the same box range
 			for i+1 < len(sections) {
 				next := sections[i+1]
-				if overlapsBoxRange(next, boxRanges) {
-					merged.EndLine = next.EndLine
-					merged.ANSILines = append(merged.ANSILines, next.ANSILines...)
-					merged.PlainLines = append(merged.PlainLines, next.PlainLines...)
-					i++
-				} else {
+				nextBoxIdx := overlappingBoxIndex(next, boxRanges)
+				if nextBoxIdx < 0 {
+					// Not in any box -- stop if we're in a box range, absorb if gap between boxes
 					break
 				}
+				// If the next section is in a DIFFERENT box that is an approval box,
+				// and our current merged section is NOT approval, stop here
+				if nextBoxIdx != overlapIdx && approvalBoxes[nextBoxIdx] && !isApproval {
+					break
+				}
+				// If current is approval and next is in a different box, stop
+				if isApproval && nextBoxIdx != overlapIdx {
+					break
+				}
+				merged.EndLine = next.EndLine
+				merged.ANSILines = append(merged.ANSILines, next.ANSILines...)
+				merged.PlainLines = append(merged.PlainLines, next.PlainLines...)
+				i++
 			}
 
-			// Check if the section just after the box is also a box bottom (╰)
-			// that belongs to this range - absorb it too
 			result = append(result, merged)
 		} else {
 			result = append(result, s)
@@ -310,6 +334,25 @@ func mergeBoxRanges(sections []Section, plainLines []string) []Section {
 		i++
 	}
 	return result
+}
+
+// overlappingBoxIndex returns the index of the first box range that overlaps
+// with the section, or -1 if none.
+func overlappingBoxIndex(s Section, ranges [][2]int) int {
+	for idx, r := range ranges {
+		if s.StartLine <= r[1] && s.EndLine >= r[0] {
+			return idx
+		}
+	}
+	return -1
+}
+
+// isApprovalBoxContent checks if the combined text of a box range contains
+// approval/permission prompt patterns (e.g. "Allow execution", numbered options).
+var boxApprovalPattern = regexp.MustCompile(`(?i)(action required|allow execution|allow once|allow for this session|suggest changes|do you want to|approve|permission|proceed\?)`)
+
+func isApprovalBoxContent(content string) bool {
+	return boxApprovalPattern.MatchString(content)
 }
 
 // overlapsBoxRange checks if a section's lines overlap with any detected box range.

@@ -1,6 +1,6 @@
 GO := go
-APP := tmux-llm-yolo
-MODULE := github.com/dh-kam/tmux-llm-yolo
+APP := yollo
+MODULE := github.com/dh-kam/yollo
 OUTPUT_DIR := build
 DIST_DIR := dist
 VERSION_FILE := internal/buildinfo/version.go

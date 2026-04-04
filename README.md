@@ -1,6 +1,8 @@
-# tmux-llm-yolo
+# yollo
 
-`tmux-llm-yolo` is a watcher for `tmux` sessions that run CLI coding assistants such as Codex, GLM/Claude-style CLIs, Copilot, and Gemini.
+**Y**ou **O**nly **L**et **L**LMs **O**perate
+
+`yollo` is a watcher for `tmux` sessions that run CLI coding assistants such as Codex, GLM/Claude-style CLIs, Copilot, and Gemini.
 
 It watches the assistant session, decides whether the assistant is still working or is now waiting for user input, and then either:
 
@@ -140,7 +142,7 @@ GitHub Release에 등록된 에셋을 현재 실행 바이너리의 플랫폼(`O
   3. 에셋을 다운로드하고 실행 바이너리를 교체합니다.
   4. 현재 프로세스를 즉시 재시작합니다.
 - 기본은 자동으로 활성화됩니다. 비활성화하려면 `watch --disable-auto-update`를 사용합니다.
-- 기본 저장소: `dh-kam/tmux-llm-yolo`
+- 기본 저장소: `dh-kam/yollo`
 - 지원 포맷
   - `tar.gz`(현재 `release-artifacts`에서 생성)
   - `zip`(zip 안에 동일한 바이너리 이름이 있어야 함)
@@ -163,11 +165,11 @@ GitHub Release에 등록된 에셋을 현재 실행 바이너리의 플랫폼(`O
 예시:
 
 ```bash
-tmux-llm-yolo watch
-TMUX_YOLO_DISABLE_AUTO_UPDATE=true tmux-llm-yolo watch -t dev-pdf-codex
-TMUX_YOLO_GITHUB_REPO=dh-kam/tmux-llm-yolo tmux-llm-yolo watch -t dev-pdf-codex
+yollo watch
+TMUX_YOLO_DISABLE_AUTO_UPDATE=true yollo watch -t dev-pdf-codex
+TMUX_YOLO_GITHUB_REPO=dh-kam/yollo yollo watch -t dev-pdf-codex
 TMUX_YOLO_AUTO_UPDATE_RETRY_COUNT=4 TMUX_YOLO_AUTO_UPDATE_RETRY_DELAY=1.0 \
-tmux-llm-yolo watch -t dev-pdf-codex
+yollo watch -t dev-pdf-codex
 ```
 
 Install local git hooks:
@@ -276,8 +278,8 @@ On `push`, `pull_request`, and manual dispatch:
 - runs `make linux-amd64-release`
 - runs `make linux-arm64-release`
 - uploads the exact build outputs as Actions artifacts
-- artifact `linux-amd64-release` contains `build/linux-amd64/release/tmux-llm-yolo`
-- artifact `linux-arm64-release` contains `build/linux-arm64/release/tmux-llm-yolo`
+- artifact `linux-amd64-release` contains `build/linux-amd64/release/yollo`
+- artifact `linux-arm64-release` contains `build/linux-arm64/release/yollo`
 
 Workflow file:
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/tmux"
+	"github.com/dh-kam/yollo/internal/tmux"
 )
 
 var ansiEscapePattern = regexp.MustCompile(`\x1b(?:\[[0-9;?]*[ -/]*[@-~]|][^\a]*(?:\a|\x1b\\))`)

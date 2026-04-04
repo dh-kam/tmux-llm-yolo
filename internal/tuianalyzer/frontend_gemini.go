@@ -11,7 +11,7 @@ var (
 	geminiBorderPattern      = regexp.MustCompile(`^[▀▄]+$`)
 	geminiPromptPattern      = regexp.MustCompile(`^[[:space:]]*\*[[:space:]]`)
 	geminiPlaceholderPattern = regexp.MustCompile(`(?i)(type your message|type @ to mention)`)
-	geminiFooterPattern      = regexp.MustCompile(`(?i)(/workspace.*sandbox|/model\s+auto|/auth|/help|yojo\s+ctrl\+y|\?\s*for\s*shortcuts)`)
+	geminiFooterPattern      = regexp.MustCompile(`(?i)(/workspace.*sandbox|/model\s+auto|/auth|/help|yojo\s+ctrl\+y|\?\s*for\s*shortcuts|workspace\s*\(/directory\)|no\s+sandbox\s+.*gemini)`)
 	geminiSeparatorPattern   = regexp.MustCompile(`^[▀▄─]+$`)
 )
 
@@ -40,11 +40,14 @@ func (a *GeminiFrontEndAnalyzer) ClassifyLine(idx int, plain, ansi, position str
 		return lineHint{Type: SectionSeparator, Confidence: 0.9}
 	}
 
-	// Gemini prompt (* Type your message)
-	if geminiPromptPattern.MatchString(plain) {
+	// Gemini prompt: "> text" or "*   Type your message"
+	// Note: bare "* " also matches bullet lists in assistant output,
+	// so only treat it as prompt if it's near the bottom or contains
+	// the placeholder text.
+	if geminiPlaceholderPattern.MatchString(plain) {
 		return lineHint{Type: SectionUserPrompt, Confidence: 0.9}
 	}
-	if geminiPlaceholderPattern.MatchString(plain) {
+	if geminiPromptPattern.MatchString(plain) && position == "bottom" {
 		return lineHint{Type: SectionUserPrompt, Confidence: 0.9}
 	}
 

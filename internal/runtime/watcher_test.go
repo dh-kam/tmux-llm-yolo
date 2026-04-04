@@ -9,10 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/capture"
-	"github.com/dh-kam/tmux-llm-yolo/internal/llm"
-	"github.com/dh-kam/tmux-llm-yolo/internal/prompt"
-	"github.com/dh-kam/tmux-llm-yolo/internal/tmux"
+
+	"github.com/dh-kam/yollo/internal/capture"
+	"github.com/dh-kam/yollo/internal/llm"
+	"github.com/dh-kam/yollo/internal/prompt"
+	"github.com/dh-kam/yollo/internal/tmux"
 )
 
 type fakeTmuxClient struct {
@@ -75,6 +76,7 @@ func literalTypedValue(keys []string) (string, bool) {
 type fakeLLMProvider struct {
 	prompt   string
 	response string
+	runCount int
 }
 
 func (f *fakeLLMProvider) Name() string                    { return "fake" }
@@ -85,6 +87,7 @@ func (f *fakeLLMProvider) CheckUsage(context.Context) (llm.Usage, error) {
 }
 func (f *fakeLLMProvider) RunPrompt(_ context.Context, prompt string) (string, error) {
 	f.prompt = prompt
+	f.runCount++
 	if strings.TrimSpace(f.response) == "" {
 		return "ACTION: INJECT_CONTINUE\nRECOMMENDED_CHOICE: none\nCONTINUE_MESSAGE: none\nREASON: test\n", nil
 	}

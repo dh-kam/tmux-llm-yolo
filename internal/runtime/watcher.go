@@ -12,14 +12,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/agentprefs"
-	"github.com/dh-kam/tmux-llm-yolo/internal/capture"
-	"github.com/dh-kam/tmux-llm-yolo/internal/i18n"
-	"github.com/dh-kam/tmux-llm-yolo/internal/llm"
-	"github.com/dh-kam/tmux-llm-yolo/internal/policy"
-	"github.com/dh-kam/tmux-llm-yolo/internal/prompt"
-	"github.com/dh-kam/tmux-llm-yolo/internal/tmux"
-	"github.com/dh-kam/tmux-llm-yolo/internal/tui"
+	"github.com/dh-kam/yollo/internal/agentprefs"
+	"github.com/dh-kam/yollo/internal/capture"
+	"github.com/dh-kam/yollo/internal/i18n"
+	"github.com/dh-kam/yollo/internal/llm"
+	"github.com/dh-kam/yollo/internal/policy"
+	"github.com/dh-kam/yollo/internal/prompt"
+	"github.com/dh-kam/yollo/internal/tmux"
+	"github.com/dh-kam/yollo/internal/tui"
 )
 
 const (
@@ -93,6 +93,7 @@ type Runner struct {
 	taskPlanner       *sessionTaskPlanner
 	agentsContext     string
 	agentsLoaded      bool
+	approvalPolicy    *ApprovalPolicy
 }
 
 const minimumStableWaitingDuration = 16 * time.Second
@@ -1376,6 +1377,10 @@ func (r *Runner) getExecutor() actionExecutor {
 
 func (r *Runner) classifyWithLLM(ctx context.Context, analysis prompt.Analysis, plainCapture string) (llmDecision, error) {
 	guidance := r.agentsPolicyContext(ctx)
+	// Inject developer preference profile into guidance for better continue messages
+	if profileSummary := r.loadProfileSummary(); profileSummary != "" {
+		guidance += "\n\nDeveloper preference profile (write CONTINUE_MESSAGE in this developer's style):\n" + profileSummary
+	}
 	providers := []struct {
 		label    string
 		getter   func(context.Context) (llm.Provider, error)
@@ -1534,7 +1539,7 @@ Write CONTINUE_MESSAGE and REASON in %s.
 Return exactly 4 lines:
 ACTION: INJECT_CONTINUE | INJECT_SELECT | INJECT_INPUT | SKIP
 RECOMMENDED_CHOICE: <number, text, or none>
-CONTINUE_MESSAGE: <short follow-up continue instruction, or none>
+CONTINUE_MESSAGE: <casual Korean developer command. MUST use ~하자/~해봐/~보자 endings, NOT ~하세요/~하십시오. Example: "좋아. clean architecture 관점에서 구조 분석하고 개선 포인트 찾아서 하나씩 적용하자." or none>
 REASON: <one short sentence>
 
 Rules:
@@ -1566,7 +1571,13 @@ Rules:
 - A strong CONTINUE_MESSAGE should be specific, action-oriented, and should push the agent to keep improving the code even after a completion summary.
 - CONTINUE_MESSAGE is optional, but when useful it should be a single actionable sentence in the operator's language.
 - CONTINUE_MESSAGE must not start with "/" or "-" (avoid slash commands and option-like text at input start).
-- Do not mention anything outside the visible terminal text.
+- When the assistant has clearly finished a task and is showing a completion summary,
+  write CONTINUE_MESSAGE as if YOU are the developer giving the next command.
+  Use the developer's natural speaking style from the preference profile.
+  Good examples: "좋아. clean architecture 관점에서 현재 코드 구조 분석하고 결합도, 책임 분리, 테스트 용이성 측면 개선 포인트 찾아서 하나씩 적용하자."
+  or "테스트 커버리지 확인해보고 부족한 부분 보강하자. edge case 위주로."
+  Do NOT generate generic messages like "continue" or "proceed". Be specific about WHAT to do next.
+- Base CONTINUE_MESSAGE on the visible terminal text and the developer preference profile.
 
 Prompt line:
 %s
@@ -1583,6 +1594,40 @@ Full plain capture tail:
 		return llmDecision{}, err
 	}
 	return parseLLMDecisionForLocale(out, locale), nil
+}
+
+func (r *Runner) loadProfileSummary() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	target := strings.TrimSpace(r.cfg.Target)
+	if target == "" {
+		return ""
+	}
+	replacer := strings.NewReplacer("/", "_", "\\", "_", " ", "_", ":", "_")
+	safeName := strings.TrimSpace(replacer.Replace(target))
+	path := filepath.Join(home, ".yollo", "profiles", safeName+".md")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	// Extract only preference sections (skip raw observation log)
+	content := string(data)
+	var lines []string
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "## 관찰 로그") {
+			break // stop before raw observation data
+		}
+		if strings.HasPrefix(trimmed, "- ") && !strings.HasPrefix(trimmed, "- [ ]") {
+			lines = append(lines, trimmed)
+		}
+	}
+	if len(lines) > 15 {
+		lines = lines[:15]
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (r *Runner) agentsPolicyContext(ctx context.Context) string {

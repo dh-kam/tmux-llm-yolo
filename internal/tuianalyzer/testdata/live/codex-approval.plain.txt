@@ -1,0 +1,58 @@
+    209 +
+    210 +func computeExpireAt(now time.Time, ttl, defaultTTL time.Duration) int64 {
+    211 +       effectiveTTL := ttl
+    212 +       if ttl == 0 {
+    213 +               effectiveTTL = defaultTTL
+    214 +       }
+    215 +       if effectiveTTL <= 0 {
+    216 +               return 0
+    217 +       }
+    218 +       return now.Add(effectiveTTL).UnixNano()
+    219 +}
+    220 +
+    221 +func (s *shard[V]) evictOverflow() {
+    222 +       if s.maxEntries <= 0 {
+    223 +               return
+    224 +       }
+    225 +       for len(s.items) > s.maxEntries {
+    226 +               back := s.lru.Back()
+    227 +               if back == nil {
+    228 +                       return
+    229 +               }
+    230 +               s.removeElement(back)
+    231 +       }
+    232 +}
+    233 +
+    234 +func (s *shard[V]) removeElement(el *list.Element) {
+    235 +       en := el.Value.(*entry[V])
+    236 +       delete(s.items, en.key)
+    237 +       s.lru.Remove(el)
+    238 +}
+    239 +
+    240 +func (e *entry[V]) expired(now int64) bool {
+    241 +       return e.expiresAt > 0 && now >= e.expiresAt
+    242 +}
+    243 +
+    244 +func fnv1a64(s string) uint64 {
+    245 +       var h uint64 = 14695981039346656037
+    246 +       const prime64 = 1099511628211
+    247 +       for i := 0; i < len(s); i++ {
+    248 +               h ^= uint64(s[i])
+    249 +               h *= prime64
+    250 +       }
+    251 +       return h
+    252 +}
+    253 +
+    254 +var _ = atomic.Bool{}
+
+
+  Would you like to make the following edits?
+
+  Reason: command failed; retry without sandbox?
+
+
+› 1. Yes, proceed (y)
+  2. Yes, and don't ask again for these files (a)
+  3. No, and tell Codex what to do differently (esc)
+
+  Press enter to confirm or esc to cancel

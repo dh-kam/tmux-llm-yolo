@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/interaction"
-	"github.com/dh-kam/tmux-llm-yolo/internal/prompt"
+	"github.com/dh-kam/yollo/internal/interaction"
+	"github.com/dh-kam/yollo/internal/prompt"
 )
 
 func TestDeterministicRequirementFromAnalysisBuildsCursorChoice(t *testing.T) {

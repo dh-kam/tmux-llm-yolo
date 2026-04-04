@@ -1,0 +1,29 @@
+
+  ▝▜▄     Gemini CLI v0.35.3
+    ▝▜▄
+   ▗▟▀    Signed in with Google: redacted@example.com /auth
+  ▝▀      Plan: Gemini Code Assist in Google One AI Pro /upgrade
+
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ We're making changes to Gemini CLI that may impact your workflow.                                                     │
+│ What's Changing: We are adding more robust detection of policy-violating use cases and changing how we prioritize     │
+│ traffic.                                                                                                              │
+│ How it affects you: This may result in higher capacity-related errors during periods of high traffic.                 │
+│ Read more: https://goo.gle/geminicli-updates                                                                          │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+ℹ Update successful! The new version will be used on your next run.
+                                                                                                         ? for shortcuts
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Shift+Tab to accept edits                                                                              1 GEMINI.md file
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ >   Type your message or @path/to/file
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ workspace (/directory)                                      sandbox                                              /model
+ /workspace/sample-project                                   no sandbox                                  Auto (Gemini 3)
+
+
+
+
+
+

@@ -1,0 +1,29 @@
+[35m╭────────────────────────────────────────────────────────╮
+│[39m                         [36m╭─╮╭─╮[39m                         [35m│
+│[39m                         [36m╰─╯╰─╯[39m                         [35m│
+│[39m                         [35m█ [32m▘▝[35m █[39m                         [35m│
+│[39m                         [35m ▔▔▔▔ [39m                         [35m│
+│[39m                 [1m[35mGitHub Copilot[0m v1.0.12                 [35m│
+│[39m          Copilot uses AI. Check for mistakes.          [35m│
+│[39m                                                        [35m│
+╰────────────────────────────────────────────────────────╯
+
+[34m●[39m 💡 No copilot instructions found. Run /init to
+  generate a copilot-instructions.md file for this
+  project.
+
+[34m●[39m Environment loaded: 1 MCP server, 1 skill
+
+
+
+
+ /workspace/sample-project              Claude Sonnet 4.5
+[2m──────────────────────────────────────────────────────────
+[0m❯ Python으로 async HTTP client pool을 만들어줘.
+  connection
+  pooling, retry with exponential backoff, circuit
+  breaker 패턴, 그리고 request/response 로깅을 구현해줘.[7m [0m
+[2m──────────────────────────────────────────────────────────
+[0m [1mshift+tab[0m switch mode · [1mctrl+s[0m run command ​
+ Remaining reqs.: 100%
+

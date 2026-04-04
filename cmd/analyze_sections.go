@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/capture"
-	"github.com/dh-kam/tmux-llm-yolo/internal/tuianalyzer"
+	"github.com/dh-kam/yollo/internal/capture"
+	"github.com/dh-kam/yollo/internal/tuianalyzer"
 	"github.com/spf13/cobra"
 )
 

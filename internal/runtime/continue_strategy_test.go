@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/i18n"
-	"github.com/dh-kam/tmux-llm-yolo/internal/policy"
+	"github.com/dh-kam/yollo/internal/i18n"
+	"github.com/dh-kam/yollo/internal/policy"
 )
 
 func TestContinueStrategyUsesAuditPromptAtConfiguredInterval(t *testing.T) {

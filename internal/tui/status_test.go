@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/buildinfo"
+	"github.com/dh-kam/yollo/internal/buildinfo"
 )
 
 func TestWaitProgressIndex(t *testing.T) {
@@ -108,7 +108,9 @@ func TestViewPadsBlankLogLinesWhenLogsAreShort(t *testing.T) {
 	if len(lines) != 20 {
 		t.Fatalf("line count=%d want 20", len(lines))
 	}
-	if strings.TrimSpace(lines[len(lines)-1]) != "" {
-		t.Fatalf("last line=%q want blank padded line", lines[len(lines)-1])
+	// The last visible line is either blank padding or the interaction hint bar.
+	lastLine := strings.TrimSpace(lines[len(lines)-1])
+	if lastLine != "" && !strings.Contains(lastLine, "proxy") && !strings.Contains(lastLine, "interview") && !strings.Contains(lastLine, "quit") {
+		t.Fatalf("last line=%q want blank padded line or interaction hint", lines[len(lines)-1])
 	}
 }

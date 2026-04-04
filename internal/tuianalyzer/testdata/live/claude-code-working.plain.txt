@@ -1,0 +1,58 @@
+     === RUN   TestLRUCacheTTL
+     … +34 lines (ctrl+o to expand)
+
+● All 20 KV store tests pass. Here's a summary of what was implemented:
+
+  Files created:
+  - kvstore.go - LRU cache with TTL and file persistence
+  - kvstore_handlers.go - HTTP handlers for the key-value store
+  - kvstore_test.go - Comprehensive tests
+
+  Features:
+  1. GET/PUT/DELETE - Standard CRUD operations via HTTP
+  2. TTL-based expiration - Duration strings like "10s", "5m", "1h"
+  3. LRU eviction - Automatically evicts least recently used items when at capacity
+  4. File-based persistence - JSON file with atomic writes via temp file + rename
+  5. Batch operations - _batch and _batch/get endpoints for bulk operations
+  6. Cleanup endpoint - Manual trigger to remove expired items
+
+  API Endpoints:
+
+  ┌──────────┬────────────────┬─────────────────────────────────────┐
+  │  Method  │      Path      │             Description             │
+  ├──────────┼────────────────┼─────────────────────────────────────┤
+  │ GET      │ /kv/{key}      │ Get value                           │
+  ├──────────┼────────────────┼─────────────────────────────────────┤
+  │ PUT/POST │ /kv/{key}      │ Set value (JSON body: {value, ttl}) │
+  ├──────────┼────────────────┼─────────────────────────────────────┤
+  │ DELETE   │ /kv/{key}      │ Delete key                          │
+  ├──────────┼────────────────┼─────────────────────────────────────┤
+  │ GET      │ /kv/_keys      │ List all keys                       │
+  ├──────────┼────────────────┼─────────────────────────────────────┤
+  │ POST     │ /kv/_cleanup   │ Remove expired items                │
+  ├──────────┼────────────────┼─────────────────────────────────────┤
+  │ GET      │ /kv/_stats     │ Store statistics                    │
+  ├──────────┼────────────────┼─────────────────────────────────────┤
+  │ POST     │ /kv/_batch     │ Batch set                           │
+  ├──────────┼────────────────┼─────────────────────────────────────┤
+  │ POST/GET │ /kv/_batch/get │ Batch get                           │
+  └──────────┴────────────────┴─────────────────────────────────────┘
+
+  Usage example:
+  store := NewKVStore(1000, "/data/kvstore.json")
+  mux.Handle("/kv/", http.StripPrefix("/kv", store.KVStoreHandler()))
+
+✻ Brewed for 4m 14s
+
+  5 tasks (4 done, 1 in progress, 0 open)
+  ✔ Create API versioning types and configuration
+  ✔ Implement version detection middleware
+  ✔ Implement versioned router with fallback support
+  ✔ Add versioned handlers and routes
+  ◼ Add comprehensive versioning tests
+
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏵⏵ accept edits on (shift+tab to cycle) · ctrl+t to hide tasks
+

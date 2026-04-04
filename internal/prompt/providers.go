@@ -1,9 +1,10 @@
 package prompt
 
 import (
+	"regexp"
 	"strings"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/capture"
+	"github.com/dh-kam/yollo/internal/capture"
 )
 
 type providerHeuristics struct {
@@ -216,7 +217,15 @@ func detectGeminiPromptLine(ansiLines []string, plainLines []string) int {
 func isGeminiActivePromptLine(promptLine int, ansiLines []string, plainLines []string) bool {
 	plain := normalizeSpaces(strings.TrimSpace(capture.StripANSI(plainLines[promptLine])))
 	ansi := ansiLines[promptLine]
-	if !(strings.HasPrefix(plain, "* ") || strings.Contains(plain, "Type your message or @path/to/file")) {
+
+	// Approval prompt lines (detected by detectApprovalPromptLine) are always active.
+	stripped := stripBoxDrawingChars(plain)
+	if selectedNumberedMenuPattern.MatchString(stripped) {
+		return true
+	}
+
+	if !(strings.HasPrefix(plain, "* ") || strings.Contains(plain, "Type your message or @path/to/file") ||
+		strings.HasPrefix(plain, "> ")) {
 		return false
 	}
 	if !strings.Contains(ansi, "\x1b[") {
@@ -238,12 +247,22 @@ func detectCopilotPromptLine(ansiLines []string, plainLines []string) int {
 	if idx := detectApprovalPromptLine(plainLines); idx >= 0 {
 		return idx
 	}
+	// First pass: look for copilot-specific placeholder patterns.
 	for i := len(plainLines) - 1; i >= 0; i-- {
 		plain := normalizeSpaces(strings.TrimSpace(capture.StripANSI(plainLines[i])))
 		if strings.HasPrefix(plain, "❯  Type @ to mention files") {
 			return i
 		}
 		if strings.Contains(plain, "Type @ to mention files, / for commands, or ? for shortcuts") {
+			return i
+		}
+	}
+	// Second pass: detect ❯ prompt marker with or without user-typed text.
+	// This handles cases where the user has already typed a prompt but not
+	// submitted it (e.g. "❯ Python으로 async HTTP client pool을 만들어줘.").
+	for i := len(plainLines) - 1; i >= 0; i-- {
+		plain := normalizeSpaces(strings.TrimSpace(capture.StripANSI(plainLines[i])))
+		if plain == "❯" || strings.HasPrefix(plain, "❯ ") {
 			return i
 		}
 	}
@@ -259,7 +278,23 @@ func isCopilotActivePromptLine(promptLine int, ansiLines []string, plainLines []
 	if !strings.Contains(ansi, "\x1b[") {
 		return false
 	}
-	return promptLine >= len(plainLines)-8
+	// Allow prompt in the lower portion of the capture buffer to accommodate
+	// multiline typed input that wraps and pushes the ❯ marker higher up.
+	// Skip leading blank lines so that large --capture-lines values don't
+	// cause false negatives when the top of the buffer is empty.
+	firstNonBlank := 0
+	for firstNonBlank < len(plainLines) {
+		if strings.TrimSpace(plainLines[firstNonBlank]) != "" {
+			break
+		}
+		firstNonBlank++
+	}
+	contentLines := len(plainLines) - firstNonBlank
+	threshold := contentLines / 2
+	if threshold < 18 {
+		threshold = 18
+	}
+	return promptLine >= len(plainLines)-threshold
 }
 
 func isCopilotPlaceholderPromptLine(promptLine int, ansiLines []string, plainLines []string) bool {
@@ -340,14 +375,61 @@ func hasOnlyPromptTail(promptLine int, plainLines []string) bool {
 func detectApprovalPromptLine(plainLines []string) int {
 	for i := len(plainLines) - 1; i >= 0; i-- {
 		plain := normalizeSpaces(strings.TrimSpace(capture.StripANSI(plainLines[i])))
-		if plain == "" || !selectedNumberedMenuPattern.MatchString(plain) {
+		if plain == "" {
+			continue
+		}
+		// Also check after stripping box-drawing characters (Gemini uses │ borders)
+		stripped := stripBoxDrawingChars(plain)
+		if !selectedNumberedMenuPattern.MatchString(plain) && !selectedNumberedMenuPattern.MatchString(stripped) {
 			continue
 		}
 		windowStart := max(0, i-6)
-		window := strings.Join(plainLines[windowStart:min(len(plainLines), i+4)], "\n")
-		if approvalPromptPattern.MatchString(window) && numberedMenuPattern.MatchString(window) {
+		windowLines := plainLines[windowStart:min(len(plainLines), i+4)]
+		window := strings.Join(windowLines, "\n")
+		// Also build a window with box chars stripped for Gemini-style boxes
+		strippedWindow := stripBoxDrawingChars(window)
+		if (approvalPromptPattern.MatchString(window) || approvalPromptPattern.MatchString(strippedWindow)) &&
+			(numberedMenuPattern.MatchString(window) || numberedMenuPattern.MatchString(strippedWindow)) {
 			return i
 		}
 	}
 	return -1
+}
+
+// footerKeyHintPattern matches "modifier+key action" pairs in footer lines.
+var footerKeyHintPattern = regexp.MustCompile(`(?i)((?:ctrl|shift|alt)\+[a-z0-9]+)\s+([\w][\w ]*[\w])`)
+
+// extractFooterKeyHints scans plain lines for footer-style key hints.
+// Returns a map like {"ctrl+s": "run command", "shift+tab": "switch mode"}.
+func extractFooterKeyHints(plainLines []string) map[string]string {
+	hints := make(map[string]string)
+	for _, line := range plainLines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		// Split on · separator (common in Copilot footers)
+		parts := strings.Split(trimmed, "·")
+		for _, part := range parts {
+			part = strings.TrimSpace(part)
+			matches := footerKeyHintPattern.FindAllStringSubmatch(part, -1)
+			for _, m := range matches {
+				key := strings.ToLower(strings.TrimSpace(m[1]))
+				action := strings.TrimSpace(m[2])
+				hints[key] = action
+			}
+		}
+	}
+	if len(hints) == 0 {
+		return nil
+	}
+	return hints
+}
+
+// stripBoxDrawingChars removes common box-drawing characters from text.
+func stripBoxDrawingChars(s string) string {
+	return strings.NewReplacer(
+		"│", " ", "╭", " ", "╮", " ", "╰", " ", "╯", " ",
+		"┌", " ", "┐", " ", "└", " ", "┘", " ",
+	).Replace(s)
 }

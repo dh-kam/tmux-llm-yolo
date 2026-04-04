@@ -9,7 +9,7 @@
 ░░░         ░░░░░░░░░
 
 
-Logged in with Google: nullcode@gmail.com
+Logged in with Google: redacted@example.com
  /auth
 Plan: Gemini Code Assist in Google One AI
  Pro

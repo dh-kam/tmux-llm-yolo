@@ -1,4 +1,4 @@
-# tmux-llm-yolo 실행 동작 정리
+# yollo 실행 동작 정리
 
 본 문서는 현재 코드 기준(`2026-03-14`)으로 동작을 상세 정리한다.
 
@@ -267,7 +267,7 @@ stateDiagram-v2
   - GitHub `/repos/{owner}/{repo}/releases/latest` API 조회
   - `tag_name` 비교로 최신 여부 판단
   - 현재 플랫폼 매칭:
-    - 에셋 이름이 `tmux-llm-yolo_<version>_<os>_<arch>_<variant>.tar.gz` 형식일 때 현재 `GOOS/GOARCH/Variant`에 정합해야 함
+    - 에셋 이름이 `yollo_<version>_<os>_<arch>_<variant>.tar.gz` 형식일 때 현재 `GOOS/GOARCH/Variant`에 정합해야 함
   - 일치 에셋이 있으면 다운로드 후 바이너리 교체 및 현재 프로세스 재시작
   - 최신이 아니면 다음 단계로 진행(업데이트 생략)
 - 지원 형식:

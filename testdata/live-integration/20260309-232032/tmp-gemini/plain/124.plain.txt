@@ -9,7 +9,7 @@
 ░░░            ░░░░░░░░░  ░░░░░░░░░░ ░░░░░     ░░░░░ ░░░░░ ░░░░░    ░░░░░ ░░░░░
 
 
-Logged in with Google: nullcode@gmail.com /auth
+Logged in with Google: redacted@example.com /auth
 Plan: Gemini Code Assist in Google One AI Pro
 Tips for getting started:
 1. Ask questions, edit files, or run commands.

@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/llm"
+	"github.com/dh-kam/yollo/internal/llm"
 )
 
 type sessionTaskPlanner struct {
@@ -57,7 +57,7 @@ func newSessionTaskPlanner(target string, locale string, llmName string, llmMode
 	if err != nil {
 		return nil
 	}
-	baseDir := filepath.Join(home, ".tmux-llx-watcher", "sessions")
+	baseDir := filepath.Join(home, ".yollo", "sessions")
 	path := filepath.Join(baseDir, sanitizeSessionFilename(target)+".json")
 	p := &sessionTaskPlanner{
 		path:     path,

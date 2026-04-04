@@ -50,3 +50,34 @@ func (a *CopilotFrontEndAnalyzer) ClassifyLine(idx int, plain, ansi, position st
 
 	return lineHint{Type: SectionUnknown, Confidence: 0}
 }
+
+// copilotFooterKeyPattern matches "key action" pairs in Copilot footer lines,
+// e.g. "ctrl+s run command", "shift+tab switch mode".
+var copilotFooterKeyPattern = regexp.MustCompile(`(?i)((?:ctrl|shift|alt)\+[a-z0-9]+)\s+([\w][\w ]*[\w])`)
+
+// ParseFooterKeyHints extracts key-action pairs from Copilot footer lines.
+// Input lines are plain-text footer lines (e.g. from FOOTER sections).
+// Returns a map like {"ctrl+s": "run command", "shift+tab": "switch mode"}.
+func ParseFooterKeyHints(footerLines []string) map[string]string {
+	hints := make(map[string]string)
+	for _, line := range footerLines {
+		// Split on common separators (· or │ or multiple spaces)
+		parts := strings.FieldsFunc(line, func(r rune) bool {
+			return r == '·' || r == '│'
+		})
+		for _, part := range parts {
+			part = strings.TrimSpace(part)
+			matches := copilotFooterKeyPattern.FindAllStringSubmatch(part, -1)
+			for _, m := range matches {
+				key := strings.ToLower(strings.TrimSpace(m[1]))
+				action := strings.TrimSpace(m[2])
+				// Skip version info fragments like "v1.0.17 available"
+				if strings.HasPrefix(key, "v") {
+					continue
+				}
+				hints[key] = action
+			}
+		}
+	}
+	return hints
+}

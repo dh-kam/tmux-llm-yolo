@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/tmux"
+	"github.com/dh-kam/yollo/internal/tmux"
 )
 
 func SendContinueMessage(
@@ -26,12 +26,31 @@ func SendContinueMessage(
 		}
 	}
 	if clearBeforeTyping {
+		// Send Escape first to dismiss any autocomplete/command palette,
+		// then wait and send C-u to clear the input line.
+		if err := client.SendKeys(ctx, target, "Escape"); err != nil {
+			return err
+		}
+		if err := waitForDuration(ctx, 120*time.Millisecond); err != nil {
+			return err
+		}
 		if err := client.SendKeys(ctx, target, "C-u"); err != nil {
+			return err
+		}
+		if err := waitForDuration(ctx, 80*time.Millisecond); err != nil {
 			return err
 		}
 	}
 	if err := sendLiteralText(ctx, client, target, message); err != nil {
 		return err
+	}
+	// Allow the TUI to process all typed characters before submitting.
+	// Long messages (especially with multibyte characters) may cause
+	// race conditions if submit is sent immediately.
+	if len(message) > 0 {
+		if err := waitForDuration(ctx, 200*time.Millisecond); err != nil {
+			return err
+		}
 	}
 	if err := client.SendKeys(ctx, target, submitKey); err != nil {
 		return err

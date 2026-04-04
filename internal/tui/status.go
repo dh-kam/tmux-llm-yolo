@@ -9,7 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/dh-kam/tmux-llm-yolo/internal/buildinfo"
+	"github.com/dh-kam/yollo/internal/buildinfo"
 	"github.com/mattn/go-isatty"
 )
 
@@ -37,19 +37,36 @@ type Snapshot struct {
 	LogLines    []string
 }
 
+// InterviewResult mirrors the Runner's interviewResult for decoupling.
+type InterviewResult struct {
+	QuestionID string
+	Answer     string
+	Index      int
+	Skipped    bool
+}
+
 type UI struct {
-	program *tea.Program
+	program      *tea.Program
+	proxySink    chan<- string
+	interviewSink chan<- InterviewResult
 }
 
 type snapshotMsg Snapshot
 type stopMsg struct{}
 type tickMsg time.Time
+type sinkUpdateMsg struct {
+	proxySink     chan<- string
+	interviewSink chan<- InterviewResult
+}
 
 type model struct {
-	snapshot Snapshot
-	now      time.Time
-	width    int
-	height   int
+	snapshot      Snapshot
+	now           time.Time
+	width         int
+	height        int
+	interact      InteractState
+	proxySink     chan<- string
+	interviewSink chan<- InterviewResult
 }
 
 func Start(ctx context.Context) *UI {
@@ -57,8 +74,10 @@ func Start(ctx context.Context) *UI {
 		return nil
 	}
 	m := model{now: time.Now()}
-	p := tea.NewProgram(m, tea.WithOutput(os.Stderr), tea.WithInput(nil), tea.WithAltScreen())
+	p := tea.NewProgram(m, tea.WithOutput(os.Stderr), tea.WithAltScreen())
 	ui := &UI{program: p}
+	// Note: sinks are set after Start via SetProxySink/SetInterviewSink,
+	// and the model gets them via sinkUpdateMsg sent by the program.
 	go func() {
 		_, _ = p.Run()
 	}()
@@ -86,6 +105,48 @@ func (ui *UI) Stop() {
 	ui.program.Send(stopMsg{})
 }
 
+// ShowQuestion sends an interview question to the TUI.
+func (ui *UI) ShowQuestion(q Question) {
+	if ui == nil || ui.program == nil {
+		return
+	}
+	ui.program.Send(ShowQuestionMsg{Question: q})
+}
+
+// ClearInterview removes the current interview question.
+func (ui *UI) ClearInterview() {
+	if ui == nil || ui.program == nil {
+		return
+	}
+	ui.program.Send(ClearInterviewMsg{})
+}
+
+// SetInteractMode switches the interaction panel mode.
+func (ui *UI) SetInteractMode(mode InteractMode) {
+	if ui == nil || ui.program == nil {
+		return
+	}
+	ui.program.Send(SetInteractModeMsg{Mode: mode})
+}
+
+// SetProxySink sets the channel where proxy text submissions are sent.
+func (ui *UI) SetProxySink(ch chan<- string) {
+	if ui == nil || ui.program == nil {
+		return
+	}
+	ui.proxySink = ch
+	ui.program.Send(sinkUpdateMsg{proxySink: ch, interviewSink: ui.interviewSink})
+}
+
+// SetInterviewSink sets the channel where interview results are sent.
+func (ui *UI) SetInterviewSink(ch chan<- InterviewResult) {
+	if ui == nil || ui.program == nil {
+		return
+	}
+	ui.interviewSink = ch
+	ui.program.Send(sinkUpdateMsg{proxySink: ui.proxySink, interviewSink: ch})
+}
+
 func (m model) Init() tea.Cmd {
 	return tickCmd()
 }
@@ -104,9 +165,115 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case stopMsg:
 		return m, tea.Quit
+
+	case ShowQuestionMsg:
+		m.interact.Mode = InteractInterview
+		q := typed.Question
+		m.interact.CurrentQuestion = &q
+		m.interact.ChoiceCursor = 0
+		m.interact.FreeTextBuffer = ""
+		m.interact.FreeTextCursor = 0
+		return m, nil
+	case ClearInterviewMsg:
+		m.interact.CurrentQuestion = nil
+		if m.interact.Mode == InteractInterview {
+			m.interact.Mode = InteractNone
+		}
+		return m, nil
+	case SetInteractModeMsg:
+		m.interact.Mode = typed.Mode
+		return m, nil
+	case sinkUpdateMsg:
+		m.proxySink = typed.proxySink
+		m.interviewSink = typed.interviewSink
+		return m, nil
+
+	case tea.KeyMsg:
+		return m.handleKey(typed)
+
 	default:
 		return m, nil
 	}
+}
+
+func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	key := msg.String()
+
+	// Global shortcuts (work in any mode)
+	switch key {
+	case "ctrl+c":
+		return m, tea.Quit
+	case "tab":
+		// Toggle between proxy and current mode
+		switch m.interact.Mode {
+		case InteractNone:
+			m.interact.Mode = InteractProxy
+		case InteractProxy:
+			if m.interact.CurrentQuestion != nil {
+				m.interact.Mode = InteractInterview
+			} else {
+				m.interact.Mode = InteractNone
+			}
+		case InteractInterview:
+			m.interact.Mode = InteractProxy
+		}
+		return m, nil
+	case "ctrl+q":
+		// Toggle interview mode
+		if m.interact.Mode == InteractInterview {
+			m.interact.Mode = InteractNone
+		} else if m.interact.CurrentQuestion != nil {
+			m.interact.Mode = InteractInterview
+		}
+		return m, nil
+	}
+
+	// Mode-specific handling
+	switch m.interact.Mode {
+	case InteractProxy:
+		var result interface{}
+		m.interact, result = HandleProxyKey(m.interact, key)
+		if result != nil {
+			if submit, ok := result.(ProxySubmitMsg); ok {
+				sink := m.proxySink
+				if sink != nil {
+					go func() { sink <- submit.Text }()
+				}
+			}
+		}
+	case InteractInterview:
+		var result interface{}
+		m.interact, result = HandleInterviewKey(m.interact, key)
+		if result != nil {
+			sink := m.interviewSink
+			switch r := result.(type) {
+			case InterviewAnswerMsg:
+				m.interact.CurrentQuestion = nil
+				m.interact.Mode = InteractNone
+				if sink != nil {
+					go func() {
+						sink <- InterviewResult{
+							QuestionID: r.QuestionID,
+							Answer:     r.Answer,
+							Index:      r.Index,
+						}
+					}()
+				}
+			case InterviewSkipMsg:
+				m.interact.CurrentQuestion = nil
+				m.interact.Mode = InteractNone
+				if sink != nil {
+					go func() {
+						sink <- InterviewResult{
+							QuestionID: r.QuestionID,
+							Skipped:    true,
+						}
+					}()
+				}
+			}
+		}
+	}
+	return m, nil
 }
 
 func (m model) View() string {
@@ -122,7 +289,12 @@ func (m model) View() string {
 	header := renderHeaderBlock(m.snapshot, m.now, width)
 	cards := buildCardsForViewport(m.snapshot, m.now, width, height)
 	grid := renderCardGrid(cards, width)
-	usedHeight := lipgloss.Height(header)
+
+	// Render interaction panel at the bottom
+	interactPanel := RenderInteractPanel(m.interact, width)
+	interactHeight := lipgloss.Height(interactPanel)
+
+	usedHeight := lipgloss.Height(header) + interactHeight
 	if grid != "" {
 		usedHeight += 1 + lipgloss.Height(grid)
 	}
@@ -137,6 +309,7 @@ func (m model) View() string {
 	if logPanel != "" {
 		sections = append(sections, logPanel)
 	}
+	sections = append(sections, interactPanel)
 
 	return fitViewHeight(strings.Join(sections, "\n"), width, height)
 }

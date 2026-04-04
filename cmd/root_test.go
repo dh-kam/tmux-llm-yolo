@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/llm"
-	watchruntime "github.com/dh-kam/tmux-llm-yolo/internal/runtime"
-	"github.com/dh-kam/tmux-llm-yolo/internal/tmux"
-	"github.com/dh-kam/tmux-llm-yolo/internal/tui"
+	"github.com/dh-kam/yollo/internal/llm"
+	watchruntime "github.com/dh-kam/yollo/internal/runtime"
+	"github.com/dh-kam/yollo/internal/tmux"
+	"github.com/dh-kam/yollo/internal/tui"
 	"github.com/spf13/viper"
 )
 

@@ -1,0 +1,58 @@
+    137 +func BenchmarkCacheMixedParallel(b *testing.B) {
+    138 +       const keyCount = 20000
+    139 +       c := New[int](Config{
+    140 +               Shards:     64,
+    141 +               MaxEntries: keyCount,
+    142 +       })
+    143 +       b.Cleanup(c.Close)
+    144 +       keys := make([]string, keyCount)
+    145 +       for i := 0; i < keyCount; i++ {
+    146 +               k := "k" + strconv.Itoa(i)
+    147 +               keys[i] = k
+    148 +               c.Set(k, i, 0)
+    149 +       }
+    150 +
+    151 +       var seq atomic.Uint64
+    152 +       b.ReportAllocs()
+    153 +       b.ResetTimer()
+    154 +       b.RunParallel(func(pb *testing.PB) {
+    155 +               for pb.Next() {
+    156 +                       idx := int(seq.Add(1) % keyCount)
+    157 +                       key := keys[idx]
+    158 +                       if idx%4 == 0 {
+    159 +                               c.Set(key, idx, time.Second)
+    160 +                       } else {
+    161 +                               c.Get(key)
+    162 +                       }
+    163 +               }
+    164 +       })
+    165 +}
+
+─ Worked for 1m 17s ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• 테스트/벤치 파일까지 추가했습니다. 지금 바로 정리(gofmt)와 단위 테스트/벤치 실행을 돌려 컴파일 및 동작을 확인하겠습니
+  다.
+
+✔ You approved codex to run gofmt -w internal/cache/cache.go internal/cache/cache_test.go this time
+
+• Ran gofmt -w internal/cache/cache.go internal/cache/cache_test.go
+  └ (no output)
+
+✔ You approved codex to run go test ./internal/cache -run Test -count=1 this time
+
+• Ran go test ./internal/cache -run Test -count=1
+  └ ok      github.com/dh-kam/yollo/internal/cache    0.163s
+
+
+  Would you like to run the following command?
+
+  Reason: 요청하신 benchmark 테스트 결과를 확인하기 위해 cache 패키지 벤치마크를 실행해도 될까요?
+
+  $ go test ./internal/cache -run ^$ -bench . -benchmem -count=1
+
+› 1. Yes, proceed (y)
+  2. Yes, and don't ask again for commands that start with `go test ./internal/cache -run ^$ -bench . -benchmem
+     -count=1` (p)
+  3. No, and tell Codex what to do differently (esc)
+
+  Press enter to confirm or esc to cancel

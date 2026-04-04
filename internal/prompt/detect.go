@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/i18n"
+	"github.com/dh-kam/yollo/internal/i18n"
 )
 
 type Classification string
@@ -33,18 +33,19 @@ type Analysis struct {
 	Classification    Classification
 	RecommendedChoice string
 	Reason            string
+	FooterKeyHints    map[string]string // Dynamic key hints parsed from footer (e.g. {"ctrl+s": "run command"})
 }
 
 var (
 	promptPlaceholderPattern       = regexp.MustCompile(`(?i)^[[:space:]]*([›❯>]|[#$%])\s*(type|type here|enter|press|input|입력|입력하세요|message|답변|선택|select|질문|명령|command|placeholder|press enter|다음|continue).*`)
 	promptMarkerPattern            = regexp.MustCompile(`^[[:space:]]*([›❯>]|[#$%])\s*$`)
 	numberedMenuPattern            = regexp.MustCompile(`(?m)^[[:space:]]*(?:[›❯>]\s*)?(\d+)[\).]\s+.+$`)
-	selectedNumberedMenuPattern    = regexp.MustCompile(`(?m)^[[:space:]]*[›❯>]\s*(\d+)[\).]\s+.+$`)
+	selectedNumberedMenuPattern    = regexp.MustCompile(`(?m)^[[:space:]]*[›❯>●▸]\s*(\d+)[\).]\s+.+$`)
 	numberedMenuOptionPattern      = regexp.MustCompile(`(?m)^[[:space:]]*(?:[›❯>]\s*)?(\d+)[\).]\s+(.+)$`)
 	cursorMenuPattern              = regexp.MustCompile(`(?m)^[[:space:]]*([•*→]|-\>)\s+.+$`)
 	selectionContextPattern        = regexp.MustCompile(`(?i)(which|choose|select|enter to select|type something|chat about this|do you want to proceed|allow|approve|approved?|permission|bash command|read file|read\(|allow reading|during this session|don.?t ask again|yes[, ]|no[, ]|어떤 .*작업|어떤 .*개선|무엇을 할까요|선택지|선택하세요|선택 항목|선택할)`)
-	approvalPromptPattern          = regexp.MustCompile(`(?i)(do you want to proceed|bash command|read file|read\(|allow reading|during this session|allow|approve|permission|don.?t ask again|esc to cancel|tab to amend)`)
-	approvalPersistentAllowPattern = regexp.MustCompile(`(?i)(don.?t ask again|always allow|remember (?:this )?(?:choice|decision)|allow this command(?: pattern)?|approve and remember|allow .* during this session|yes,? and don.?t ask again)`)
+	approvalPromptPattern          = regexp.MustCompile(`(?i)(do you want to proceed|bash command|read file|read\(|allow reading|during this session|allow|approve|permission|don.?t ask again|esc to cancel|tab to amend|action required|allow execution|allow once)`)
+	approvalPersistentAllowPattern = regexp.MustCompile(`(?i)(don.?t ask again|always allow|remember (?:this )?(?:choice|decision)|allow this command(?: pattern)?|approve and remember|allow.*(?:during|for) this session|yes,? and don.?t ask again)`)
 	approvalAllowPattern           = regexp.MustCompile(`(?i)^(yes|allow|approve|proceed|run|continue)\b`)
 	approvalRejectPattern          = regexp.MustCompile(`(?i)^(no|deny|reject|cancel)\b`)
 	freeTextPattern                = regexp.MustCompile(`(?i)(enter|input|type|reply|respond|what should|provide|입력|답변|응답|작성)`)
@@ -104,14 +105,33 @@ func collectPromptText(promptLine int, plainLines []string, paneWidth int) strin
 		return ""
 	}
 	parts := []string{strings.TrimSpace(line)}
-	if selectedNumberedMenuPattern.MatchString(parts[0]) {
-		for i := promptLine + 1; i < len(plainLines) && len(parts) < 5; i++ {
+	strippedFirst := stripBoxDrawingChars(parts[0])
+	if selectedNumberedMenuPattern.MatchString(parts[0]) || selectedNumberedMenuPattern.MatchString(strippedFirst) {
+		// Collect the approval context: scan backward for the box header (╭ or "Action Required")
+		for j := promptLine - 1; j >= max(0, promptLine-8); j-- {
+			prev := normalizeSpaces(strings.TrimRight(plainLines[j], " "))
+			trimmedPrev := strings.TrimSpace(prev)
+			if trimmedPrev == "" {
+				continue
+			}
+			parts = append([]string{trimmedPrev}, parts...)
+			if strings.Contains(trimmedPrev, "╭") || strings.Contains(trimmedPrev, "Action Required") {
+				break
+			}
+		}
+		// Collect forward: remaining menu options
+		for i := promptLine + 1; i < len(plainLines) && len(parts) < 12; i++ {
 			next := normalizeSpaces(strings.TrimRight(plainLines[i], " "))
 			trimmed := strings.TrimSpace(next)
 			if trimmed == "" {
 				break
 			}
-			if !looksLikeMenuContinuation(trimmed) {
+			stripped := stripBoxDrawingChars(trimmed)
+			if !looksLikeMenuContinuation(trimmed) && !looksLikeMenuContinuation(stripped) {
+				// Still include box closing lines (╰)
+				if strings.Contains(trimmed, "╰") || strings.Contains(trimmed, "└") {
+					parts = append(parts, trimmed)
+				}
 				break
 			}
 			parts = append(parts, trimmed)
@@ -150,10 +170,16 @@ func looksLikeMenuContinuation(value string) bool {
 	if numberedMenuPattern.MatchString(trimmed) {
 		return true
 	}
+	// Also check after stripping box-drawing chars for Gemini-style boxes
+	stripped := stripBoxDrawingChars(trimmed)
+	if numberedMenuPattern.MatchString(stripped) {
+		return true
+	}
 	lower := strings.ToLower(trimmed)
 	return strings.Contains(lower, "esc to cancel") ||
 		strings.Contains(lower, "tab to amend") ||
-		strings.Contains(lower, "enter to select")
+		strings.Contains(lower, "enter to select") ||
+		strings.Contains(lower, "suggest changes")
 }
 
 func startsPromptBlock(value string) bool {
@@ -249,13 +275,26 @@ func classifyForLocale(analysis Analysis, locale string) (Classification, string
 		return ClassUnknownWaiting, "", i18n.T(locale, "prompt.reason_insufficient_text")
 	}
 
-	if approvalPromptPattern.MatchString(combined) && selectedNumberedMenuPattern.MatchString(strings.Join([]string{block, promptText}, "\n")) {
+	// Check for approval prompts: also strip box-drawing chars for Gemini-style boxes
+	rawJoined := strings.Join([]string{block, promptText}, "\n")
+	strippedJoined := stripBoxDrawingChars(rawJoined)
+	strippedCombined := stripBoxDrawingChars(combined)
+	if (approvalPromptPattern.MatchString(combined) || approvalPromptPattern.MatchString(strippedCombined)) &&
+		(selectedNumberedMenuPattern.MatchString(rawJoined) || selectedNumberedMenuPattern.MatchString(strippedJoined)) {
 		// Codex uses text-based number input for approval prompts, not cursor navigation.
 		// Sending arrow keys to codex adds newlines to the input area instead of navigating.
 		if analysis.Provider == "codex" {
-			return ClassNumberedMultipleChoice, preferredApprovalChoice(combined), i18n.T(locale, "prompt.reason_numbered_choice")
+			approvalText := combined
+			if !approvalPromptPattern.MatchString(combined) {
+				approvalText = strippedCombined
+			}
+			return ClassNumberedMultipleChoice, preferredApprovalChoice(approvalText), i18n.T(locale, "prompt.reason_numbered_choice")
 		}
-		return ClassCursorBasedChoice, preferredApprovalChoice(combined), i18n.T(locale, "prompt.reason_cursor_menu_approval")
+		approvalText := combined
+		if !approvalPromptPattern.MatchString(combined) {
+			approvalText = strippedCombined
+		}
+		return ClassCursorBasedChoice, preferredApprovalChoice(approvalText), i18n.T(locale, "prompt.reason_cursor_menu_approval")
 	}
 
 	if matches := numberedMenuPattern.FindAllStringSubmatch(strings.Join([]string{block, promptText}, "\n"), -1); len(matches) > 0 && selectionContextPattern.MatchString(combined) {
@@ -316,28 +355,36 @@ func hasInteractivePrompt(analysis Analysis) bool {
 }
 
 func preferredApprovalChoice(combined string) string {
-	if options := numberedMenuOptionPattern.FindAllStringSubmatch(combined, -1); len(options) > 0 {
-		for _, option := range options {
-			if len(option) < 3 {
-				continue
+	// Also try with box-drawing chars stripped for Gemini-style boxes
+	candidates := []string{combined, stripBoxDrawingChars(combined)}
+	for _, text := range candidates {
+		if options := numberedMenuOptionPattern.FindAllStringSubmatch(text, -1); len(options) > 0 {
+			// First priority: persistent allow (e.g., "Allow for this session")
+			for _, option := range options {
+				if len(option) < 3 {
+					continue
+				}
+				label := strings.TrimSpace(option[2])
+				if approvalPersistentAllowPattern.MatchString(label) {
+					return strings.TrimSpace(option[1])
+				}
 			}
-			label := strings.TrimSpace(option[2])
-			if approvalPersistentAllowPattern.MatchString(label) {
-				return strings.TrimSpace(option[1])
-			}
-		}
-		for _, option := range options {
-			if len(option) < 3 {
-				continue
-			}
-			label := strings.TrimSpace(option[2])
-			if approvalAllowPattern.MatchString(label) && !approvalRejectPattern.MatchString(label) {
-				return strings.TrimSpace(option[1])
+			// Second priority: any allow option
+			for _, option := range options {
+				if len(option) < 3 {
+					continue
+				}
+				label := strings.TrimSpace(option[2])
+				if approvalAllowPattern.MatchString(label) && !approvalRejectPattern.MatchString(label) {
+					return strings.TrimSpace(option[1])
+				}
 			}
 		}
 	}
-	if matches := selectedNumberedMenuPattern.FindStringSubmatch(combined); len(matches) > 1 {
-		return strings.TrimSpace(matches[1])
+	for _, text := range candidates {
+		if matches := selectedNumberedMenuPattern.FindStringSubmatch(text); len(matches) > 1 {
+			return strings.TrimSpace(matches[1])
+		}
 	}
 	return "1"
 }
@@ -368,7 +415,15 @@ func normalizePromptZoneLine(line string) string {
 
 func isProcessing(analysis Analysis, plainLines []string) bool {
 	combined := strings.TrimSpace(strings.Join([]string{analysis.OutputBlock, analysis.PromptText}, "\n"))
-	if selectionContextPattern.MatchString(combined) && numberedMenuPattern.MatchString(strings.Join([]string{analysis.OutputBlock, analysis.PromptText}, "\n")) {
+	rawJoined := strings.Join([]string{analysis.OutputBlock, analysis.PromptText}, "\n")
+	if selectionContextPattern.MatchString(combined) && numberedMenuPattern.MatchString(rawJoined) {
+		return false
+	}
+	// Approval dialogs (cursor choice menus in the prompt zone) are not processing indicators.
+	// Only check the prompt text + output block, NOT the full screen, to avoid false positives
+	// from tool output that happens to contain selection-like words.
+	strippedPromptZone := stripBoxDrawingChars(combined)
+	if approvalPromptPattern.MatchString(strippedPromptZone) && numberedMenuPattern.MatchString(stripBoxDrawingChars(rawJoined)) {
 		return false
 	}
 	if strongProcessingPattern.MatchString(strings.ToLower(combined)) {

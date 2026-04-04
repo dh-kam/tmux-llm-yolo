@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/i18n"
-	"github.com/dh-kam/tmux-llm-yolo/internal/tmux"
+	"github.com/dh-kam/yollo/internal/i18n"
+	"github.com/dh-kam/yollo/internal/tmux"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"golang.org/x/oauth2"

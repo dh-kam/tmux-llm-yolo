@@ -100,6 +100,14 @@ func (interactivePromptExpert) Apply(ctx *analysisContext, analysis *Analysis) {
 	analysis.InteractivePrompt = hasInteractivePrompt(*analysis)
 }
 
+type footerKeyHintExpert struct{}
+
+func (footerKeyHintExpert) Name() string { return "footer_key_hints" }
+
+func (footerKeyHintExpert) Apply(ctx *analysisContext, analysis *Analysis) {
+	analysis.FooterKeyHints = extractFooterKeyHints(ctx.plainLines)
+}
+
 func defaultAnalysisExperts() []analysisExpert {
 	return []analysisExpert{
 		providerExpert{},
@@ -110,5 +118,6 @@ func defaultAnalysisExperts() []analysisExpert {
 		processingExpert{},
 		classificationExpert{},
 		interactivePromptExpert{},
+		footerKeyHintExpert{},
 	}
 }

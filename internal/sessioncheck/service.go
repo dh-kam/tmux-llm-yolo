@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/capture"
-	"github.com/dh-kam/tmux-llm-yolo/internal/i18n"
-	"github.com/dh-kam/tmux-llm-yolo/internal/llm"
-	"github.com/dh-kam/tmux-llm-yolo/internal/tmux"
+	"github.com/dh-kam/yollo/internal/capture"
+	"github.com/dh-kam/yollo/internal/i18n"
+	"github.com/dh-kam/yollo/internal/llm"
+	"github.com/dh-kam/yollo/internal/tmux"
 )
 
 type Decision struct {

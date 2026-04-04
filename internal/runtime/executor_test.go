@@ -16,8 +16,8 @@ func TestResolveExecutorProfileForCopilotOverridesSubmitKeys(t *testing.T) {
 	if profile.provider != "copilot" {
 		t.Fatalf("provider=%q want copilot", profile.provider)
 	}
-	if profile.submitKey != "C-s" {
-		t.Fatalf("submitKey=%q want C-s", profile.submitKey)
+	if profile.submitKey != "C-m" {
+		t.Fatalf("submitKey=%q want C-m", profile.submitKey)
 	}
 	if profile.fallbackSubmitKey != "" {
 		t.Fatalf("fallbackSubmitKey=%q want empty", profile.fallbackSubmitKey)
@@ -170,5 +170,48 @@ func TestIsPromptClearedWithoutMenuTransitionIgnoresRealMenuContext(t *testing.T
 	}, "\n")
 	if isPromptClearedWithoutMenuTransition(before, after) {
 		t.Fatalf("isPromptClearedWithoutMenuTransition=true want false")
+	}
+}
+
+func TestFooterKeyToTmux(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"ctrl+s", "C-s"},
+		{"ctrl+q", "C-q"},
+		{"alt+x", "M-x"},
+		{"shift+tab", ""},
+		{"unknown+a", ""},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		got := footerKeyToTmux(tt.input)
+		if got != tt.want {
+			t.Errorf("footerKeyToTmux(%q)=%q want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestFooterSubmitKeyCandidate(t *testing.T) {
+	p := &executorProfile{}
+	p.ApplyFooterKeyHints(map[string]string{
+		"ctrl+s":    "run command",
+		"shift+tab": "switch mode",
+	})
+	got := p.FooterSubmitKeyCandidate()
+	if got != "C-s" {
+		t.Fatalf("FooterSubmitKeyCandidate()=%q want C-s", got)
+	}
+}
+
+func TestFooterSubmitKeyCandidateEmpty(t *testing.T) {
+	p := &executorProfile{}
+	p.ApplyFooterKeyHints(map[string]string{
+		"shift+tab": "switch mode",
+	})
+	got := p.FooterSubmitKeyCandidate()
+	if got != "" {
+		t.Fatalf("FooterSubmitKeyCandidate()=%q want empty", got)
 	}
 }

@@ -3,8 +3,8 @@ package runtime
 import (
 	"strings"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/interaction"
-	"github.com/dh-kam/tmux-llm-yolo/internal/prompt"
+	"github.com/dh-kam/yollo/internal/interaction"
+	"github.com/dh-kam/yollo/internal/prompt"
 )
 
 func deterministicRequirementFromAnalysis(analysis prompt.Analysis, locale string) (interaction.Requirement, bool) {
@@ -105,6 +105,39 @@ func deterministicActionPlan(analysis prompt.Analysis, fallbackReason string, lo
 	return plan, len(plan.Steps) > 0
 }
 
+// applyApprovalPolicy checks if the choice is for an approval prompt and
+// adjusts the option based on the approval policy (first N → option 1, then → option 2).
+func (r *Runner) applyApprovalPolicy(value string, context string) string {
+	if r.approvalPolicy == nil {
+		return value
+	}
+	// Only apply to approval-like contexts (contain "approve", "allow", "proceed", etc.)
+	if !isApprovalContext(context) {
+		return value
+	}
+	choice := r.approvalPolicy.Decide(context)
+	r.logger("approval policy: option %d for %q (%s)", choice.Option, extractApprovalKey(context), choice.Reason)
+	return itoa(choice.Option)
+}
+
+// isApprovalContext detects if the choice context is an approval/permission prompt.
+func isApprovalContext(context string) bool {
+	lower := strings.ToLower(context)
+	markers := []string{
+		"approve", "allow", "proceed", "confirm",
+		"yes, and don't ask", "yes, proceed",
+		"allow once", "allow for this session",
+		"press enter to confirm",
+		"would you like to run",
+	}
+	for _, m := range markers {
+		if strings.Contains(lower, m) {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *Runner) executeActionPlan(plan interaction.ActionPlan, once bool) error {
 	if len(plan.Steps) == 0 {
 		return nil
@@ -129,15 +162,17 @@ func (r *Runner) executeActionPlan(plan interaction.ActionPlan, once bool) error
 		}
 		return r.injectContinue(step.Reason)
 	case interaction.ActionChoice:
+		value := r.applyApprovalPolicy(step.Value, plan.Requirement.Context)
 		if once {
-			return r.injectChoiceOnce(step.Value, step.Reason)
+			return r.injectChoiceOnce(value, step.Reason)
 		}
-		return r.injectChoice(step.Value, step.Reason)
+		return r.injectChoice(value, step.Reason)
 	case interaction.ActionCursorChoice:
+		value := r.applyApprovalPolicy(step.Value, plan.Requirement.Context)
 		if once {
-			return r.injectCursorChoiceOnce(step.Value, step.Reason)
+			return r.injectCursorChoiceOnce(value, step.Reason)
 		}
-		return r.injectCursorChoice(step.Value, step.Reason)
+		return r.injectCursorChoice(value, step.Reason)
 	default:
 		if once {
 			return r.injectContinueOnce(step.Reason)

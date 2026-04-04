@@ -15,16 +15,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dh-kam/tmux-llm-yolo/internal/buildinfo"
-	"github.com/dh-kam/tmux-llm-yolo/internal/capture"
-	"github.com/dh-kam/tmux-llm-yolo/internal/i18n"
-	"github.com/dh-kam/tmux-llm-yolo/internal/llm"
-	"github.com/dh-kam/tmux-llm-yolo/internal/policy"
-	watchruntime "github.com/dh-kam/tmux-llm-yolo/internal/runtime"
-	sessioncheck "github.com/dh-kam/tmux-llm-yolo/internal/sessioncheck"
-	"github.com/dh-kam/tmux-llm-yolo/internal/tmux"
-	"github.com/dh-kam/tmux-llm-yolo/internal/tui"
-	"github.com/dh-kam/tmux-llm-yolo/internal/updater"
+	"github.com/dh-kam/yollo/internal/buildinfo"
+	"github.com/dh-kam/yollo/internal/capture"
+	"github.com/dh-kam/yollo/internal/i18n"
+	"github.com/dh-kam/yollo/internal/llm"
+	"github.com/dh-kam/yollo/internal/policy"
+	watchruntime "github.com/dh-kam/yollo/internal/runtime"
+	sessioncheck "github.com/dh-kam/yollo/internal/sessioncheck"
+	"github.com/dh-kam/yollo/internal/tmux"
+	"github.com/dh-kam/yollo/internal/tui"
+	"github.com/dh-kam/yollo/internal/updater"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -213,7 +213,7 @@ func init() {
 	rootCmd.PersistentFlags().String("submit-key-fallback-delay", "0.15", "fallback submit key delay in seconds")
 	rootCmd.PersistentFlags().Bool("disable-auto-update", false, "disable automatic github release self-update before running")
 	rootCmd.PersistentFlags().String("github-token", "", "github token for auto-update API requests")
-	rootCmd.PersistentFlags().String("github-repo", "dh-kam/tmux-llm-yolo", "github repo for auto-update (owner/name)")
+	rootCmd.PersistentFlags().String("github-repo", "dh-kam/yollo", "github repo for auto-update (owner/name)")
 	rootCmd.PersistentFlags().Int("auto-update-retry-count", 2, "number of retry attempts for github update requests")
 	rootCmd.PersistentFlags().String("auto-update-retry-delay", "0.5", "base retry delay in seconds for github update requests")
 	rootCmd.PersistentFlags().Bool("auto-update-require-checksum", false, "require downloaded release artifact checksum verification")
@@ -271,7 +271,7 @@ func init() {
 	viper.SetDefault("submit-key-fallback-delay", "0.15")
 	viper.SetDefault("disable-auto-update", false)
 	viper.SetDefault("github-token", "")
-	viper.SetDefault("github-repo", "dh-kam/tmux-llm-yolo")
+	viper.SetDefault("github-repo", "dh-kam/yollo")
 	viper.SetDefault("auto-update-retry-count", 2)
 	viper.SetDefault("auto-update-retry-delay", "0.5")
 	viper.SetDefault("auto-update-require-checksum", false)
@@ -718,7 +718,7 @@ func loadConfig(args []string) (watchConfig, error) {
 	autoUpdate := !autoUpdateDisabled
 	autoUpdateRepo := strings.TrimSpace(firstNonEmpty(os.Getenv("GITHUB_REPO"), viper.GetString("github-repo")))
 	if autoUpdateRepo == "" {
-		autoUpdateRepo = "dh-kam/tmux-llm-yolo"
+		autoUpdateRepo = "dh-kam/yollo"
 	}
 	autoUpdateToken := firstNonEmpty(os.Getenv("GITHUB_TOKEN"), strings.TrimSpace(viper.GetString("github-token")))
 	autoUpdateRetryCount := intFromEnv("AUTO_UPDATE_RETRY_COUNT", viper.GetInt("auto-update-retry-count"))

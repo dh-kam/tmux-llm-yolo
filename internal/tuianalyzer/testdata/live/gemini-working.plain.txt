@@ -1,0 +1,58 @@
+  Sliding Window. The user wants to add a Distributed Rate Limiting strategy, implemented in-memory. Since "distributed"
+  usually implies multiple nodes, I'll implement a shared in-memory store to simulate this. I also need to check
+  ratelimiter.go for the RateLimitAlgorithm type definition and add RateLimitAlgorithmDistributed.
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ✓  ReadFile ratelimiter.go                                                                                        │
+│                                                                                                                   │
+│ Read lines 1-100 of 468 from ratelimiter.go                                                                       │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+✦ Searching ratelimiter.go for RateLimitAlgorithm to find its definition.
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ✓  SearchText 'RateLimitAlgorithm' within ./                                                                      │
+│                                                                                                                   │
+│ Error: Process exited with code 2: /home/dh.kam/.gemini/tmp/bin/rg: 1: ELF: not found                             │
+│ /home/dh.kam/.gemini/tmp/bin/rg: 2: Syntax error: word unexpected (expecting ")")                                 │
+│                                                                                                                   │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+✦ I'll read the end of ratelimiter.go to find the definition of RateLimitAlgorithm since rg is unavailable.
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ✓  ReadFile ratelimiter.go                                                                                        │
+│                                                                                                                   │
+│ Read lines 400-468 of 468 from ratelimiter.go                                                                     │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+✦ RateLimitAlgorithm is used in middleware.go but not defined there or in ratelimiter.go. I'll check app.go or main.go
+  for its definition.
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ✓  ReadFile app.go                                                                                                │
+│                                                                                                                   │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+✦ Checking main.go.
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ✓  ReadFile main.go                                                                                               │
+│                                                                                                                   │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+ℹ ⚠️   Response stopped due to unexpected tool call.
+✦ I can't find the definition, so I'll search all .go files for type definitions to locate it.
+✦ I'll retry grep_search with a simpler pattern, since run_shell_command is unavailable and rg failed previously.
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ✓  SearchText 'type RateLimitAlgorithm' within ./                                                                 │
+│                                                                                                                   │
+│ Error: Process exited with code 2: /home/dh.kam/.gemini/tmp/bin/rg: 1: ELF: not found                             │
+│ /home/dh.kam/.gemini/tmp/bin/rg: 2: Syntax error: word unexpected (expecting ")")                                 │
+│                                                                                                                   │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+✦ rg is broken, so I'll use read_file to re-examine config.go, app.go, and handlers.go. I'll start with config.go.
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ✓  ReadFile config.go                                                                                             │
+│                                                                                                                   │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+ ⠙ Thinking... Detailing the Fixed Window (esc to cancel, 41s)
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ plan Shift+Tab to manual
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ >   Type your message or @path/to/file
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ workspace (/directory)                                      sandbox                                              /model
+ /workspace/sample-project                                   no sandbox                                  Auto (Gemini 3)
+

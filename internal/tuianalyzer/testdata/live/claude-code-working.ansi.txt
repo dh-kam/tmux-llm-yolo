@@ -1,0 +1,58 @@
+     === RUN   TestLRUCacheTTL
+     [2m…[0m [2m+34[0m [2mlines[0m [2m(ctrl+o[0m [2mto[0m [2mexpand)[0m
+
+[38;5;231m●[39m All 20 KV store tests pass. Here's a summary of what was implemented:
+
+  [1mFiles[0m [1mcreated:[0m
+  - [38;5;153mkvstore.go[39m - LRU cache with TTL and file persistence
+  - [38;5;153mkvstore_handlers.go[39m - HTTP handlers for the key-value store
+  - [38;5;153mkvstore_test.go[39m - Comprehensive tests
+
+  [1mFeatures:[0m
+  1. [1mGET/PUT/DELETE[0m - Standard CRUD operations via HTTP
+  2. [1mTTL-based[0m [1mexpiration[0m - Duration strings like "10s", "5m", "1h"
+  3. [1mLRU[0m [1meviction[0m - Automatically evicts least recently used items when at capacity
+  4. [1mFile-based[0m [1mpersistence[0m - JSON file with atomic writes via temp file + rename
+  5. [1mBatch[0m [1moperations[0m - [38;5;153m_batch[39m and [38;5;153m_batch/get[39m endpoints for bulk operations
+  6. [1mCleanup[0m [1mendpoint[0m - Manual trigger to remove expired items
+
+  [1mAPI[0m [1mEndpoints:[0m
+
+  ┌──────────┬────────────────┬─────────────────────────────────────┐
+  │  Method  │      Path      │             Description             │
+  ├──────────┼────────────────┼─────────────────────────────────────┤
+  │ GET      │ [38;5;153m/kv/{key}[39m      │ Get value                           │
+  ├──────────┼────────────────┼─────────────────────────────────────┤
+  │ PUT/POST │ [38;5;153m/kv/{key}[39m      │ Set value (JSON body: [38;5;153m{value,[39m [38;5;153mttl}[39m) │
+  ├──────────┼────────────────┼─────────────────────────────────────┤
+  │ DELETE   │ [38;5;153m/kv/{key}[39m      │ Delete key                          │
+  ├──────────┼────────────────┼─────────────────────────────────────┤
+  │ GET      │ [38;5;153m/kv/_keys[39m      │ List all keys                       │
+  ├──────────┼────────────────┼─────────────────────────────────────┤
+  │ POST     │ [38;5;153m/kv/_cleanup[39m   │ Remove expired items                │
+  ├──────────┼────────────────┼─────────────────────────────────────┤
+  │ GET      │ [38;5;153m/kv/_stats[39m     │ Store statistics                    │
+  ├──────────┼────────────────┼─────────────────────────────────────┤
+  │ POST     │ [38;5;153m/kv/_batch[39m     │ Batch set                           │
+  ├──────────┼────────────────┼─────────────────────────────────────┤
+  │ POST/GET │ [38;5;153m/kv/_batch/get[39m │ Batch get                           │
+  └──────────┴────────────────┴─────────────────────────────────────┘
+
+  [1mUsage example:[0m
+  store := NewKVStore([32m1000[39m, [31m"/data/kvstore.json"[39m)
+  mux.Handle([31m"/kv/"[39m, http.StripPrefix([31m"/kv"[39m, store.KVStoreHandler()))
+
+[38;5;246m✻[39m [38;5;246mBrewed for 4m 14s[39m
+
+  [1m[38;5;246m5[0m[38;5;246m tasks ([1m4[0m[38;5;246m done, [1m1[0m[38;5;246m in progress, [1m0[0m[38;5;246m open)[39m
+  [38;5;75m✔ [9m[38;5;246mCreate API versioning types and configuration[0m
+  [38;5;75m✔ [9m[38;5;246mImplement version detection middleware[0m
+  [38;5;75m✔ [9m[38;5;246mImplement versioned router with fallback support[0m
+  [38;5;75m✔ [9m[38;5;246mAdd versioned handlers and routes[0m
+  [38;5;215m◼ [1m[39mAdd comprehensive versioning tests[0m
+
+[38;5;244m─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[39m❯ [7m [0m
+[38;5;244m─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[39m  [38;5;147m⏵⏵[39m [38;5;147maccept[39m [38;5;147medits[39m [38;5;147mon[38;5;246m (shift+tab[39m [38;5;246mto[39m [38;5;246mcycle)[39m [38;5;246m·[39m [38;5;246mctrl+t[39m [38;5;246mto[39m [38;5;246mhide[39m [38;5;246mtasks[39m
+
